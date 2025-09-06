@@ -5,7 +5,7 @@ celery-sqlalchemy-scheduler==0.3.0
 redis>=5,<7
 psycopg[binary]==3.2.9
 SQLAlchemy==2.0.43
-alembic==1.16.4
+alembic==1.16.5
 pydantic==2.11.7
 pydantic-settings==2.10.1
 httpx==0.28.1
