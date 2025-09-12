@@ -25,10 +25,10 @@ To get a working stack, run:
 docker compose up
 ```
 
-If you want to develop locally, you can use the override file:
+For local development use the setup script. It launches a mock Mastodon server unless `.env.local` is present.
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.override.yml up
+./scripts/setup-dev.sh
 ```
 
 ## Configuration
