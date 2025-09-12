@@ -1,0 +1,11 @@
+branches:
+  main:
+    required_status_checks:
+      - lint
+      - typecheck
+      - docker-build
+      - security-scan
+      - integration-tests
+      - migration-verification
+      - full-system
+      - performance

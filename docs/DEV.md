@@ -194,8 +194,14 @@ tests/                 # Comprehensive test suite
 ├── test_api.py        # API endpoint tests
 └── test_config.py     # Configuration tests
 
-.github/workflows/     # CI/CD pipeline
-└── python-ci.yml      # Automated testing and static analysis
+.github/               # Repository configuration
+├── branch-protection.yml      # Required status checks
+└── workflows/                 # CI/CD pipeline
+    ├── pr-fast-checks.yml     # Linting, type checks, build verification
+    ├── pr-integration.yml     # Mock stack for endpoint and migration tests
+    ├── pr-full-system.yml     # Full environment with sample data and end-to-end tests
+    ├── python-ci.yml          # Automated testing and static analysis
+    └── update-mastodon-api.yml # Mastodon API client updates
 
 .env                   # Environment variables (copy from .env.example)
 ```
