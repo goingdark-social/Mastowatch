@@ -27,6 +27,12 @@ MastoWatch now includes comprehensive production-readiness features:
 ## Quick Start
 
 ```bash
+./scripts/setup-dev.sh
+```
+
+The script starts a stack with a mock Mastodon server using `.env.development`. Add real credentials in `.env.local` to bypass the mock. Secrets that are still missing are written to `.env.generated`.
+
+```bash
 docker compose -f docker-compose.yml -f docker-compose.override.yml up
 ```
 

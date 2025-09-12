@@ -16,3 +16,4 @@ celerybeat-schedule
 venv/**
 .**
 *.db
+!.env.development

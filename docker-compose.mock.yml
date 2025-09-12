@@ -1,0 +1,15 @@
+services:
+  mock-mastodon:
+    image: mockserver/mockserver:5.15.0
+    ports:
+      - "1080:1080"
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/init.json
+    volumes:
+      - ./dev-tools/mock-mastodon/mock-responses.json:/config/init.json:ro
+  api:
+    environment:
+      INSTANCE_BASE: http://mock-mastodon:1080
+    depends_on:
+      mock-mastodon:
+        condition: service_started

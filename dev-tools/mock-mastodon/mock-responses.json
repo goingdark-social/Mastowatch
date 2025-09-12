@@ -1,0 +1,28 @@
+[
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/api/v1/instance"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": "{\"uri\":\"mock.instance\",\"title\":\"Mock Mastodon\"}",
+      "headers": {
+        "Content-Type": ["application/json"]
+      }
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/api/v1/accounts/verify_credentials"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": "{\"id\":\"1\",\"username\":\"tester\",\"acct\":\"tester\",\"display_name\":\"Tester\"}",
+      "headers": {
+        "Content-Type": ["application/json"]
+      }
+    }
+  }
+]

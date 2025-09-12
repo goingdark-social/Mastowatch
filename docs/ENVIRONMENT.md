@@ -110,6 +110,8 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 ### Development Deployment
 
+`scripts/setup-dev.sh` uses `.env.development` and a mock Mastodon server when no `.env.local` exists.
+
 The `docker-compose.override.yml` provides safe defaults for development:
 
 ```bash
