@@ -33,6 +33,8 @@ These variables must be set for MastoWatch to function properly:
 | `API_KEY` | Secure API key for programmatic access | Generate with: `openssl rand -base64 32` |
 | `WEBHOOK_SECRET` | Secret for validating incoming webhooks | Generate with: `openssl rand -base64 32` |
 
+Session cookies are secure and use `SameSite=strict` when `INSTANCE_BASE` starts with `https`. Local development with `http` keeps them lax and non-secure so the dashboard still works.
+
 ## Optional Environment Variables
 
 ### Safety Controls
