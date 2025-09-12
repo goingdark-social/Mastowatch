@@ -1,3 +1,5 @@
+"""OAuth authentication utilities."""
+
 import logging
 from typing import Any
 
@@ -8,9 +10,11 @@ try:
 except ImportError:
     AUTHLIB_AVAILABLE = False
 
-    # Create a dummy OAuth class for testing environments
     class OAuth:
+        """Minimal stand-in for authlib's OAuth during tests."""
+
         def register(self, **kwargs):
+            """No-op placeholder."""
             pass
 
 
@@ -24,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 
 class User(BaseModel):
+    """Authenticated user information."""
+
     id: str
     username: str
     acct: str
@@ -33,24 +39,35 @@ class User(BaseModel):
 
 
 class OAuthConfig:
+    """Handle OAuth setup and session token management."""
+
     def __init__(self, settings):
         self.settings = settings
 
         if not AUTHLIB_AVAILABLE:
-            logger.warning("authlib not available - OAuth admin features will be unavailable")
+            logger.warning(
+                "authlib not available - OAuth admin features will be unavailable"
+            )
             self.configured = False
             return
 
         self.oauth = OAuth()
 
-        if not all([settings.OAUTH_CLIENT_ID, settings.OAUTH_CLIENT_SECRET, settings.SESSION_SECRET_KEY]):
-            logger.warning("OAuth not fully configured - admin features will be unavailable")
+        if not all(
+            [
+                settings.OAUTH_CLIENT_ID,
+                settings.OAUTH_CLIENT_SECRET,
+                settings.SESSION_SECRET_KEY,
+            ]
+        ):
+            logger.warning(
+                "OAuth not fully configured - admin features will be unavailable"
+            )
             self.configured = False
             return
 
         self.configured = True
 
-        # Register Mastodon OAuth client
         self.oauth.register(
             name="mastodon",
             client_id=settings.OAUTH_CLIENT_ID,
@@ -60,7 +77,6 @@ class OAuthConfig:
             client_kwargs={"scope": settings.OAUTH_SCOPE},
         )
 
-        # Session serializer for secure cookies
         self.serializer = URLSafeTimedSerializer(settings.SESSION_SECRET_KEY)
 
     def create_session_token(self, user_data: dict[str, Any]) -> str:
@@ -76,9 +92,14 @@ class OAuthConfig:
             return self.serializer.loads(token, max_age=max_age)
         except (BadSignature, SignatureExpired) as e:
             logger.debug(f"Invalid session token: {e}")
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired session",
+            ) from e
 
     async def fetch_user_info(self, access_token: str) -> User | None:
+        """Return user info from the Mastodon API."""
+
         try:
             client = MastoClient(access_token)
             data = await client.verify_credentials()
@@ -111,7 +132,7 @@ _oauth_config: OAuthConfig | None = None
 
 
 def get_oauth_config() -> OAuthConfig:
-    """Get the global OAuth configuration"""
+    """Get the global OAuth configuration."""
     global _oauth_config
     if _oauth_config is None:
         _oauth_config = OAuthConfig(get_settings())
@@ -120,19 +141,16 @@ def get_oauth_config() -> OAuthConfig:
 
 def get_current_user(
     request: Request,
-    session_cookie: str | None = Cookie(None, alias=None),  # Will be dynamically set
+    session_cookie: str | None = Cookie(None, alias=None),
 ) -> User | None:
-    """Get current user from session cookie"""
+    """Return the user from the session cookie."""
     oauth_config = get_oauth_config()
 
     if not oauth_config.configured:
         return None
 
-    # Get cookie name from settings
     settings = get_settings()
     cookie_name = settings.SESSION_COOKIE_NAME
-
-    # Extract session token from cookie
     session_token = request.cookies.get(cookie_name)
 
     if not session_token:
@@ -145,72 +163,78 @@ def get_current_user(
         return None
 
 
-def require_admin(current_user: User | None = Depends(get_current_user)) -> User:
-    """Dependency that requires an authenticated admin user"""
-    if not current_user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+current_user_dep = Depends(get_current_user)
 
+
+def require_admin(current_user: User | None = current_user_dep) -> User:
+    """Require an authenticated admin user."""
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
     if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
     return current_user
 
 
-def require_authenticated(current_user: User | None = Depends(get_current_user)) -> User:
-    """Dependency that requires any authenticated user"""
+def require_authenticated(current_user: User | None = current_user_dep) -> User:
+    """Require any authenticated user."""
     if not current_user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
-
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
     return current_user
 
 
-def require_admin_hybrid(current_user: User | None = Depends(get_current_user)) -> User:
-    """Dependency that requires an authenticated admin user (hybrid OAuth/API key)."""
+def require_admin_hybrid(current_user: User | None = current_user_dep) -> User:
+    """Require an authenticated admin user for hybrid auth."""
     if not current_user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
-
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
     if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
     return current_user
+
+
+def _cookie_params(settings) -> dict[str, Any]:
+    is_development = str(settings.INSTANCE_BASE).startswith("http://")
+    same_site = "lax" if is_development else "strict"
+    return {
+        "path": "/",
+        "httponly": True,
+        "secure": not is_development,
+        "samesite": same_site,
+    }
 
 
 def create_session_cookie(response: Response, user: User, settings) -> None:
-    """Create and set session cookie"""
+    """Create and set session cookie."""
     oauth_config = get_oauth_config()
     session_token = oauth_config.create_session_token(user.model_dump())
-
-    # In development, we're always using HTTP for the local server
-    # regardless of what the INSTANCE_BASE (Mastodon server) uses
-    is_development = True  # Always use non-secure cookies in development
-
+    params = _cookie_params(settings)
     logger.info(
         f"Creating session cookie: name={settings.SESSION_COOKIE_NAME}, "
-        f"secure={not is_development}, domain=None, path=/"
+        f"secure={params['secure']}, samesite={params['samesite']}"
     )
-
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
         value=session_token,
         max_age=settings.SESSION_COOKIE_MAX_AGE,
-        path="/",  # Ensure cookie is sent for all paths
-        httponly=True,
-        secure=False,  # Always allow non-HTTPS in development
-        samesite="lax",  # Keep it as lax for development
+        **params,
     )
 
 
 def clear_session_cookie(response: Response, settings) -> None:
-    """Clear session cookie"""
-    # Don't use secure cookies in development (HTTP)
-    is_development = str(settings.INSTANCE_BASE).startswith("http://")
-
+    """Clear session cookie."""
+    params = _cookie_params(settings)
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
         value="",
         max_age=0,
-        path="/",
-        httponly=True,
-        secure=not is_development,  # Only secure in production (HTTPS)
-        samesite="lax",
+        **params,
     )
