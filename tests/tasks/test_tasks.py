@@ -267,7 +267,7 @@ class TestCeleryTasks(unittest.TestCase):
         result = analyze_and_maybe_report(payload)
 
         # Should not create a report since score (0.5) < threshold (1.0)
-        self.assertIsNotNone(result)
+        self.assertIsNone(result)
         # No report should be created, but analysis should be recorded
 
     @patch("app.tasks.jobs._poll_accounts")
