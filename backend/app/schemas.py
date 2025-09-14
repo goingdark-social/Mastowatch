@@ -6,6 +6,15 @@ class Evidence(BaseModel):
     matched_terms: List[str]
     matched_status_ids: List[str]
     metrics: Dict
+    matched_pattern: str | None = None  # For regex detector compatibility
+    
+    def __getitem__(self, key):
+        """Allow dictionary-style access for test compatibility."""
+        return getattr(self, key)
+    
+    def __contains__(self, key):
+        """Allow 'in' operator for test compatibility."""
+        return hasattr(self, key)
 
 
 class Violation(BaseModel):

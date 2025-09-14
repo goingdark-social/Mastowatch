@@ -63,7 +63,7 @@ class TestRegexDetector(unittest.TestCase):
 
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].score, 2.0)
-        self.assertIn("casino", violations[0].evidence["matched_pattern"])
+        self.assertIn("poker", violations[0].evidence["matched_pattern"])
 
     def test_evaluate_status_content_match(self):
         """Test regex matching in status content."""
