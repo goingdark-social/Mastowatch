@@ -7,6 +7,7 @@ class Evidence(BaseModel):
     matched_status_ids: List[str]
     metrics: Dict
     matched_pattern: str | None = None  # For regex detector compatibility
+    matched_keywords: List[str] | None = None  # For keyword detector compatibility
     
     def __getitem__(self, key):
         """Allow dictionary-style access for test compatibility."""

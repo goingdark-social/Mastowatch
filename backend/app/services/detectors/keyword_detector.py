@@ -15,6 +15,7 @@ class KeywordDetector(BaseDetector):
         terms = [term.strip() for term in rule.pattern.split(",")]
         u = account_data.get("username") or (account_data.get("acct", "").split("@")[0]) or ""
         dn = account_data.get("display_name") or ""
+        note = account_data.get("note") or ""
 
         # Check username for keywords
         matched_terms_username = []
@@ -28,7 +29,10 @@ class KeywordDetector(BaseDetector):
                     rule_name=rule.name,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=matched_terms_username, matched_status_ids=[], metrics={"username": u}
+                        matched_terms=matched_terms_username, 
+                        matched_status_ids=[], 
+                        metrics={"username": u},
+                        matched_keywords=matched_terms_username
                     ),
                 )
             )
@@ -45,7 +49,30 @@ class KeywordDetector(BaseDetector):
                     rule_name=rule.name,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=matched_terms_display, matched_status_ids=[], metrics={"display_name": dn}
+                        matched_terms=matched_terms_display, 
+                        matched_status_ids=[], 
+                        metrics={"display_name": dn},
+                        matched_keywords=matched_terms_display
+                    ),
+                )
+            )
+
+        # Check bio/note for keywords
+        matched_terms_note = []
+        for term in terms:
+            if term.lower() in note.lower():
+                matched_terms_note.append(term)
+
+        if matched_terms_note:
+            violations.append(
+                Violation(
+                    rule_name=rule.name,
+                    score=rule.weight,
+                    evidence=Evidence(
+                        matched_terms=matched_terms_note, 
+                        matched_status_ids=[], 
+                        metrics={"note": note},
+                        matched_keywords=matched_terms_note
                     ),
                 )
             )
@@ -67,6 +94,7 @@ class KeywordDetector(BaseDetector):
                             matched_terms=matched_terms_content,
                             matched_status_ids=[s.get("id")],
                             metrics={"content": content},
+                            matched_keywords=matched_terms_content
                         ),
                     )
                 )
