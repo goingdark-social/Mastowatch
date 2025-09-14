@@ -1,12 +1,29 @@
+import os
 from sqlalchemy import JSON, TIMESTAMP, BigInteger, Boolean, Column, Numeric, Text, Integer, ForeignKey, Enum as sa_Enum
 from sqlalchemy.sql import func
 
 from app.db import Base
 
+def get_id_column():
+    """Get appropriate ID column type based on database URL."""
+    database_url = os.environ.get("DATABASE_URL", "")
+    if "sqlite" in database_url:
+        return Column(Integer, primary_key=True, autoincrement=True)
+    else:
+        return Column(BigInteger, primary_key=True, autoincrement=True)
+
+def get_id_fk_column(table_name):
+    """Get appropriate foreign key column type based on database URL."""
+    database_url = os.environ.get("DATABASE_URL", "")
+    if "sqlite" in database_url:
+        return Column(Integer, ForeignKey(f"{table_name}.id"), nullable=True)
+    else:
+        return Column(BigInteger, ForeignKey(f"{table_name}.id"), nullable=True)
+
 
 class Account(Base):
     __tablename__ = "accounts"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     mastodon_account_id = Column(Text, unique=True, nullable=False)
     acct = Column(Text, nullable=False)
     domain = Column(Text, nullable=False)
@@ -20,7 +37,7 @@ class Account(Base):
 
 class Analysis(Base):
     __tablename__ = "analyses"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     mastodon_account_id = Column(Text, nullable=False)
     status_id = Column(Text)
     rule_key = Column(Text, nullable=False)
@@ -31,7 +48,7 @@ class Analysis(Base):
 
 class Report(Base):
     __tablename__ = "reports"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     mastodon_account_id = Column(Text, nullable=False)
     status_id = Column(Text)
     mastodon_report_id = Column(Text)
@@ -57,7 +74,7 @@ class Cursor(Base):
 
 class Rule(Base):
     __tablename__ = "rules"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     name = Column(Text, nullable=False)
     # Change rule_type to detector_type
     detector_type = Column(Text, nullable=False)  # e.g., 'regex', 'keyword', 'behavioral'
@@ -102,7 +119,7 @@ class DomainAlert(Base):
     """Track domain-level violations and defederation thresholds"""
 
     __tablename__ = "domain_alerts"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     domain = Column(Text, nullable=False, unique=True)
     violation_count = Column(Integer, nullable=False, default=0)
     last_violation_at = Column(TIMESTAMP(timezone=True))
@@ -119,7 +136,7 @@ class ScanSession(Base):
     """Track scanning sessions and progress across multiple users/accounts"""
 
     __tablename__ = "scan_sessions"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     session_type = Column(Text, nullable=False)  # 'local', 'remote', 'federated'
     status = Column(Text, nullable=False, default="active")  # 'active', 'completed', 'paused', 'failed'
     accounts_processed = Column(Integer, nullable=False, default=0)
@@ -136,7 +153,7 @@ class ContentScan(Base):
     """Track individual content scans to prevent re-processing"""
 
     __tablename__ = "content_scans"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     content_hash = Column(Text, nullable=False, unique=True)  # Hash of content being scanned
     mastodon_account_id = Column(Text, nullable=False)
     status_id = Column(Text)  # Optional status ID if scanning specific posts
@@ -149,7 +166,7 @@ class ContentScan(Base):
 
 class ScheduledAction(Base):
     __tablename__ = "scheduled_actions"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     mastodon_account_id = Column(Text, index=True, nullable=False)
     action_to_reverse = Column(
         sa_Enum(
@@ -169,7 +186,7 @@ class ScheduledAction(Base):
 
 class InteractionHistory(Base):
     __tablename__ = "interaction_history"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     source_account_id = Column(Text, nullable=False)
     target_account_id = Column(Text, nullable=False)
     status_id = Column(Text)
@@ -178,7 +195,7 @@ class InteractionHistory(Base):
 
 class AccountBehaviorMetrics(Base):
     __tablename__ = "account_behavior_metrics"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     mastodon_account_id = Column(Text, unique=True, nullable=False)
     posts_last_1h = Column(Integer, default=0)
     posts_last_24h = Column(Integer, default=0)
@@ -188,9 +205,9 @@ class AccountBehaviorMetrics(Base):
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
-    id = Column(BigInteger, primary_key=True)
+    id = get_id_column()
     action_type = Column(Text, nullable=False)
-    triggered_by_rule_id = Column(BigInteger, ForeignKey("rules.id"), nullable=True)
+    triggered_by_rule_id = get_id_fk_column("rules")
     target_account_id = Column(Text, nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), server_default=func.now())
     evidence = Column(JSON)

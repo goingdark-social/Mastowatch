@@ -16,9 +16,11 @@ from app.api.scanning import router as scanning_router
 from app.config import get_settings
 from app.db import SessionLocal
 from app.logging_conf import setup_logging
+from app.oauth import require_admin_hybrid
+from app.scanning import EnhancedScanningSystem
 from app.services.rule_service import rule_service
 from app.startup_validation import run_all_startup_validations
-from app.tasks.jobs import process_new_report, process_new_status
+from app.tasks.jobs import process_new_report, process_new_status, scan_federated_content, check_domain_violations
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse

@@ -171,6 +171,8 @@ os.environ["ADMIN_TOKEN"] = "test_admin_token"
 os.environ["API_KEY"] = "test_api_key"
 os.environ["WEBHOOK_SECRET"] = "test_webhook_secret"
 os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Use test Redis DB
+os.environ["DATABASE_URL"] = "sqlite:///test.db"  # Temporary, will be overridden in fixtures
+os.environ["UI_ORIGIN"] = "http://localhost:3000"  # Test UI origin
 
 from app.config import Settings
 from app.db import Base, get_db

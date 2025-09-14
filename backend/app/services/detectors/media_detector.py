@@ -15,6 +15,10 @@ class MediaDetector(BaseDetector):
         """Find violations in media attachments."""
         violations: list[Violation] = []
         pattern = rule.pattern.lower()
+        
+        # Determine if this is a hash pattern (long hex string, likely SHA256)
+        is_hash_pattern = len(pattern) == 64 and all(c in '0123456789abcdef' for c in pattern)
+        
         for status in statuses or []:
             for attachment in status.get("media_attachments", []):
                 alt_text = (attachment.get("description") or "").lower()
