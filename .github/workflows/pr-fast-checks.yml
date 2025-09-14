@@ -34,4 +34,4 @@ jobs:
         with:
           python-version: '3.x'
       - run: pip install bandit==1.7.7
-      - run: bandit -r backend
+      - run: bandit -r app
