@@ -236,14 +236,12 @@ class TestEnhancedScanningSystem(unittest.TestCase):
 
     def test_get_next_accounts_to_scan(self):
         """Test fetching next batch of accounts with pagination"""
-        # Mock API response
-        mock_response = MagicMock()
-        mock_response.json.return_value = [
+        # Mock get_admin_accounts to return accounts and next cursor
+        accounts_data = [
             {"id": "1", "acct": "user1@example.com"},
             {"id": "2", "acct": "user2@example.com"},
         ]
-        mock_response.headers = {"link": '<https://mastodon.example/api/v1/admin/accounts?max_id=12345>; rel="next"'}
-        self.mock_client_instance.get.return_value = mock_response
+        self.mock_client_instance.get_admin_accounts.return_value = (accounts_data, "12345")
 
         accounts, next_cursor = self.scanning_system.get_next_accounts_to_scan("remote", limit=10)
 
@@ -252,8 +250,8 @@ class TestEnhancedScanningSystem(unittest.TestCase):
         self.assertEqual(next_cursor, "12345")
 
         # Verify API was called with correct parameters
-        self.mock_client_instance.get.assert_called_once_with(
-            "/api/v1/admin/accounts", params={"origin": "remote", "status": "active", "limit": 10}
+        self.mock_client_instance.get_admin_accounts.assert_called_once_with(
+            origin="remote", status="active", limit=10, max_id=None
         )
 
     def test_scan_account_efficiently(self):

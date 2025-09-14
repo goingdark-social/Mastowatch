@@ -2,7 +2,7 @@
 
 import unittest
 from hashlib import sha256
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
 from app.schemas import Violation
@@ -199,6 +199,26 @@ class TestBehavioralDetector(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         self.detector = BehavioralDetector()
+        
+        # Mock database session and queries
+        self.session_patcher = patch('app.services.detectors.behavioral_detector.Session')
+        self.mock_session_class = self.session_patcher.start()
+        self.mock_session = Mock()
+        self.mock_session_class.return_value.__enter__.return_value = self.mock_session
+        
+        # Mock query chain
+        self.mock_query = Mock()
+        self.mock_session.query.return_value = self.mock_query
+        self.mock_query.filter.return_value = self.mock_query
+        self.mock_query.order_by.return_value = self.mock_query
+        self.mock_query.limit.return_value = self.mock_query
+        # Default count for database interactions
+        self.mock_query.count.return_value = 0
+        self.mock_query.all.return_value = []
+
+    def tearDown(self):
+        """Clean up test environment."""
+        self.session_patcher.stop()
 
     def test_automation_disclosure_non_bot(self):
         """Flag non-bot accounts with templated posts."""

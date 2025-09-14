@@ -16,8 +16,20 @@ from app.api.scanning import router as scanning_router
 from app.config import get_settings
 from app.db import SessionLocal
 from app.logging_conf import setup_logging
-from app.oauth import require_admin_hybrid
+from app.oauth import require_admin_hybrid, get_oauth_config, get_current_user
 from app.scanning import EnhancedScanningSystem
+
+# For backward compatibility with tests
+def get_current_user_hybrid(request=None):
+    """Backward compatibility function for tests."""
+    if request is None:
+        # Import here to avoid circular imports
+        from fastapi import Request
+        request = Request(scope={"type": "http", "headers": []})
+    return get_current_user(request)
+
+# Make require_admin_hybrid available for test patching
+require_admin_hybrid = require_admin_hybrid
 from app.services.rule_service import rule_service
 from app.startup_validation import run_all_startup_validations
 from app.tasks.jobs import process_new_report, process_new_status, scan_federated_content, check_domain_violations
