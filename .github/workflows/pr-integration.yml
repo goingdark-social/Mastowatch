@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - run: pip install pytest
+      - run: pip install pytest==7.4.4
       - run: docker compose -f docker-compose.mock.yml up -d
       - run: pytest tests/api tests/migrations
   migration-verification:
