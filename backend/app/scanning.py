@@ -142,7 +142,7 @@ class EnhancedScanningSystem:
 
             violations = self.rule_service.evaluate_account(account_data, statuses)
             score = sum(v.score for v in violations)
-            hits = [(f"{v.rule_type}/{v.rule_name}", v.score, v.evidence or {}) for v in violations]
+            hits = [(v.rule_name, v.score, v.evidence or {}) for v in violations]
 
             scan_result = {
                 "score": score,
@@ -381,3 +381,15 @@ class EnhancedScanningSystem:
 
             session.commit()
             logger.info("Content scans marked for re-scanning")
+
+    def _parse_next_cursor(self, link_header: str) -> str | None:
+        """Parse the next cursor from a Link header"""
+        if not link_header:
+            return None
+        
+        # Look for a link with rel="next"
+        import re
+        match = re.search(r'<[^>]*[?&]max_id=([^&>]+)[^>]*>;\s*rel="next"', link_header)
+        if match:
+            return match.group(1)
+        return None
