@@ -42,6 +42,7 @@ class MastoClient:
         self._token = token
         self._base_url = str(settings.INSTANCE_BASE).rstrip("/")
         self._ua = settings.USER_AGENT
+        self._timeout = settings.HTTP_TIMEOUT
         tok = hashlib.sha256(token.encode("utf-8")).hexdigest()
         self._bucket_key = f"{self._base_url}:{tok}"
 
@@ -49,7 +50,7 @@ class MastoClient:
             base_url=self._base_url,
             token=token,
             headers={"User-Agent": self._ua},
-            timeout=settings.HTTP_TIMEOUT,
+            timeout=self._timeout,
         )
 
     def _parse_next_cursor(self, link_header: str | None) -> str | None:
@@ -76,7 +77,7 @@ class MastoClient:
                 method,
                 url,
                 headers=headers,
-                timeout=settings.HTTP_TIMEOUT,
+                timeout=self._timeout,
                 **kwargs,
             )
 

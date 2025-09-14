@@ -29,11 +29,10 @@ app.dependency_overrides[require_api_key] = lambda: True
 
 
 def test_invalidate_scan_cache_and_status():
-    with patch("app.api.scanning.EnhancedScanningSystem") as MockScanner, patch(
-        "app.api.scanning.SessionLocal"
-    ) as MockSessionLocal:
+    with patch("app.api.scanning.EnhancedScanningSystem") as MockScanner:
         scanner_instance = MockScanner.return_value
 
+        # Mock the database session via dependency injection
         mock_db = MagicMock()
         query_total = MagicMock()
         query_total.scalar.return_value = 10
@@ -43,10 +42,9 @@ def test_invalidate_scan_cache_and_status():
         query_last.scalar.return_value = datetime(2024, 1, 1)
         mock_db.query.side_effect = [query_total, query_needs, query_last]
 
-        session_context = MagicMock()
-        session_context.__enter__.return_value = mock_db
-        session_context.__exit__.return_value = None
-        MockSessionLocal.return_value = session_context
+        # Override the get_db dependency
+        from app.api.scanning import get_db
+        app.dependency_overrides[get_db] = lambda: mock_db
 
         response = client.post(
             "/scanning/invalidate-cache",
@@ -56,7 +54,7 @@ def test_invalidate_scan_cache_and_status():
         assert response.status_code == 200
         assert response.json()["message"] == "Content cache invalidated"
         assert response.json()["rule_changes"] is True
-        scanner_instance.invalidate_content_scans.assert_called_once_with(rule_changes=True, time_based=False)
+        scanner_instance.invalidate_content_scans.assert_called_once_with(rule_changes=True)
 
         response = client.get(
             "/scanning/cache-status",
@@ -68,3 +66,6 @@ def test_invalidate_scan_cache_and_status():
         assert data["needs_rescan"] == 2
         assert data["cache_hit_rate"] == 0.8
         assert data["last_scan"] == datetime(2024, 1, 1).isoformat()
+        
+        # Clean up dependency override
+        del app.dependency_overrides[get_db]

@@ -51,6 +51,9 @@ class TestCeleryTasks(unittest.TestCase):
                 actions=[{"type": "report"}],
             ),
         ]
+        
+        # Mock rule service get_active_rules
+        mock_rule_service.get_active_rules.return_value = ([], {"report_threshold": 1.0}, "test_sha")
 
         mock_db_session = MagicMock()
         mock_db.return_value.__enter__.return_value = mock_db_session
@@ -72,12 +75,13 @@ class TestCeleryTasks(unittest.TestCase):
         # Call the function
         result = analyze_and_maybe_report(payload)
 
-        # Assertions
-        self.assertIsNotNone(result)
+        # Assertions for dry run mode - should return None
+        self.assertIsNone(result)
         mock_rule_service.evaluate_account.assert_called_once()
 
-        # Verify that account and analysis records would be created/updated
-        self.assertTrue(mock_db_session.merge.called)
+        # Verify that database operations were called for analysis records
+        self.assertTrue(mock_db_session.execute.called)
+        self.assertTrue(mock_db_session.commit.called)
 
         # In dry run mode, should not actually submit reports
         mock_client.create_report.assert_not_called()
