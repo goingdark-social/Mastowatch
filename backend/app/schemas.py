@@ -27,7 +27,7 @@ class Evidence(BaseModel):
 
 class Violation(BaseModel):
     rule_name: str
-    rule_type: str
+    rule_type: str = "unknown"  # Default value for backward compatibility
     score: float
     evidence: Evidence
     actions: List[Dict[str, Any]] = Field(default_factory=list)

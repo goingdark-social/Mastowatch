@@ -23,6 +23,7 @@ class RegexDetector(BaseDetector):
             violations.append(
                 Violation(
                     rule_name=rule.name,
+                    rule_type=rule.detector_type,
                     score=rule.weight,
                     evidence=Evidence(
                         matched_terms=[u], 
@@ -38,6 +39,7 @@ class RegexDetector(BaseDetector):
             violations.append(
                 Violation(
                     rule_name=rule.name,
+                    rule_type=rule.detector_type,
                     score=rule.weight,
                     evidence=Evidence(
                         matched_terms=[dn], 
@@ -53,6 +55,7 @@ class RegexDetector(BaseDetector):
             violations.append(
                 Violation(
                     rule_name=rule.name,
+                    rule_type=rule.detector_type,
                     score=rule.weight,
                     evidence=Evidence(
                         matched_terms=[note], 
@@ -70,6 +73,7 @@ class RegexDetector(BaseDetector):
                 violations.append(
                     Violation(
                         rule_name=rule.name,
+                        rule_type=rule.detector_type,
                         score=rule.weight,
                         evidence=Evidence(
                             matched_terms=[content], 
