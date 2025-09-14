@@ -9,7 +9,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - run: pip install ruff
+      - run: pip install ruff==0.4.4
       - run: make lint
   typecheck:
     runs-on: ubuntu-latest
