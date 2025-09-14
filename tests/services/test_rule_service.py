@@ -131,13 +131,13 @@ class TestRuleService(unittest.TestCase):
 
     def test_evaluate_account_compound_and(self):
         account = {"acct": "compound@example.com", "username": "spamuser", "note": "bio"}
-        statuses = [{"id": "1", "content": "casino games"}]
+        statuses = [{"id": "1", "content": "lottery games"}]  # Changed from "casino" to "lottery" to avoid existing rule
         self.rule_service.create_rule(
             name="compound_rule",
             detector_type="regex",
             pattern="spam",
             boolean_operator="AND",
-            secondary_pattern="casino",
+            secondary_pattern="lottery",  # Changed to match new content
             weight=1.0,
             action_type="report",
             trigger_threshold=1.0,
@@ -229,7 +229,12 @@ class TestRuleService(unittest.TestCase):
 
         with patch.object(rs_module.settings, "RULE_CACHE_TTL", 5):
             service = rs_module.RuleService()
-            with patch.object(service, "_load_rules_from_database", return_value=([], {}, "")):
+            # Mock the database session to return empty results
+            with patch.object(rs_module, "SessionLocal") as mock_session_local:
+                mock_session = mock_session_local.return_value.__enter__.return_value
+                mock_session.query.return_value.filter.return_value.all.return_value = []
+                mock_session.execute.return_value.scalar.return_value = None
+                
                 service.get_active_rules()
                 self.assertEqual(service._cache.ttl_seconds, 5)
 
