@@ -173,7 +173,6 @@ class RuleService:
                 enabled=enabled,
                 description=description,
                 created_by=created_by,
-                created_at=datetime.utcnow(),
             )
 
             session.add(rule)
