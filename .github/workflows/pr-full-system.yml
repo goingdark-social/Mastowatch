@@ -1,0 +1,23 @@
+name: PR Full System
+on:
+  pull_request:
+jobs:
+  full-system:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/setup-dev.sh
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - run: pip install pytest
+      - run: pytest tests/e2e
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - run: pip install pytest
+      - run: pytest tests/performance
