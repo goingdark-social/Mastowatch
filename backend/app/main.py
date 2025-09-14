@@ -205,14 +205,7 @@ def metrics():
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-@app.post("/dryrun/evaluate", tags=["ops"])
-async def dryrun_evaluate(payload: dict):
-    acct = payload.get("account") or {}
-    statuses = payload.get("statuses") or []
-    violations = rule_service.evaluate_account(acct, statuses)
-    score = sum(v.score for v in violations)
-    hits = [(f"{v.rule_type}/{v.rule_name}", v.score, v.evidence or {}) for v in violations]
-    return {"score": score, "hits": hits}
+
 
 
 @app.post("/webhooks/mastodon_events", tags=["webhooks"])
