@@ -1,5 +1,7 @@
 # GitHub Copilot Instructions for MastoWatch
 
+**ALWAYS follow these instructions first. Only fallback to additional search and context gathering if the information here is incomplete or found to be in error.**
+
 ## Project Overview
 
 MastoWatch is a **Mastodon moderation sidecar** that analyzes accounts/statuses and files reports via API for human moderators. It's a **watch-and-report system with no auto-enforcement** by default, built with FastAPI, Celery, PostgreSQL, and Redis.
@@ -23,6 +25,47 @@ MastoWatch is a **Mastodon moderation sidecar** that analyzes accounts/statuses 
 - **Primary Interface**: All application logic **must** interact with the Mastodon API through the `MastoClient` wrapper class in `app/mastodon_client.py`. This class handles rate-limiting, metrics, and provides a simplified, high-level interface.
 - **Generated Client**: The `MastoClient` internally uses an **auto-generated, type-safe client** located in `app/clients/mastodon/`. This generated code should **never be called directly** from other parts of the application.
 - **Update Script**: The generated client is kept in sync with the upstream Mastodon API specification using `scripts/update_mastodon_client.sh`.
+
+## Working Effectively
+
+### Bootstrap and Validate the Repository
+**ALWAYS run these commands first to set up your development environment:**
+
+```bash
+# Install Python dependencies for quality checks and testing
+cd /home/runner/work/Mastowatch/Mastowatch
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt -r tests/requirements-test.txt
+```
+
+### Test Suite
+```bash
+# Run tests - VALIDATED: 147 tests complete in ~30 seconds
+PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short
+# Timeout: Set 2+ minutes. NEVER CANCEL - tests are comprehensive.
+```
+
+### Frontend Development
+```bash
+# Frontend setup and build - VALIDATED timing
+cd frontend
+npm ci                    # Takes ~15 seconds. NEVER CANCEL.
+npm run build            # Takes ~10 seconds. NEVER CANCEL.
+```
+
+### Quality Checks
+**Note: Current codebase has many quality issues but tools run quickly:**
+```bash
+make lint                # ~5 seconds - MANY ISSUES PRESENT
+make format-check        # ~5 seconds - MANY FILES NEED FORMATTING  
+make typecheck          # ~5 seconds - MODULE CONFLICTS PRESENT
+```
+
+### Docker Limitations in Sandboxed Environments
+**CRITICAL: Docker commands fail in sandboxed environments due to SSL certificate issues.**
+- `make dev`, `make prod`, `make build` will fail with SSL errors
+- Use individual component testing instead (Python tests, frontend builds)
+- In production environments, these commands work normally
 
 ## Development Workflows
 
@@ -59,15 +102,18 @@ make logs-frontend     # Frontend only
 - **Restructured Test Suite**: Tests are organized by feature area, mirroring the application structure (`tests/api`, `tests/services`, `tests/tasks`).
 - **Isolation**: Tests use an in-memory SQLite database and a separate Redis instance to ensure isolation and prevent side effects.
 - **Mocking External APIs**: All outbound calls to the Mastodon API are mocked using `unittest.mock.patch` to prevent real network requests during tests.
-- **Run tests**: `make test`
+- **Run tests**: `PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest` 
+- **TIMING**: 147 tests complete in ~30 seconds. Set timeout to 2+ minutes. NEVER CANCEL.
+- **Current Status**: Many tests fail due to codebase inconsistencies, but test infrastructure works correctly.
 
 ### Code Quality Tools
 - **Formatting**: Black with a **120-character** line length (`make format`).
-- **Format checking**: `make format-check` to verify formatting without making changes.
-- **Linting**: Ruff with custom rules in `pyproject.toml` to ban direct use of `requests` and `httpx` (`make lint`).
-- **Type checking**: MyPy with selective strictness (`make typecheck`).
-- **All quality checks**: `make check` runs lint, format-check, typecheck, and test in sequence.
+- **Format checking**: `make format-check` to verify formatting without making changes. **WARNING**: 35+ files currently need reformatting.
+- **Linting**: Ruff with custom rules in `pyproject.toml` to ban direct use of `requests` and `httpx` (`make lint`). **WARNING**: 155+ errors currently present.
+- **Type checking**: MyPy with selective strictness (`make typecheck`). **WARNING**: Module naming conflicts present.
+- **All quality checks**: `make check` runs lint, format-check, typecheck, and test in sequence. **EXPECT FAILURES** in current codebase.
 - **HTTP Library Policy**: Only the `MastoClient` wrapper is permitted to interact with the Mastodon API. Direct use of `requests` or `httpx` elsewhere is a linting error.
+- **TIMING**: All quality checks complete in under 1 minute each. Set timeout to 2+ minutes. NEVER CANCEL.
 
 ### Database Operations
 ```bash
@@ -166,3 +212,85 @@ make api-client-status
 - `docker-compose.override.yml`: Development overrides with hot-reloading.
 
 When working on this codebase, always consider the moderation context. This system handles sensitive content and must be reliable, auditable, and safe.
+
+## Validation Scenarios
+
+### After Making Code Changes, ALWAYS Test:
+
+1. **Basic Test Suite Validation**:
+   ```bash
+   PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short -x
+   # TIMING: ~30 seconds for 147 tests. NEVER CANCEL - wait for completion.
+   ```
+
+2. **Frontend Build Validation** (if frontend changes):
+   ```bash
+   cd frontend
+   npm ci && npm run build
+   # TIMING: npm ci ~15s, build ~10s. NEVER CANCEL.
+   ```
+
+3. **Quality Check Validation**:
+   ```bash
+   make lint          # Expect 155+ errors in current codebase
+   make format-check  # Expect 35+ files needing formatting  
+   make typecheck     # Expect module conflicts
+   # TIMING: Each check <1 minute. NEVER CANCEL.
+   ```
+
+### Manual Testing Requirements
+- **Cannot test full Docker stack** in sandboxed environments due to SSL issues
+- Focus on individual component testing (Python modules, frontend builds)
+- Test API endpoints using the test client from `tests/conftest.py`
+- Validate rule creation/evaluation using `RuleService` tests
+- Check database operations using in-memory SQLite from tests
+
+### Current Codebase Limitations
+- **Docker builds fail** in sandboxed environments with SSL certificate errors
+- **Many quality check failures** - this is the current state, not a regression
+- **Test failures expected** - 106/147 tests currently fail due to codebase inconsistencies
+- **Module naming conflicts** - `auth.py` conflicts require careful imports
+
+## Time Expectations and Timeouts
+
+### Command Timing Summary
+- **Tests**: 147 tests in ~30 seconds → Set timeout: 2+ minutes
+- **Frontend npm ci**: ~15 seconds → Set timeout: 2+ minutes  
+- **Frontend build**: ~10 seconds → Set timeout: 2+ minutes
+- **Quality checks**: <1 minute each → Set timeout: 2+ minutes
+- **Docker builds**: Would be 5-15 minutes normally, but **FAIL in sandboxed environments**
+
+### CRITICAL: NEVER CANCEL Commands
+- **NEVER CANCEL** test suites - comprehensive validation takes time
+- **NEVER CANCEL** npm installs - package downloads can be slow
+- **NEVER CANCEL** builds - even if they appear to hang, wait for timeout
+- **ALWAYS** set generous timeouts (2+ minutes minimum, 15+ minutes for builds)
+
+## Quick Reference - Most Common Commands
+
+### Essential Setup (Run First)
+```bash
+cd /home/runner/work/Mastowatch/Mastowatch
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt -r tests/requirements-test.txt
+```
+
+### Testing (Use Every Time)
+```bash
+# Single test (fast validation)
+PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_startup_validation.py::test_validate_mastodon_version_ok
+
+# Full test suite (~30 seconds, timeout: 2+ minutes)
+PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short
+```
+
+### Frontend (If Modified)
+```bash
+cd frontend
+npm ci && npm run build    # ~25 seconds total, timeout: 2+ minutes
+```
+
+### Quality Checks (Expect Issues)
+```bash
+make lint format-check typecheck    # All complete in <2 minutes
+```
