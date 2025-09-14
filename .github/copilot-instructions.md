@@ -38,9 +38,20 @@ python -m pip install --upgrade pip
 pip install -r backend/requirements.txt -r tests/requirements-test.txt
 ```
 
+**Initial validation**: Run this quick test to verify setup works:
+```bash
+PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_startup_validation.py::test_validate_mastodon_version_ok --no-header --tb=short
+```
+
+**Dependencies Summary**:
+- **Python**: Uses Python 3.12+ (3.13 in CI)
+- **Node**: Uses Node.js 22 for frontend development
+- **Backend Dependencies**: FastAPI, Celery, SQLAlchemy, PostgreSQL, Redis
+- **Frontend Dependencies**: React 19, Vite, Mantine UI, TypeScript
+
 ### Test Suite
 ```bash
-# Run tests - VALIDATED: 147 tests complete in ~30 seconds
+# Run tests - VALIDATED: 147 tests complete in ~26 seconds
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short
 # Timeout: Set 2+ minutes. NEVER CANCEL - tests are comprehensive.
 ```
@@ -49,16 +60,16 @@ PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short
 ```bash
 # Frontend setup and build - VALIDATED timing
 cd frontend
-npm ci                    # Takes ~15 seconds. NEVER CANCEL.
-npm run build            # Takes ~10 seconds. NEVER CANCEL.
+npm ci                    # Takes ~13 seconds. NEVER CANCEL.
+npm run build            # Takes ~8 seconds. NEVER CANCEL.
 ```
 
 ### Quality Checks
 **Note: Current codebase has many quality issues but tools run quickly:**
 ```bash
-make lint                # ~5 seconds - MANY ISSUES PRESENT
-make format-check        # ~5 seconds - MANY FILES NEED FORMATTING  
-make typecheck          # ~5 seconds - MODULE CONFLICTS PRESENT
+make lint                # ~0.05 seconds - 160 ERRORS PRESENT
+make format-check        # ~5 seconds - 36 FILES NEED FORMATTING  
+make typecheck          # ~0.6 seconds - MODULE CONFLICTS PRESENT
 ```
 
 ### Docker Limitations in Sandboxed Environments
@@ -103,17 +114,17 @@ make logs-frontend     # Frontend only
 - **Isolation**: Tests use an in-memory SQLite database and a separate Redis instance to ensure isolation and prevent side effects.
 - **Mocking External APIs**: All outbound calls to the Mastodon API are mocked using `unittest.mock.patch` to prevent real network requests during tests.
 - **Run tests**: `PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest` 
-- **TIMING**: 147 tests complete in ~30 seconds. Set timeout to 2+ minutes. NEVER CANCEL.
-- **Current Status**: Many tests fail due to codebase inconsistencies, but test infrastructure works correctly.
+- **TIMING**: 147 tests complete in ~26 seconds. Set timeout to 2+ minutes. NEVER CANCEL.
+- **Current Status**: Many tests fail (77/147) due to codebase inconsistencies, but test infrastructure works correctly.
 
 ### Code Quality Tools
 - **Formatting**: Black with a **120-character** line length (`make format`).
-- **Format checking**: `make format-check` to verify formatting without making changes. **WARNING**: 35+ files currently need reformatting.
-- **Linting**: Ruff with custom rules in `pyproject.toml` to ban direct use of `requests` and `httpx` (`make lint`). **WARNING**: 155+ errors currently present.
+- **Format checking**: `make format-check` to verify formatting without making changes. **WARNING**: 36 files currently need reformatting.
+- **Linting**: Ruff with custom rules in `pyproject.toml` to ban direct use of `requests` and `httpx` (`make lint`). **WARNING**: 160 errors currently present.
 - **Type checking**: MyPy with selective strictness (`make typecheck`). **WARNING**: Module naming conflicts present.
 - **All quality checks**: `make check` runs lint, format-check, typecheck, and test in sequence. **EXPECT FAILURES** in current codebase.
 - **HTTP Library Policy**: Only the `MastoClient` wrapper is permitted to interact with the Mastodon API. Direct use of `requests` or `httpx` elsewhere is a linting error.
-- **TIMING**: All quality checks complete in under 1 minute each. Set timeout to 2+ minutes. NEVER CANCEL.
+- **TIMING**: Quality checks complete very quickly - lint ~0.05s, format-check ~5s, typecheck ~0.6s. Set timeout to 2+ minutes. NEVER CANCEL.
 
 ### Database Operations
 ```bash
@@ -220,22 +231,23 @@ When working on this codebase, always consider the moderation context. This syst
 1. **Basic Test Suite Validation**:
    ```bash
    PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short -x
-   # TIMING: ~30 seconds for 147 tests. NEVER CANCEL - wait for completion.
+   # TIMING: ~26 seconds for 147 tests. NEVER CANCEL - wait for completion.
+   # EXPECTED: 77/147 tests fail due to codebase inconsistencies
    ```
 
 2. **Frontend Build Validation** (if frontend changes):
    ```bash
    cd frontend
    npm ci && npm run build
-   # TIMING: npm ci ~15s, build ~10s. NEVER CANCEL.
+   # TIMING: npm ci ~13s, build ~8s. NEVER CANCEL.
    ```
 
 3. **Quality Check Validation**:
    ```bash
-   make lint          # Expect 155+ errors in current codebase
-   make format-check  # Expect 35+ files needing formatting  
-   make typecheck     # Expect module conflicts
-   # TIMING: Each check <1 minute. NEVER CANCEL.
+   make lint          # EXPECT: 160 errors in current codebase (~0.05s)
+   make format-check  # EXPECT: 36 files needing formatting (~5s)  
+   make typecheck     # EXPECT: module conflicts (~0.6s)
+   # TIMING: Each check completes very quickly. NEVER CANCEL.
    ```
 
 ### Manual Testing Requirements
@@ -248,16 +260,17 @@ When working on this codebase, always consider the moderation context. This syst
 ### Current Codebase Limitations
 - **Docker builds fail** in sandboxed environments with SSL certificate errors
 - **Many quality check failures** - this is the current state, not a regression
-- **Test failures expected** - 106/147 tests currently fail due to codebase inconsistencies
+- **Test failures expected** - 77/147 tests currently fail due to codebase inconsistencies
 - **Module naming conflicts** - `auth.py` conflicts require careful imports
 
 ## Time Expectations and Timeouts
 
 ### Command Timing Summary
-- **Tests**: 147 tests in ~30 seconds → Set timeout: 2+ minutes
-- **Frontend npm ci**: ~15 seconds → Set timeout: 2+ minutes  
-- **Frontend build**: ~10 seconds → Set timeout: 2+ minutes
-- **Quality checks**: <1 minute each → Set timeout: 2+ minutes
+- **Python Dependencies**: pip install ~45 seconds → Set timeout: 5+ minutes
+- **Tests**: 147 tests in ~26 seconds → Set timeout: 2+ minutes
+- **Frontend npm ci**: ~13 seconds → Set timeout: 2+ minutes  
+- **Frontend build**: ~8 seconds → Set timeout: 2+ minutes
+- **Quality checks**: lint ~0.05s, format-check ~5s, typecheck ~0.6s → Set timeout: 2+ minutes
 - **Docker builds**: Would be 5-15 minutes normally, but **FAIL in sandboxed environments**
 
 ### CRITICAL: NEVER CANCEL Commands
@@ -280,17 +293,17 @@ pip install -r backend/requirements.txt -r tests/requirements-test.txt
 # Single test (fast validation)
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_startup_validation.py::test_validate_mastodon_version_ok
 
-# Full test suite (~30 seconds, timeout: 2+ minutes)
+# Full test suite (~26 seconds, timeout: 2+ minutes)
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short
 ```
 
 ### Frontend (If Modified)
 ```bash
 cd frontend
-npm ci && npm run build    # ~25 seconds total, timeout: 2+ minutes
+npm ci && npm run build    # ~21 seconds total, timeout: 2+ minutes
 ```
 
 ### Quality Checks (Expect Issues)
 ```bash
-make lint format-check typecheck    # All complete in <2 minutes
+make lint format-check typecheck    # All complete in <6 seconds
 ```
