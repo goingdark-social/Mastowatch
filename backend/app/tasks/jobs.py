@@ -23,7 +23,6 @@ from app.services.rule_service import rule_service
 from app.util import make_dedupe_key
 from celery import shared_task
 from sqlalchemy import insert, text
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import func
 
 settings = get_settings()
@@ -72,15 +71,23 @@ def _persist_account(a: dict):
     acct = acct_obj.get("acct") or ""
     domain = acct.split("@")[-1] if "@" in acct else "local"
     with SessionLocal() as db:
-        stmt = (
-            pg_insert(Account)
-            .values(mastodon_account_id=acct_obj.get("id"), acct=acct, domain=domain)
-            .on_conflict_do_update(
-                index_elements=["mastodon_account_id"],
-                set_=dict(acct=acct, domain=domain, last_checked_at=func.now()),
+        # Database-agnostic account upsert
+        account_id = acct_obj.get("id")
+        existing = db.execute(
+            text("SELECT id FROM accounts WHERE mastodon_account_id=:aid"), 
+            {"aid": account_id}
+        ).first()
+        
+        if existing:
+            db.execute(
+                text("UPDATE accounts SET acct=:acct, domain=:domain, last_checked_at=CURRENT_TIMESTAMP WHERE mastodon_account_id=:aid"),
+                {"acct": acct, "domain": domain, "aid": account_id}
             )
-        )
-        db.execute(stmt)
+        else:
+            db.execute(
+                text("INSERT INTO accounts (mastodon_account_id, acct, domain, last_checked_at) VALUES (:aid, :acct, :domain, CURRENT_TIMESTAMP)"),
+                {"aid": account_id, "acct": acct, "domain": domain}
+            )
         db.commit()
 
 
@@ -131,12 +138,18 @@ def _poll_accounts(origin: str, cursor_name: str):
                     logging.error(f"Error processing account: {e}")
 
             with SessionLocal() as db:
-                stmt = pg_insert(Cursor).values(name=cursor_name, position=new_next)
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["name"],
-                    set_=dict(position=new_next, updated_at=func.now()),
-                )
-                db.execute(stmt)
+                # Database-agnostic cursor update
+                cursor = db.execute(text("SELECT * FROM cursors WHERE name=:n"), {"n": cursor_name}).first()
+                if cursor:
+                    db.execute(
+                        text("UPDATE cursors SET position=:pos, updated_at=CURRENT_TIMESTAMP WHERE name=:n"),
+                        {"pos": new_next, "n": cursor_name}
+                    )
+                else:
+                    db.execute(
+                        text("INSERT INTO cursors (name, position, updated_at) VALUES (:n, :pos, CURRENT_TIMESTAMP)"),
+                        {"n": cursor_name, "pos": new_next}
+                    )
                 db.commit()
 
             cursor_lag_pages.labels(cursor=cursor_name).set(1.0 if new_next else 0.0)
@@ -399,21 +412,32 @@ def analyze_and_maybe_report(payload: dict):
             {"hit_count": len(hits)},
         )
 
-        stmt = (
-            pg_insert(Report)
-            .values(
-                mastodon_account_id=acct_id,
-                status_id=status_ids[0] if status_ids else None,
-                mastodon_report_id=None,
-                dedupe_key=dedupe,
-                comment=comment,
-            )
-            .on_conflict_do_nothing(index_elements=["dedupe_key"])
-            .returning(Report.id)
-        )
-
         with SessionLocal() as db:
-            inserted_id = db.execute(stmt).scalar_one_or_none()
+            # Database-agnostic report insert with deduplication
+            existing = db.execute(
+                text("SELECT id FROM reports WHERE dedupe_key=:dk"), 
+                {"dk": dedupe}
+            ).first()
+            
+            if existing:
+                inserted_id = None  # Already exists, do nothing
+            else:
+                # Insert and get the ID - SQLite compatible approach
+                db.execute(
+                    text("INSERT INTO reports (mastodon_account_id, status_id, mastodon_report_id, dedupe_key, comment, created_at) VALUES (:aid, :sid, :rid, :dk, :comment, CURRENT_TIMESTAMP)"),
+                    {
+                        "aid": acct_id,
+                        "sid": status_ids[0] if status_ids else None,
+                        "rid": None,
+                        "dk": dedupe,
+                        "comment": comment
+                    }
+                )
+                # Get the ID of the inserted record
+                inserted_id = db.execute(
+                    text("SELECT id FROM reports WHERE dedupe_key=:dk"), 
+                    {"dk": dedupe}
+                ).scalar()
             db.commit()
             if inserted_id is None:
                 return
@@ -442,8 +466,6 @@ def analyze_and_maybe_report(payload: dict):
         rep_id = result["id"]
 
         with SessionLocal() as db:
-            from sqlalchemy import text
-
             db.execute(
                 text("UPDATE reports SET mastodon_report_id = :rid WHERE dedupe_key = :dk"),
                 {"rid": rep_id, "dk": dedupe},
@@ -452,6 +474,8 @@ def analyze_and_maybe_report(payload: dict):
 
         reports_submitted.labels(domain=domain).inc()
         report_latency.observe(max(0.0, time.time() - started))
+        
+        return result
 
     except Exception as e:
         logging.exception("analyze_and_maybe_report error: %s", e)
@@ -511,7 +535,7 @@ def process_new_report(report_payload: dict):
             return
 
         report_data = report_payload.get("report", {})
-        account_data = report_data.get("account", {})
+        account_data = report_data.get("target_account", {})  # Should analyze the target account, not the reporter
         status_ids = report_data.get("status_ids", [])
 
         if not account_data.get("id"):
@@ -634,9 +658,7 @@ def process_new_status(status_payload: dict):
         enforcement_service = EnforcementService(mastodon_client=admin_client)
         violations = rule_service.evaluate_account(
             {**account_data, "recent_public_statuses": public_only},
-            account_data,
             combined,
-            public_only,
         )
 
         if violations:
