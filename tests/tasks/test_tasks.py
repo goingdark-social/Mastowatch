@@ -88,11 +88,11 @@ class TestCeleryTasks(unittest.TestCase):
 
     @patch("app.tasks.jobs.SessionLocal")
     @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs.get_settings")
+    @patch("app.tasks.jobs.settings")
     def test_analyze_and_maybe_report_panic_stop(self, mock_settings, mock_rule_service, mock_db):
         """Test that panic stop prevents execution"""
         # Setup mocks
-        mock_settings.return_value.PANIC_STOP = True
+        mock_settings.PANIC_STOP = True
 
         # Test data
         payload = {"account": {"id": "123456"}, "statuses": []}
@@ -174,15 +174,23 @@ class TestCeleryTasks(unittest.TestCase):
         result = analyze_and_maybe_report({"account": None})
         self.assertIsNone(result)
 
+    @patch("app.scanning.SessionLocal")
     @patch("app.tasks.jobs.SessionLocal")
     @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs.get_settings")
+    @patch("app.tasks.jobs.settings")
     @patch("app.tasks.jobs._get_bot_client")
-    def test_analyze_and_maybe_report_report_creation(self, mock_bot_client, mock_settings, mock_rule_service, mock_db):
+    @patch("app.tasks.jobs._get_admin_client")
+    def test_analyze_and_maybe_report_report_creation(self, mock_admin_client, mock_bot_client, mock_settings, mock_rule_service, mock_db, mock_scanning_db):
         """Test that reports are created when score exceeds threshold"""
         # Setup mocks for non-dry run mode
-        mock_settings.return_value.DRY_RUN = False
-        mock_settings.return_value.PANIC_STOP = False
+        mock_settings.DRY_RUN = False
+        mock_settings.PANIC_STOP = False
+        mock_settings.ADMIN_TOKEN = "test_admin_token"
+        mock_settings.BOT_TOKEN = "test_bot_token"
+        mock_settings.REPORT_CATEGORY_DEFAULT = "spam"
+        mock_settings.FORWARD_REMOTE_REPORTS = False
+        mock_settings.POLICY_VERSION = "1.0"
+        mock_settings.MAX_STATUSES_TO_FETCH = 100
 
         # Mock rule service to return high score
         mock_rule_service.evaluate_account.return_value = [
@@ -202,6 +210,16 @@ class TestCeleryTasks(unittest.TestCase):
 
         mock_db_session = MagicMock()
         mock_db.return_value.__enter__.return_value = mock_db_session
+
+        # Mock scanning database session
+        mock_scanning_session = MagicMock()
+        mock_scanning_db.return_value.__enter__.return_value = mock_scanning_session
+        mock_scanning_session.query.return_value.filter.return_value.first.return_value = None
+
+        # Mock admin client
+        mock_admin = MagicMock()
+        mock_admin_client.return_value = mock_admin
+        mock_admin.get_account_statuses.return_value = [{"id": "status1", "content": "suspicious content"}]
 
         # Mock bot client
         mock_client = MagicMock()

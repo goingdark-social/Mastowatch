@@ -11,7 +11,6 @@ from app.mastodon_client import MastoClient
 from app.models import Account, ContentScan, DomainAlert, ScanSession
 from app.services.rule_service import rule_service
 from sqlalchemy import and_, desc, func
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -155,25 +154,27 @@ class EnhancedScanningSystem:
             _, config, ruleset_sha = self.rule_service.get_active_rules()
 
             with SessionLocal() as db_session:
-                stmt = pg_insert(ContentScan).values(
-                    content_hash=content_hash,
-                    mastodon_account_id=account_id,
-                    scan_type="account",
-                    scan_result=scan_result,
-                    rules_version=ruleset_sha,
-                    needs_rescan=False,
-                    last_scanned_at=func.now(),
-                )
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["content_hash"],
-                    set_=dict(
-                        scan_result=stmt.excluded.scan_result,
-                        rules_version=stmt.excluded.rules_version,
-                        last_scanned_at=func.now(),
+                # Get or create content scan record using database-agnostic approach
+                content_scan = db_session.query(ContentScan).filter(ContentScan.content_hash == content_hash).first()
+                
+                if content_scan:
+                    # Update existing record
+                    content_scan.scan_result = scan_result
+                    content_scan.rules_version = ruleset_sha
+                    content_scan.last_scanned_at = func.now()
+                    content_scan.needs_rescan = False
+                else:
+                    # Create new record
+                    content_scan = ContentScan(
+                        content_hash=content_hash,
+                        mastodon_account_id=account_id,
+                        scan_type="account",
+                        scan_result=scan_result,
+                        rules_version=ruleset_sha,
                         needs_rescan=False,
-                    ),
-                )
-                db_session.execute(stmt)
+                        last_scanned_at=func.now(),
+                    )
+                    db_session.add(content_scan)
 
                 scan_session = db_session.query(ScanSession).filter(ScanSession.id == session_id).first()
                 if scan_session:
@@ -275,13 +276,22 @@ class EnhancedScanningSystem:
     def _track_domain_violation(self, domain: str):
         """Track violations for domain-level defederation decisions"""
         with SessionLocal() as session:
-            # Get or create domain alert record
-            stmt = pg_insert(DomainAlert).values(domain=domain, violation_count=1, last_violation_at=func.now())
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["domain"],
-                set_=dict(violation_count=DomainAlert.violation_count + 1, last_violation_at=func.now()),
-            )
-            session.execute(stmt)
+            # Get or create domain alert record using database-agnostic approach
+            domain_alert = session.query(DomainAlert).filter(DomainAlert.domain == domain).first()
+            
+            if domain_alert:
+                # Update existing record
+                domain_alert.violation_count += 1
+                domain_alert.last_violation_at = func.now()
+            else:
+                # Create new record
+                domain_alert = DomainAlert(
+                    domain=domain,
+                    violation_count=1,
+                    last_violation_at=func.now()
+                )
+                session.add(domain_alert)
+            
             session.commit()
 
     def _check_defederation_threshold(self, domain: str):

@@ -452,6 +452,8 @@ def analyze_and_maybe_report(payload: dict):
 
         reports_submitted.labels(domain=domain).inc()
         report_latency.observe(max(0.0, time.time() - started))
+        
+        return result
 
     except Exception as e:
         logging.exception("analyze_and_maybe_report error: %s", e)
