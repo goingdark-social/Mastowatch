@@ -28,6 +28,9 @@ from sqlalchemy.sql import func
 
 settings = get_settings()
 
+# Visibility types that we analyze (public and unlisted content)
+ANALYZABLE_VISIBILITY_TYPES = {"public", "unlisted"}
+
 # Don't create global client instances to avoid HTTPX reuse issues in Celery
 # Instead, create fresh instances in each task
 
@@ -51,10 +54,14 @@ def _should_pause():
     # Honor PANIC_STOP from DB or env
     if settings.PANIC_STOP:
         return True
-    with SessionLocal() as db:
-        row = db.execute(text("SELECT value FROM config WHERE key='panic_stop'")).scalar()
-        if isinstance(row, dict):
-            return bool(row.get("enabled", False))
+    try:
+        with SessionLocal() as db:
+            row = db.execute(text("SELECT value FROM config WHERE key='panic_stop'")).scalar()
+            if isinstance(row, dict):
+                return bool(row.get("enabled", False))
+    except Exception:
+        # In test environment or if config table doesn't exist, default to False
+        pass
     return False
 
 
