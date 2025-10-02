@@ -19,6 +19,7 @@ class TestConfig(unittest.TestCase):
             "ADMIN_TOKEN": "test_admin_token",
             "DATABASE_URL": "postgresql://test:test@localhost:5432/test",
             "REDIS_URL": "redis://localhost:6379/1",
+            "UI_ORIGIN": "http://localhost:3000",
         }
 
         # Store original values to restore later

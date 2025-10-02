@@ -25,6 +25,7 @@ os.environ.update(
         "DEFEDERATION_THRESHOLD": "10",
         "CONTENT_CACHE_TTL": "24",
         "FEDERATED_SCAN_ENABLED": "true",
+        "UI_ORIGIN": "http://localhost:3000",
     }
 )
 
