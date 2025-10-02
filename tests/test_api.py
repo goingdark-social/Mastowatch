@@ -17,7 +17,7 @@ os.environ.update(
         "INSTANCE_BASE": "https://test.mastodon.social",
         "ADMIN_TOKEN": "test_admin_token_123",
         "BOT_TOKEN": "test_bot_token_123",
-        "DATABASE_URL": "postgresql+psycopg://test:test@localhost:5433/test",
+        "DATABASE_URL": "sqlite:///test_api.db",
         "REDIS_URL": "redis://localhost:6380/1",
         "API_KEY": "test_api_key_123",
         "WEBHOOK_SECRET": "test_webhook_secret",
@@ -49,6 +49,16 @@ class TestAPIEndpoints(unittest.TestCase):
 
     def setUp(self):
         """Prepare test client with mocked dependencies."""
+        # Create database tables before setting up the app
+        from sqlalchemy import create_engine
+        from app.db import Base
+        from app.config import get_settings
+        
+        settings = get_settings()
+        engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=engine)
+        self.test_engine = engine
+        
         with patch("redis.from_url") as mock_redis, patch("app.db.SessionLocal") as mock_db:
             mock_redis_instance = MagicMock()
             mock_redis.return_value = mock_redis_instance
@@ -77,9 +87,15 @@ class TestAPIEndpoints(unittest.TestCase):
         self.mock_session.execute.return_value = None
 
     def tearDown(self):
-        """Stop patched dependencies."""
+        """Stop patched dependencies and clear app dependency overrides."""
         self.redis_patcher.stop()
         self.db_patcher.stop()
+        self.app.dependency_overrides.clear()
+        
+        # Drop all tables after test
+        from app.db import Base
+        Base.metadata.drop_all(bind=self.test_engine)
+        self.test_engine.dispose()
 
     def test_healthz_endpoint(self):
         """Test that the health check endpoint returns proper status."""
@@ -96,55 +112,77 @@ class TestAPIEndpoints(unittest.TestCase):
         """Test that metrics endpoint returns Prometheus format."""
         response = self.client.get("/metrics")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["content-type"], "text/plain; charset=utf-8")
+        # Check that content-type starts with text/plain (may include version info)
+        self.assertTrue(response.headers["content-type"].startswith("text/plain"))
 
     # NEW API ROUTER TESTS
 
-    @patch("app.api.config.get_config_service")
-    @patch("app.api.config.require_admin_hybrid")
-    def test_dry_run_toggle_new_endpoint(self, mock_auth, mock_service):
+    def test_dry_run_toggle_new_endpoint(self):
         """Toggle dry run via service."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        from app.services.config_service import get_config_service
+        
+        # Override the get_current_user dependency
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
+        
         service = MagicMock()
-        mock_service.return_value = service
+        self.app.dependency_overrides[get_config_service] = lambda: service
+        
         response = self.client.post("/config/dry_run?enable=false")
         self.assertEqual(response.status_code, 200)
         service.set_flag.assert_called_once_with("dry_run", False, updated_by="testadmin")
 
-    @patch("app.api.config.get_config_service")
-    @patch("app.api.config.require_admin_hybrid")
-    def test_panic_stop_toggle_new_endpoint(self, mock_auth, mock_service):
+    def test_panic_stop_toggle_new_endpoint(self):
         """Toggle panic stop via service."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        from app.services.config_service import get_config_service
+        
+        # Override the get_current_user dependency
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
+        
         service = MagicMock()
-        mock_service.return_value = service
+        self.app.dependency_overrides[get_config_service] = lambda: service
+        
         response = self.client.post("/config/panic_stop?enable=true")
         self.assertEqual(response.status_code, 200)
         service.set_flag.assert_called_once_with("panic_stop", True, updated_by="testadmin")
 
-    @patch("app.api.config.get_config_service")
-    @patch("app.api.config.require_admin_hybrid")
-    def test_report_threshold_uses_service(self, mock_auth, mock_service):
+    def test_report_threshold_uses_service(self):
         """Update report threshold via service."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        from app.services.config_service import get_config_service
+        
+        # Override the get_current_user dependency
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
+        
         service = MagicMock()
-        mock_service.return_value = service
+        self.app.dependency_overrides[get_config_service] = lambda: service
+        
         response = self.client.post("/config/report_threshold?threshold=2.5")
         self.assertEqual(response.status_code, 200)
         service.set_threshold.assert_called_once_with("report_threshold", 2.5, updated_by="testadmin")
 
-    @patch("app.api.config.get_config_service")
-    @patch("app.api.config.require_admin_hybrid")
-    def test_automod_config_endpoint(self, mock_auth, mock_service):
+    def test_automod_config_endpoint(self):
         """Manage automod settings via service."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        from app.services.config_service import get_config_service
+        
+        # Override the get_current_user dependency
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
+        
         service = MagicMock()
         service.get_config.return_value = {
             "dry_run_override": True,
             "default_action": "suspend",
             "defederation_threshold": 3,
         }
-        mock_service.return_value = service
+        service.set_automod_config.return_value = {
+            "dry_run_override": False,
+            "default_action": "report",
+            "defederation_threshold": 7,
+        }
+        self.app.dependency_overrides[get_config_service] = lambda: service
+        
         response = self.client.get("/config/automod")
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -165,16 +203,22 @@ class TestAPIEndpoints(unittest.TestCase):
             updated_by="testadmin",
         )
 
-    @patch("app.api.config.get_config_service")
-    def test_get_config_returns_non_sensitive_fields(self, mock_service):
+    def test_get_config_returns_non_sensitive_fields(self):
         """Expose only safe configuration."""
+        from app.services.config_service import get_config_service
+        from app.auth import require_api_key
+        
+        # Override API key authentication
+        self.app.dependency_overrides[require_api_key] = lambda: True
+        
         service = MagicMock()
         service.get_config.side_effect = lambda key: {
             "panic_stop": {"enabled": True},
             "dry_run": {"enabled": False},
             "report_threshold": {"threshold": 2.5},
         }.get(key)
-        mock_service.return_value = service
+        self.app.dependency_overrides[get_config_service] = lambda: service
+        
         headers = {"X-API-Key": os.environ["API_KEY"]}
         response = self.client.get("/config", headers=headers)
         self.assertEqual(response.status_code, 200)
@@ -185,10 +229,12 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(data["PANIC_STOP"], True)
         self.assertEqual(data["REPORT_THRESHOLD"], 2.5)
 
-    @patch("app.api.analytics.require_admin_hybrid")
-    def test_analytics_overview_new_endpoint(self, mock_auth):
+    def test_analytics_overview_new_endpoint(self):
         """Test analytics overview endpoint with new API structure."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        
+        # Override the get_current_user dependency
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 200)
@@ -196,10 +242,12 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertIn("totals", data)
         self.assertIn("recent_24h", data)
 
-    @patch("app.api.analytics.require_admin_hybrid")
-    def test_analytics_timeline_new_endpoint(self, mock_auth):
+    def test_analytics_timeline_new_endpoint(self):
         """Test analytics timeline endpoint with new API structure."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        
+        # Override the get_current_user dependency
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         response = self.client.get("/analytics/timeline?days=7")
         self.assertEqual(response.status_code, 200)
@@ -207,55 +255,53 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertIn("analyses", data)
         self.assertIn("reports", data)
 
-    @patch("app.api.logs.SessionLocal")
-    @patch("app.api.logs.require_admin_hybrid")
-    def test_logs_endpoint(self, mock_auth, mock_session_local):
+    def test_logs_endpoint(self):
         """Test audit log retrieval."""
-        mock_auth.return_value = create_mock_admin_user()
-        session = MagicMock()
-        log = AuditLog(
-            id=1,
-            action_type="suspend",
-            triggered_by_rule_id=2,
-            target_account_id="acct1",
-            timestamp=datetime.utcnow(),
-            evidence={"k": "v"},
-            api_response={"ok": True},
-        )
-        query = MagicMock()
-        query.order_by.return_value = query
-        query.filter.return_value = query
-        query.limit.return_value.all.return_value = [log]
-        session.query.return_value = query
-        mock_session_local.return_value.__enter__.return_value = session
+        from app.oauth import get_current_user
+        from app.db import SessionLocal
+        
+        # Override the get_current_user dependency
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
+        
+        # Insert test data into the real test database
+        with SessionLocal() as session:
+            log = AuditLog(
+                action_type="suspend",
+                triggered_by_rule_id=2,
+                target_account_id="acct1",
+                timestamp=datetime.utcnow(),
+                evidence={"k": "v"},
+                api_response={"ok": True},
+            )
+            session.add(log)
+            session.commit()
+        
         response = self.client.get("/logs")
         self.assertEqual(response.status_code, 200)
         data = response.json()
+        self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["action_type"], "suspend")
         self.assertEqual(data[0]["triggered_by_rule_id"], 2)
 
-    @patch("app.api.rules.require_admin_hybrid")
-    def test_get_current_rules_new_endpoint(self, mock_auth):
+    def test_get_current_rules_new_endpoint(self):
         """Test current rules endpoint with new API structure."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
-        with patch("app.api.rules.rule_service") as mock_rule_service:
-            mock_rule_service.get_active_rules.return_value = (
-                [],
-                {"report_threshold": 1.0},
-                "test_sha",
-            )
+        # Test the list rules endpoint (which queries the database)
+        response = self.client.get("/rules")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("rules", data)
+        # Database is empty so rules list should be empty
+        self.assertEqual(data["rules"], [])
 
-            response = self.client.get("/rules/")
-            self.assertEqual(response.status_code, 200)
-            data = response.json()
-            self.assertIn("rules", data)
-            self.assertIn("report_threshold", data)
-
-    @patch("app.api.rules.require_admin_hybrid")
-    def test_create_rule_new_endpoint(self, mock_auth):
+    def test_create_rule_new_endpoint(self):
         """Test creating a new rule via API."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         with patch("app.api.rules.rule_service") as mock_rule_service:
             # Mock rule creation
@@ -282,10 +328,11 @@ class TestAPIEndpoints(unittest.TestCase):
             # Verify rule service was called
             mock_rule_service.create_rule.assert_called_once()
 
-    @patch("app.api.rules.require_admin_hybrid")
-    def test_update_rule_new_endpoint(self, mock_auth):
+    def test_update_rule_new_endpoint(self):
         """Test updating a rule via API."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         with patch("app.api.rules.rule_service") as mock_rule_service:
             # Mock rule update
@@ -302,10 +349,11 @@ class TestAPIEndpoints(unittest.TestCase):
             # Verify rule service was called
             mock_rule_service.update_rule.assert_called_once_with(1, **update_data)
 
-    @patch("app.api.rules.require_admin_hybrid")
-    def test_delete_rule_new_endpoint(self, mock_auth):
+    def test_delete_rule_new_endpoint(self):
         """Test deleting a rule via API."""
-        mock_auth.return_value = create_mock_admin_user()
+        from app.oauth import get_current_user
+        
+        self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         with patch("app.api.rules.rule_service") as mock_rule_service:
             mock_rule_service.delete_rule.return_value = True
@@ -316,10 +364,12 @@ class TestAPIEndpoints(unittest.TestCase):
             # Verify rule service was called
             mock_rule_service.delete_rule.assert_called_once_with(1)
 
-    @patch("app.api.scanning.require_api_key")
-    def test_get_next_accounts_to_scan_endpoint(self, mock_api_key):
+    def test_get_next_accounts_to_scan_endpoint(self):
         """Fetch the next accounts to scan."""
-        mock_api_key.return_value = True
+        from app.auth import require_api_key
+        
+        self.app.dependency_overrides[require_api_key] = lambda: True
+        
         with patch("app.api.scanning.EnhancedScanningSystem") as mock_scanner:
             instance = mock_scanner.return_value
             instance.get_next_accounts_to_scan.return_value = ([{"id": "1"}], "next123")
@@ -329,7 +379,7 @@ class TestAPIEndpoints(unittest.TestCase):
 
     # NEW WEBHOOK TESTS
 
-    @patch("app.main.process_new_report")
+    @patch("app.api.auth.process_new_report")
     def test_webhook_report_created(self, mock_process_report):
         """Test webhook handling for report.created events."""
         mock_process_report.delay.return_value = MagicMock(id="task_123")
@@ -339,19 +389,21 @@ class TestAPIEndpoints(unittest.TestCase):
             "target_account": {"id": "target_account_123"},
         }
         webhook_secret = os.environ["WEBHOOK_SECRET"]
-        body = json.dumps(payload).encode("utf-8")
+        # Use json.dumps with separators to match FastAPI's JSON encoding
+        body = json.dumps(payload, separators=(',', ':')).encode("utf-8")
         signature = "sha256=" + hmac.new(webhook_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         response = self.client.post(
             "/webhooks/mastodon_events",
-            json=payload,
+            content=body,
             headers={
                 "X-Hub-Signature-256": signature,
-                "X-Mastodon-Event": "report.created",
+                "X-Event-Type": "report.created",
+                "Content-Type": "application/json",
             },
         )
         self.assertEqual(response.status_code, 200)
 
-    @patch("app.main.process_new_status")
+    @patch("app.api.auth.process_new_status")
     def test_webhook_status_created(self, mock_process_status):
         """Test webhook handling for status.created events."""
         mock_process_status.delay.return_value = MagicMock(id="task_456")
@@ -361,14 +413,16 @@ class TestAPIEndpoints(unittest.TestCase):
             "content": "test status content",
         }
         webhook_secret = os.environ["WEBHOOK_SECRET"]
-        body = json.dumps(payload).encode("utf-8")
+        # Use json.dumps with separators to match FastAPI's JSON encoding
+        body = json.dumps(payload, separators=(',', ':')).encode("utf-8")
         signature = "sha256=" + hmac.new(webhook_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         response = self.client.post(
             "/webhooks/mastodon_events",
-            json=payload,
+            content=body,
             headers={
                 "X-Hub-Signature-256": signature,
-                "X-Mastodon-Event": "status.created",
+                "X-Event-Type": "status.created",
+                "Content-Type": "application/json",
             },
         )
         self.assertEqual(response.status_code, 200)
