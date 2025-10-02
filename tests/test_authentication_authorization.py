@@ -42,7 +42,28 @@ class TestAuthenticationAuthorization(unittest.TestCase):
     """Test authentication and authorization functionality"""
 
     def setUp(self):
-        # Mock external dependencies
+        # Create database tables before setting up the app
+        from sqlalchemy import create_engine
+        from app.db import Base
+        from app.config import get_settings
+        
+        settings = get_settings()
+        engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=engine)
+        self.test_engine = engine
+        
+        # Mock external dependencies during app import
+        with patch("redis.from_url") as mock_redis:
+            mock_redis_instance = MagicMock()
+            mock_redis.return_value = mock_redis_instance
+            mock_redis_instance.ping.return_value = True
+
+            from app.main import app
+
+            self.app = app
+            self.client = TestClient(app)
+        
+        # Mock Redis for test execution
         self.redis_patcher = patch("redis.from_url")
         self.mock_redis = self.redis_patcher.start()
         self.mock_redis_instance = MagicMock()
@@ -51,27 +72,22 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         self.mock_redis_instance.get.return_value = None
         self.mock_redis_instance.setex.return_value = True
 
-        self.db_patcher = patch("app.main.SessionLocal")
-        self.mock_db = self.db_patcher.start()
-        self.mock_db_session = MagicMock()
-        self.mock_db.return_value.__enter__.return_value = self.mock_db_session
-
         # Mock OAuth config
-        self.oauth_patcher = patch("app.main.get_oauth_config")
+        self.oauth_patcher = patch("app.oauth.get_oauth_config")
         self.mock_oauth_config = self.oauth_patcher.start()
         self.mock_oauth_instance = MagicMock()
         self.mock_oauth_instance.configured = True
         self.mock_oauth_config.return_value = self.mock_oauth_instance
 
-        from app.main import app
-
-        self.app = app
-        self.client = TestClient(app)
-
     def tearDown(self):
         self.redis_patcher.stop()
-        self.db_patcher.stop()
         self.oauth_patcher.stop()
+        self.app.dependency_overrides.clear()
+        
+        # Drop all tables after test
+        from app.db import Base
+        Base.metadata.drop_all(bind=self.test_engine)
+        self.test_engine.dispose()
 
     def create_test_admin_user(self):
         """Create test admin user"""
