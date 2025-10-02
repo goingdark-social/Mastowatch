@@ -24,7 +24,7 @@ class TestRuleService(unittest.TestCase):
 
         self.engine = create_engine(self.test_db_url, echo=False)
         Base.metadata.create_all(self.engine)
-        self.SessionLocal = sessionmaker(bind=self.engine)
+        self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False)
 
         # Create service instance
         self.rule_service = RuleService(cache_ttl_seconds=1)
