@@ -29,6 +29,7 @@ os.environ.update(
         "OAUTH_POPUP_REDIRECT_URI": "http://localhost:8080/admin/popup-callback",
         "OAUTH_SCOPE": "read:accounts",
         "WEBHOOK_SECRET": "test_webhook_secret_123",
+        "UI_ORIGIN": "http://localhost:3000",
     }
 )
 
@@ -41,7 +42,28 @@ class TestAuthenticationAuthorization(unittest.TestCase):
     """Test authentication and authorization functionality"""
 
     def setUp(self):
-        # Mock external dependencies
+        # Create database tables before setting up the app
+        from sqlalchemy import create_engine
+        from app.db import Base
+        from app.config import get_settings
+        
+        settings = get_settings()
+        engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=engine)
+        self.test_engine = engine
+        
+        # Mock external dependencies during app import
+        with patch("redis.from_url") as mock_redis:
+            mock_redis_instance = MagicMock()
+            mock_redis.return_value = mock_redis_instance
+            mock_redis_instance.ping.return_value = True
+
+            from app.main import app
+
+            self.app = app
+            self.client = TestClient(app)
+        
+        # Mock Redis for test execution
         self.redis_patcher = patch("redis.from_url")
         self.mock_redis = self.redis_patcher.start()
         self.mock_redis_instance = MagicMock()
@@ -50,27 +72,22 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         self.mock_redis_instance.get.return_value = None
         self.mock_redis_instance.setex.return_value = True
 
-        self.db_patcher = patch("app.main.SessionLocal")
-        self.mock_db = self.db_patcher.start()
-        self.mock_db_session = MagicMock()
-        self.mock_db.return_value.__enter__.return_value = self.mock_db_session
-
         # Mock OAuth config
-        self.oauth_patcher = patch("app.main.get_oauth_config")
+        self.oauth_patcher = patch("app.oauth.get_oauth_config")
         self.mock_oauth_config = self.oauth_patcher.start()
         self.mock_oauth_instance = MagicMock()
         self.mock_oauth_instance.configured = True
         self.mock_oauth_config.return_value = self.mock_oauth_instance
 
-        from app.main import app
-
-        self.app = app
-        self.client = TestClient(app)
-
     def tearDown(self):
         self.redis_patcher.stop()
-        self.db_patcher.stop()
         self.oauth_patcher.stop()
+        self.app.dependency_overrides.clear()
+        
+        # Drop all tables after test
+        from app.db import Base
+        Base.metadata.drop_all(bind=self.test_engine)
+        self.test_engine.dispose()
 
     def create_test_admin_user(self):
         """Create test admin user"""
@@ -195,41 +212,67 @@ class TestAuthenticationAuthorization(unittest.TestCase):
 
     def test_admin_role_access(self):
         """Test that Admin role has access to admin endpoints"""
+        from app.oauth import get_current_user
+        
         admin_user = self.create_test_admin_user()
-
-        with patch("app.main.get_current_user_hybrid", return_value=admin_user):
-            response = self.client.get("/analytics/overview")
-            self.assertEqual(response.status_code, 200)
+        self.app.dependency_overrides[get_current_user] = lambda: admin_user
+        
+        response = self.client.get("/analytics/overview")
+        self.assertEqual(response.status_code, 200)
+        
+        # Clean up
+        self.app.dependency_overrides.clear()
 
     def test_owner_role_access(self):
         """Test that Owner role has access to admin endpoints"""
+        from app.oauth import get_current_user
+        
         owner_user = self.create_test_owner_user()
-
-        with patch("app.main.get_current_user_hybrid", return_value=owner_user):
-            response = self.client.get("/analytics/overview")
-            self.assertEqual(response.status_code, 200)
+        self.app.dependency_overrides[get_current_user] = lambda: owner_user
+        
+        response = self.client.get("/analytics/overview")
+        self.assertEqual(response.status_code, 200)
+        
+        # Clean up
+        self.app.dependency_overrides.clear()
 
     def test_moderator_role_access(self):
         """Test that Moderator role has access to admin endpoints"""
+        from app.oauth import get_current_user
+        
         mod_user = self.create_test_moderator_user()
-
-        with patch("app.main.get_current_user_hybrid", return_value=mod_user):
-            response = self.client.get("/analytics/overview")
-            self.assertEqual(response.status_code, 200)
+        self.app.dependency_overrides[get_current_user] = lambda: mod_user
+        
+        response = self.client.get("/analytics/overview")
+        self.assertEqual(response.status_code, 200)
+        
+        # Clean up
+        self.app.dependency_overrides.clear()
 
     def test_regular_user_access_denied(self):
         """Test that regular users are denied access to admin endpoints"""
+        from app.oauth import get_current_user
+        
         regular_user = self.create_test_regular_user()
-
-        with patch("app.main.get_current_user_hybrid", return_value=regular_user):
-            response = self.client.get("/analytics/overview")
-            self.assertEqual(response.status_code, 403)
+        self.app.dependency_overrides[get_current_user] = lambda: regular_user
+        
+        response = self.client.get("/analytics/overview")
+        self.assertEqual(response.status_code, 403)
+        
+        # Clean up
+        self.app.dependency_overrides.clear()
 
     def test_unauthenticated_access_denied(self):
         """Test that unauthenticated users are denied access"""
-        with patch("app.main.get_current_user_hybrid", return_value=None):
-            response = self.client.get("/analytics/overview")
-            self.assertEqual(response.status_code, 401)
+        from app.oauth import get_current_user
+        
+        self.app.dependency_overrides[get_current_user] = lambda: None
+        
+        response = self.client.get("/analytics/overview")
+        self.assertEqual(response.status_code, 401)
+        
+        # Clean up
+        self.app.dependency_overrides.clear()
 
     def test_role_permission_validation(self):
         """Test role permission bitmask validation"""
@@ -362,28 +405,35 @@ class TestAuthenticationAuthorization(unittest.TestCase):
 
     def test_webhook_authentication(self):
         """Test webhook signature-based authentication"""
-        payload = json.dumps({"account": {"id": "123"}, "statuses": []})
-        signature = hmac.new(os.environ["WEBHOOK_SECRET"].encode(), payload.encode(), hashlib.sha256).hexdigest()
+        payload = {"account": {"id": "123"}, "statuses": []}
+        # Use json.dumps with separators to match FastAPI's JSON encoding
+        body = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+        signature = "sha256=" + hmac.new(os.environ["WEBHOOK_SECRET"].encode("utf-8"), body, hashlib.sha256).hexdigest()
 
         response = self.client.post(
             "/webhooks/mastodon_events",
-            content=payload,
-            headers={"X-Hub-Signature-256": f"sha256={signature}", "Content-Type": "application/json"},
+            content=body,
+            headers={"X-Hub-Signature-256": signature, "Content-Type": "application/json"},
         )
         self.assertEqual(response.status_code, 200)
 
     def test_api_key_authentication(self):
         """Test API key authentication for config endpoints"""
+        from app.oauth import get_current_user
+        
         # Mock admin user for API key auth
         admin_user = self.create_test_admin_user()
+        self.app.dependency_overrides[get_current_user] = lambda: admin_user
+        
+        response = self.client.post(
+            "/config/dry_run", json={"dry_run": True}, headers={"X-API-Key": "test_api_key_123"}
+        )
 
-        with patch("app.main.get_current_user_hybrid", return_value=admin_user):
-            response = self.client.post(
-                "/config/dry_run", json={"dry_run": True}, headers={"X-API-Key": "test_api_key_123"}
-            )
-
-            # Should work with valid API key and admin user
-            self.assertEqual(response.status_code, 200)
+        # Should work with valid API key and admin user
+        self.assertEqual(response.status_code, 200)
+        
+        # Clean up
+        self.app.dependency_overrides.clear()
 
     # ========== SECURITY TESTS ==========
 

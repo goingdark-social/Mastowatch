@@ -21,6 +21,7 @@ os.environ.update(
         "REDIS_URL": "redis://localhost:6380/1",
         "API_KEY": "test_api_key_123",
         "WEBHOOK_SECRET": "test_webhook_secret",
+        "UI_ORIGIN": "http://localhost:3000",
     }
 )
 
