@@ -41,17 +41,33 @@ class TestDomainValidationMonitoring(unittest.TestCase):
     """Test domain validation and monitoring functionality"""
 
     def setUp(self):
-        # Mock external dependencies
+        # Create database tables before setting up the app
+        from sqlalchemy import create_engine
+        from app.db import Base
+        from app.config import get_settings
+
+        settings = get_settings()
+        engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=engine)
+        self.test_engine = engine
+
+        # Mock external dependencies during app import
+        with patch("redis.from_url") as mock_redis:
+            mock_redis_instance = MagicMock()
+            mock_redis.return_value = mock_redis_instance
+            mock_redis_instance.ping.return_value = True
+
+            from app.main import app
+
+            self.app = app
+            self.client = TestClient(app)
+
+        # Mock Redis for test execution
         self.redis_patcher = patch("redis.from_url")
         self.mock_redis = self.redis_patcher.start()
         self.mock_redis_instance = MagicMock()
         self.mock_redis.return_value = self.mock_redis_instance
         self.mock_redis_instance.ping.return_value = True
-
-        self.db_patcher = patch("app.main.SessionLocal")
-        self.mock_db = self.db_patcher.start()
-        self.mock_db_session = MagicMock()
-        self.mock_db.return_value.__enter__.return_value = self.mock_db_session
 
         # Mock Celery tasks
         self.federated_scan_patcher = patch("app.main.scan_federated_content")
@@ -67,22 +83,23 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         self.mock_domain_check.delay.return_value = self.mock_domain_task
 
         # Mock enhanced scanning system
-        self.scanning_patcher = patch("app.main.EnhancedScanningSystem")
+        self.scanning_patcher = patch("app.scanning.EnhancedScanningSystem")
         self.mock_scanning_system = self.scanning_patcher.start()
         self.mock_scanning_instance = MagicMock()
         self.mock_scanning_system.return_value = self.mock_scanning_instance
 
-        from app.main import app
-
-        self.app = app
-        self.client = TestClient(app)
-
     def tearDown(self):
         self.redis_patcher.stop()
-        self.db_patcher.stop()
         self.federated_scan_patcher.stop()
         self.domain_check_patcher.stop()
         self.scanning_patcher.stop()
+        self.app.dependency_overrides.clear()
+
+        # Drop all tables after test
+        from app.db import Base
+
+        Base.metadata.drop_all(bind=self.test_engine)
+        self.test_engine.dispose()
 
     def create_mock_admin_user(self):
         """Create mock admin user for testing"""
