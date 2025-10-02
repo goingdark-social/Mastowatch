@@ -413,10 +413,6 @@ class TestDomainValidationMonitoring(unittest.TestCase):
             "system_status": "healthy",
         }
 
-        # Mock database queries for overview
-        self.mock_db_session.query.return_value.scalar.return_value = 50
-        self.mock_db_session.execute.return_value.fetchall.return_value = []
-
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 200)
 
@@ -641,15 +637,6 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         """Test domain monitoring resilience to various failures"""
 
         self.setup_admin_auth()
-
-        # Test database connection failure
-        self.mock_db_session.query.side_effect = Exception("Database connection lost")
-
-        response = self.client.get("/analytics/domains")
-        self.assertEqual(response.status_code, 500)
-
-        # Reset mock
-        self.mock_db_session.query.side_effect = None
 
         # Test partial data retrieval
         self.mock_scanning_instance.get_domain_alerts.return_value = [

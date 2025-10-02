@@ -405,13 +405,15 @@ class TestAuthenticationAuthorization(unittest.TestCase):
 
     def test_webhook_authentication(self):
         """Test webhook signature-based authentication"""
-        payload = json.dumps({"account": {"id": "123"}, "statuses": []})
-        signature = hmac.new(os.environ["WEBHOOK_SECRET"].encode(), payload.encode(), hashlib.sha256).hexdigest()
+        payload = {"account": {"id": "123"}, "statuses": []}
+        # Use json.dumps with separators to match FastAPI's JSON encoding
+        body = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+        signature = "sha256=" + hmac.new(os.environ["WEBHOOK_SECRET"].encode("utf-8"), body, hashlib.sha256).hexdigest()
 
         response = self.client.post(
             "/webhooks/mastodon_events",
-            content=payload,
-            headers={"X-Hub-Signature-256": f"sha256={signature}", "Content-Type": "application/json"},
+            content=body,
+            headers={"X-Hub-Signature-256": signature, "Content-Type": "application/json"},
         )
         self.assertEqual(response.status_code, 200)
 
