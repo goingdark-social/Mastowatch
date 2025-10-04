@@ -47,8 +47,19 @@ class Settings(BaseSettings):
     # OAuth Configuration for admin login (uses same Mastodon app credentials)
     MASTODON_CLIENT_KEY: str | None = None
     MASTODON_CLIENT_SECRET: str | None = None
+
+    # OAuth aliases (used by auth endpoints)
+    @property
+    def OAUTH_CLIENT_ID(self) -> str | None:
+        """Alias for MASTODON_CLIENT_KEY (used by auth endpoints)."""
+        return self.MASTODON_CLIENT_KEY
+
+    @property
+    def OAUTH_CLIENT_SECRET(self) -> str | None:
+        """Alias for MASTODON_CLIENT_SECRET (used by auth endpoints)."""
+        return self.MASTODON_CLIENT_SECRET
     OAUTH_REDIRECT_URI: str | None = None
-    OAUTH_SCOPE: str = "read:accounts"
+    OAUTH_SCOPE: str = "read write follow"
     OAUTH_POPUP_REDIRECT_URI: str | None = None
     SESSION_SECRET_KEY: str | None = None
     SESSION_COOKIE_NAME: str = "mastowatch_session"
