@@ -181,7 +181,7 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         response = self.client.get("/admin/callback?state=test_state")
         self.assertEqual(response.status_code, 400)
 
-    @patch("app.api.auth.MastoClient.exchange_code_for_token", new_callable=AsyncMock)
+    @patch("app.services.mastodon_service.mastodon_service.exchange_oauth_code", new_callable=AsyncMock)
     async def test_oauth_token_exchange(self, mock_exchange):
         admin_user = self.create_test_admin_user()
         self.mock_oauth_instance.fetch_user_info.return_value = admin_user
@@ -196,7 +196,7 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         regular_user = self.create_test_regular_user()
         self.mock_oauth_instance.fetch_user_info.return_value = regular_user
         with patch(
-            "app.api.auth.MastoClient.exchange_code_for_token",
+            "app.services.mastodon_service.mastodon_service.exchange_oauth_code",
             AsyncMock(return_value={"access_token": "test_access_token"}),
         ):
             self.mock_redis_instance.get.return_value = "valid"
@@ -350,7 +350,7 @@ class TestAuthenticationAuthorization(unittest.TestCase):
 
         with patch("app.main.create_session_cookie") as mock_create_cookie:
             with patch(
-                "app.api.auth.MastoClient.exchange_code_for_token",
+                "app.services.mastodon_service.mastodon_service.exchange_oauth_code",
                 AsyncMock(return_value={"access_token": "test_token"}),
             ):
                 self.mock_oauth_instance.fetch_user_info.return_value = admin_user

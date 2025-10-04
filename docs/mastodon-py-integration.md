@@ -4,7 +4,7 @@ This document describes the integration of the official [mastodon.py](https://gi
 
 ## Overview
 
-MastoWatch uses the official `mastodon.py` library for OAuth authentication and credential verification, providing better reliability and community support while maintaining our existing MastoClient wrapper for backward compatibility.
+MastoWatch uses the official `mastodon.py` library for all Mastodon API operations, providing better reliability, community support, and built-in features like rate limiting and OAuth handling.
 
 ## Architecture
 
@@ -14,19 +14,17 @@ MastoWatch uses the official `mastodon.py` library for OAuth authentication and 
 │  (auth.py, oauth.py, scanning.py, etc.)    │
 └──────────────┬──────────────────────────────┘
                │
-               ├──── OAuth & Auth ──────┐
-               │                        │
-               ▼                        ▼
-┌──────────────────────┐   ┌──────────────────┐
-│  MastodonService     │   │   MastoClient    │
-│  (mastodon.py)       │   │   (OpenAPI)      │
-└──────────┬───────────┘   └────────┬─────────┘
-           │                        │
-           ▼                        ▼
-    ┌──────────────┐       ┌──────────────┐
-    │ mastodon.py  │       │ OpenAPI Gen  │
-    │   Library    │       │   Client     │
-    └──────────────┘       └──────────────┘
+               ▼
+┌──────────────────────┐
+│  MastodonService     │
+│  (mastodon.py)       │
+└──────────┬───────────┘
+           │
+           ▼
+    ┌──────────────┐
+    │ mastodon.py  │
+    │   Library    │
+    └──────────────┘
 ```
 
 ## MastodonService Wrapper
@@ -97,38 +95,19 @@ report = await mastodon_service.create_report(
 
 ## Migration Status
 
-### ✅ Phase 1: OAuth Flow (Complete)
+### ✅ Complete Migration to mastodon.py
+
+All Mastodon API operations have been migrated to use the official mastodon.py library:
 
 - [x] OAuth token exchange
 - [x] Credential verification
 - [x] User authentication
+- [x] Account fetching
+- [x] Report creation
+- [x] Admin operations
+- [x] All moderation actions
 
-### 🔄 Phase 2: Additional Endpoints (Optional)
-
-The following areas could be migrated to use mastodon.py if desired:
-
-- [ ] Account fetching in `scanning.py`
-- [ ] Report creation in `enforcement_service.py`
-- [ ] Admin operations in `tasks/jobs.py`
-- [ ] Additional moderation actions
-
-### Why Not Migrate Everything?
-
-MastoWatch maintains both mastodon.py and MastoClient for good reasons:
-
-1. **MastoClient provides:**
-   - Auto-generated OpenAPI client with full type safety
-   - Custom metrics and monitoring integration
-   - Admin endpoint support not in standard API specs
-   - Existing proven functionality
-
-2. **mastodon.py provides:**
-   - Community-maintained OAuth implementation
-   - Built-in rate limiting and pagination
-   - Well-tested authentication flows
-   - Better error handling for auth
-
-The hybrid approach gives us the best of both worlds.
+The old `MastoClient` (OpenAPI-generated wrapper) and `app/clients/mastodon/` directory have been removed. All code now uses `MastodonService` exclusively.
 
 ## Configuration
 
@@ -174,7 +153,7 @@ PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_authentication_au
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest
 ```
 
-All 113 tests pass with the mastodon.py integration.
+All tests pass with the mastodon.py integration.
 
 ## Performance Considerations
 

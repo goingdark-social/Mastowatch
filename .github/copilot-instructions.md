@@ -22,9 +22,8 @@ MastoWatch is a **Mastodon moderation sidecar** that analyzes accounts/statuses 
 - **Detectors**: Pluggable detection modules (`app/services/detectors/`) implement specific logic (regex, keyword, behavioral) for the rule engine.
 
 ### Mastodon API Client Wrapper
-- **Primary Interface**: All application logic **must** interact with the Mastodon API through the `MastoClient` wrapper class in `app/mastodon_client.py`. This class handles rate-limiting, metrics, and provides a simplified, high-level interface.
-- **Generated Client**: The `MastoClient` internally uses an **auto-generated, type-safe client** located in `app/clients/mastodon/`. This generated code should **never be called directly** from other parts of the application.
-- **Update Script**: The generated client is kept in sync with the upstream Mastodon API specification using `scripts/update_mastodon_client.sh`.
+- **Primary Interface**: All application logic **must** interact with the Mastodon API through the `MastodonService` wrapper class in `app/services/mastodon_service.py`. This class handles rate-limiting, provides async wrappers, and uses the official mastodon.py library.
+- **Official Library**: The `MastodonService` uses the official **mastodon.py library** which provides a complete, well-tested interface to the Mastodon API with built-in rate limiting and error handling.
 
 ## Working Effectively
 
@@ -123,7 +122,7 @@ make logs-frontend     # Frontend only
 - **Linting**: Ruff with custom rules in `pyproject.toml` to ban direct use of `requests` and `httpx` (`make lint`). **WARNING**: 160 errors currently present.
 - **Type checking**: MyPy with selective strictness (`make typecheck`). **WARNING**: Module naming conflicts present.
 - **All quality checks**: `make check` runs lint, format-check, typecheck, and test in sequence. **EXPECT FAILURES** in current codebase.
-- **HTTP Library Policy**: Only the `MastoClient` wrapper is permitted to interact with the Mastodon API. Direct use of `requests` or `httpx` elsewhere is a linting error.
+- **HTTP Library Policy**: Only the `MastodonService` wrapper is permitted to interact with the Mastodon API. The service uses mastodon.py internally. Direct use of `requests` or `httpx` for Mastodon API calls elsewhere is a linting error.
 - **TIMING**: Quality checks complete very quickly - lint ~0.05s, format-check ~5s, typecheck ~0.6s. Set timeout to 2+ minutes. NEVER CANCEL.
 
 ### Database Operations
@@ -173,7 +172,7 @@ make api-client-status
 - **Webhook Validation**: Inbound webhooks are validated using an HMAC SHA256 signature in the `X-Hub-Signature-256` header.
 - **Admin UI Auth**: An OAuth2 flow provides a secure, HttpOnly session cookie for all moderator interactions with the frontend.
 - **Programmatic API Auth**: A static API key is required in the `X-API-Key` header for server-to-server calls or scripts.
-- **Rate Limiting**: Handled centrally by the `MastoClient` wrapper, which respects Mastodon's rate-limit headers.
+- **Rate Limiting**: Handled automatically by mastodon.py's built-in rate limiting (`ratelimit_method="wait"`), accessed through the `MastodonService` wrapper.
 
 ### Task Queue Architecture
 - **Polling Tasks**: `poll_admin_accounts` (remote) and `poll_admin_accounts_local` for discovering accounts.
@@ -186,7 +185,7 @@ make api-client-status
 ### Data Flow Patterns
 1.  **Account Discovery**: Celery Beat → `poll_admin_accounts` → Account persistence in PostgreSQL.
 2.  **Rule Evaluation**: An account and its statuses are passed to the `RuleService`, which uses various detectors to find violations.
-3.  **Report Generation/Enforcement**: If a violation's score exceeds the rule's `trigger_threshold`, the `EnforcementService` is called to perform an action (e.g., file a report) via the `MastoClient`.
+3.  **Report Generation/Enforcement**: If a violation's score exceeds the rule's `trigger_threshold`, the `EnforcementService` is called to perform an action (e.g., file a report) via the `MastodonService`.
 4.  **Webhook Processing**: A real-time event from Mastodon (e.g., `status.created`) hits the webhook endpoint, which enqueues a specific Celery task (`process_new_status`) for immediate analysis.
 
 ### Error Handling Standards
@@ -210,9 +209,8 @@ make api-client-status
 
 ### Key Directories
 - `app/api/`: FastAPI routers, organized by resource (analytics, auth, rules, etc.).
-- `app/services/`: Core business logic (RuleService, EnforcementService, Detectors).
+- `app/services/`: Core business logic (RuleService, EnforcementService, MastodonService, Detectors).
 - `app/tasks/`: Celery job definitions.
-- `app/clients/mastodon/`: **Auto-generated** Mastodon API client. **Do not edit manually.**
 - `tests/`: Test suite, structured to mirror the application layout.
 - `specs/`: OpenAPI schemas for client generation.
 
