@@ -19,7 +19,6 @@ except ImportError:
 
 
 from app.config import get_settings
-from app.mastodon_client import MastoClient
 from fastapi import Cookie, Depends, HTTPException, Request, Response, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel
@@ -45,9 +44,7 @@ class OAuthConfig:
         self.settings = settings
 
         if not AUTHLIB_AVAILABLE:
-            logger.warning(
-                "authlib not available - OAuth admin features will be unavailable"
-            )
+            logger.warning("authlib not available - OAuth admin features will be unavailable")
             self.configured = False
             return
 
@@ -60,9 +57,7 @@ class OAuthConfig:
                 settings.SESSION_SECRET_KEY,
             ]
         ):
-            logger.warning(
-                "OAuth not fully configured - admin features will be unavailable"
-            )
+            logger.warning("OAuth not fully configured - admin features will be unavailable")
             self.configured = False
             return
 
@@ -101,8 +96,9 @@ class OAuthConfig:
         """Return user info from the Mastodon API."""
 
         try:
-            client = MastoClient(access_token)
-            data = await client.verify_credentials()
+            from app.services.mastodon_service import mastodon_service
+
+            data = await mastodon_service.verify_credentials(access_token)
             is_admin = False
             role_data = data.get("role")
             if role_data:
@@ -169,35 +165,25 @@ current_user_dep = Depends(get_current_user)
 def require_admin(current_user: User | None = current_user_dep) -> User:
     """Require an authenticated admin user."""
     if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
 
 
 def require_authenticated(current_user: User | None = current_user_dep) -> User:
     """Require any authenticated user."""
     if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     return current_user
 
 
 def require_admin_hybrid(current_user: User | None = current_user_dep) -> User:
     """Require an authenticated admin user for hybrid auth."""
     if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
 
 
