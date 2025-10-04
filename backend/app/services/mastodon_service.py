@@ -32,10 +32,19 @@ class MastodonService:
         return self._client_cache[key]
 
     def get_admin_client(self) -> Mastodon:
-        return self.get_client(self.settings.ADMIN_TOKEN)
+        """Get Mastodon client with admin privileges.
+
+        Uses MASTODON_ACCESS_TOKEN which should have admin scope.
+        """
+        return self.get_client(self.settings.MASTODON_ACCESS_TOKEN)
 
     def get_bot_client(self) -> Mastodon:
-        return self.get_client(self.settings.BOT_TOKEN)
+        """Get Mastodon client for bot operations.
+
+        Uses MASTODON_ACCESS_TOKEN. In the current setup, there's a single token
+        with both admin and write permissions.
+        """
+        return self.get_client(self.settings.MASTODON_ACCESS_TOKEN)
 
     # ---------------------------------------------------
     # OAuth

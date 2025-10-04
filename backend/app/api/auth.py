@@ -392,21 +392,31 @@ async def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
 
     # Validate webhook signature if secret is configured
     if settings.WEBHOOK_SECRET:
-        signature_header = request.headers.get(settings.WEBHOOK_SIG_HEADER)
+        # Accept both X-Hub-Signature (v2 standard) and X-Hub-Signature-256 (legacy)
+        signature_header = request.headers.get(settings.WEBHOOK_SIG_HEADER) or request.headers.get(
+            "X-Hub-Signature-256"
+        )
         if not signature_header:
             raise HTTPException(status_code=401, detail="Missing webhook signature")
 
-        # Extract signature from header (format: "sha256=<hexdigest>")
+        # Extract signature from header (format: "sha256=<hexdigest>" or "sha1=<hexdigest>")
         try:
-            algorithm, signature = signature_header.split("=", 1)
-            if algorithm.lower() != "sha256":
-                raise HTTPException(status_code=401, detail="Unsupported signature algorithm")
+            algorithm, signature = signature_header.strip().split("=", 1)
+            algorithm = algorithm.lower()
+
+            # Support both sha256 (standard) and sha1 (legacy WebSub)
+            if algorithm == "sha256":
+                hash_func = hashlib.sha256
+            elif algorithm == "sha1":
+                hash_func = hashlib.sha1
+            else:
+                raise HTTPException(status_code=401, detail=f"Unsupported signature algorithm: {algorithm}")
         except ValueError as e:
             raise HTTPException(status_code=401, detail="Invalid signature format") from e
 
         # Validate signature
         body = await request.body()
-        expected_signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+        expected_signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hash_func).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):
             logger.warning("Invalid webhook signature received")
