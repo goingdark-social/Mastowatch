@@ -1,5 +1,5 @@
 fastapi==0.118.0
-uvicorn[standard]==0.35.0
+uvicorn[standard]==0.37.0
 celery[redis]==5.5.3
 celery-sqlalchemy-scheduler==0.3.0
 redis>=5,<7
