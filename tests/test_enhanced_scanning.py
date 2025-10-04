@@ -1,4 +1,4 @@
-"""Dedicated test suite for Enhanced Scanning System functionality covering:
+"""Dedicated test suite for Scanning System functionality covering:
 - Content deduplication and hashing
 - Federated scanning with 422 error handling
 - Domain violation tracking and thresholds
@@ -35,8 +35,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.schemas import Violation
 
 
-class TestEnhancedScanningSystem(unittest.TestCase):
-    """Test enhanced scanning system functionality"""
+class TestScanningSystem(unittest.TestCase):
+    """Test scanning system functionality"""
 
     def setUp(self):
         """Prepare database and client mocks."""
@@ -61,9 +61,9 @@ class TestEnhancedScanningSystem(unittest.TestCase):
         self.mock_rule_service.get_active_rules.return_value = ([], {"report_threshold": 1.0}, "test_sha256")
         self.mock_rule_service.evaluate_account.return_value = []
 
-        from app.scanning import EnhancedScanningSystem
+        from app.scanning import ScanningSystem
 
-        self.scanning_system = EnhancedScanningSystem()
+        self.scanning_system = ScanningSystem()
 
     def tearDown(self):
         """Stop patches."""

@@ -63,21 +63,13 @@ class MastodonService:
 
         return self._client_cache[cache_key]
 
-    def get_admin_client(self) -> Mastodon:
-        """Get client with admin access token.
+    def get_authenticated_client(self) -> Mastodon:
+        """Get client with the configured Mastodon access token.
 
         Returns:
-            Mastodon client configured with admin credentials.
+            Mastodon client configured with the access token.
         """
-        return self.get_client(self.settings.ADMIN_TOKEN)
-
-    def get_bot_client(self) -> Mastodon:
-        """Get client with bot access token.
-
-        Returns:
-            Mastodon client configured with bot credentials.
-        """
-        return self.get_client(self.settings.BOT_TOKEN)
+        return self.get_client(self.settings.MASTODON_ACCESS_TOKEN)
 
     async def exchange_oauth_code(
         self, code: str, redirect_uri: str, scopes: list[str] | None = None
@@ -103,8 +95,8 @@ class MastodonService:
 
         # Create a client with OAuth credentials
         client = Mastodon(
-            client_id=self.settings.OAUTH_CLIENT_ID,
-            client_secret=self.settings.OAUTH_CLIENT_SECRET,
+            client_id=self.settings.MASTODON_CLIENT_KEY,
+            client_secret=self.settings.MASTODON_CLIENT_SECRET,
             api_base_url=self.instance_url,
             user_agent=self.settings.USER_AGENT,
         )
@@ -142,17 +134,16 @@ class MastodonService:
             logger.error(f"Credential verification failed: {e}")
             raise
 
-    async def get_account(self, account_id: str, use_admin: bool = False) -> dict[str, Any]:
+    async def get_account(self, account_id: str) -> dict[str, Any]:
         """Get account information.
 
         Args:
             account_id: Account ID to fetch
-            use_admin: Whether to use admin client
 
         Returns:
             Account information dict
         """
-        client = self.get_admin_client() if use_admin else self.get_bot_client()
+        client = self.get_authenticated_client()
 
         try:
             account = await asyncio.to_thread(client.account, account_id)
@@ -170,7 +161,6 @@ class MastodonService:
         exclude_reblogs: bool = False,
         exclude_replies: bool = False,
         only_media: bool = False,
-        use_admin: bool = False,
     ) -> list[dict[str, Any]]:
         """Get statuses for an account.
 
@@ -181,12 +171,11 @@ class MastodonService:
             exclude_reblogs: Exclude boosts
             exclude_replies: Exclude replies
             only_media: Only return statuses with media
-            use_admin: Whether to use admin client
 
         Returns:
             List of status dicts
         """
-        client = self.get_admin_client() if use_admin else self.get_bot_client()
+        client = self.get_authenticated_client()
 
         try:
             statuses = await asyncio.to_thread(
@@ -226,7 +215,7 @@ class MastodonService:
         Returns:
             Report information dict
         """
-        client = self.get_bot_client()
+        client = self.get_authenticated_client()
 
         try:
             report = await asyncio.to_thread(
@@ -253,7 +242,7 @@ class MastodonService:
         Returns:
             Account information dict
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             # Note: mastodon.py uses admin_account_moderate for actions
@@ -281,7 +270,7 @@ class MastodonService:
         Returns:
             Domain block information dict
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             domain_block = await asyncio.to_thread(
@@ -314,26 +303,59 @@ class MastodonService:
         Returns:
             Tuple of (accounts list, next cursor)
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
-            # Use admin_accounts_v2 which returns paginated results
-            accounts = await asyncio.to_thread(
-                client.admin_accounts_v2,
-                origin=origin,
-                status=status,
-                max_id=max_id,
-                limit=limit,
-            )
+            # mastodon.py has diverged across versions:
+            # - newer versions expose `admin_accounts_v2(origin=...)`
+            # - older versions expose `admin_accounts(remote=bool)` (accessible via `admin_accounts`)
+            # Prefer calling v2 if present, otherwise map origin -> remote boolean for v1.
+            if hasattr(client, "admin_accounts_v2"):
+                accounts = await asyncio.to_thread(
+                    client.admin_accounts_v2,
+                    origin=origin,
+                    status=status,
+                    max_id=max_id,
+                    limit=limit,
+                )
+            else:
+                # Map origin to the older `remote` boolean parameter
+                remote_flag = None
+                if origin == "remote":
+                    remote_flag = True
+                elif origin == "local":
+                    remote_flag = False
 
-            # mastodon.py handles pagination internally
-            # Extract next cursor from the response if available
+                # Call admin_accounts (v1) accordingly. It will accept remote=bool or default behavior.
+                if remote_flag is None:
+                    accounts = await asyncio.to_thread(
+                        client.admin_accounts,
+                        status=status,
+                        max_id=max_id,
+                        limit=limit,
+                    )
+                else:
+                    accounts = await asyncio.to_thread(
+                        client.admin_accounts,
+                        remote=remote_flag,
+                        status=status,
+                        max_id=max_id,
+                        limit=limit,
+                    )
+
+            # Try to obtain pagination cursor in a robust way
             next_cursor = None
-            if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
-                # Try to extract max_id from pagination info
-                next_params = accounts._pagination_next
-                if "max_id" in next_params:
-                    next_cursor = next_params["max_id"]
+            try:
+                # Preferred: use public helper
+                pagination_info = client.get_pagination_info(accounts)
+                if pagination_info:
+                    next_cursor = pagination_info.get("max_id") or pagination_info.get("since_id")
+            except Exception:
+                # Fall back to private attribute if present
+                if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
+                    next_params = accounts._pagination_next
+                    if isinstance(next_params, dict) and "max_id" in next_params:
+                        next_cursor = next_params["max_id"]
 
             return accounts, next_cursor
 
@@ -347,7 +369,7 @@ class MastodonService:
         Returns:
             Instance information dict
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             instance = await asyncio.to_thread(client.instance)
@@ -363,7 +385,7 @@ class MastodonService:
         Returns:
             List of instance rules
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             rules = await asyncio.to_thread(client.instance_rules)
@@ -376,17 +398,16 @@ class MastodonService:
     # Synchronous methods for backward compatibility
     # These are used in places that aren't async (like Celery tasks)
 
-    def get_account_sync(self, account_id: str, use_admin: bool = False) -> dict[str, Any]:
+    def get_account_sync(self, account_id: str) -> dict[str, Any]:
         """Get account information (synchronous).
 
         Args:
             account_id: Account ID to fetch
-            use_admin: Whether to use admin client
 
         Returns:
             Account information dict
         """
-        client = self.get_admin_client() if use_admin else self.get_bot_client()
+        client = self.get_authenticated_client()
 
         try:
             account = client.account(account_id)
@@ -404,7 +425,6 @@ class MastodonService:
         exclude_reblogs: bool = False,
         exclude_replies: bool = False,
         only_media: bool = False,
-        use_admin: bool = False,
     ) -> list[dict[str, Any]]:
         """Get statuses for an account (synchronous).
 
@@ -415,12 +435,11 @@ class MastodonService:
             exclude_reblogs: Exclude boosts
             exclude_replies: Exclude replies
             only_media: Only return statuses with media
-            use_admin: Whether to use admin client
 
         Returns:
             List of status dicts
         """
-        client = self.get_admin_client() if use_admin else self.get_bot_client()
+        client = self.get_authenticated_client()
 
         try:
             statuses = client.account_statuses(
@@ -459,7 +478,7 @@ class MastodonService:
         Returns:
             Report information dict
         """
-        client = self.get_bot_client()
+        client = self.get_authenticated_client()
 
         try:
             report = client.report(
@@ -494,25 +513,36 @@ class MastodonService:
         Returns:
             Tuple of (accounts list, next cursor)
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
-            # Use admin_accounts_v2 which returns paginated results
-            accounts = client.admin_accounts_v2(
-                origin=origin,
-                status=status,
-                max_id=max_id,
-                limit=limit,
-            )
+            # Prefer v2 if available
+            if hasattr(client, "admin_accounts_v2"):
+                accounts = client.admin_accounts_v2(origin=origin, status=status, max_id=max_id, limit=limit)
+            else:
+                # Map origin to remote boolean for older v1 API
+                remote_flag = None
+                if origin == "remote":
+                    remote_flag = True
+                elif origin == "local":
+                    remote_flag = False
 
-            # mastodon.py handles pagination internally
-            # Extract next cursor from the response if available
-            next_cursor = None
-            if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
-                # Try to extract max_id from pagination info
-                next_params = accounts._pagination_next
-                if "max_id" in next_params:
-                    next_cursor = next_params["max_id"]
+                if remote_flag is None:
+                    accounts = client.admin_accounts(status=status, max_id=max_id, limit=limit)
+                else:
+                    accounts = client.admin_accounts(remote=remote_flag, status=status, max_id=max_id, limit=limit)
+
+            # Use mastodon.py's pagination helper when available
+            try:
+                pagination_info = client.get_pagination_info(accounts)
+                next_cursor = pagination_info.get("max_id") if pagination_info else None
+            except Exception:
+                # Fallback to private attribute
+                next_cursor = None
+                if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
+                    next_params = accounts._pagination_next
+                    if isinstance(next_params, dict) and "max_id" in next_params:
+                        next_cursor = next_params["max_id"]
 
             return accounts, next_cursor
 
@@ -526,7 +556,7 @@ class MastodonService:
         Returns:
             Instance information dict
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             instance = client.instance()
@@ -542,7 +572,7 @@ class MastodonService:
         Returns:
             List of instance rules
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             rules = client.instance_rules()
@@ -563,7 +593,7 @@ class MastodonService:
         Returns:
             API response dict
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             # mastodon.py provides admin_account_moderate method
@@ -583,7 +613,7 @@ class MastodonService:
         Returns:
             API response dict
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             result = client.admin_account_unsilence(account_id)
@@ -602,7 +632,7 @@ class MastodonService:
         Returns:
             API response dict
         """
-        client = self.get_admin_client()
+        client = self.get_authenticated_client()
 
         try:
             result = client.admin_account_unsuspend(account_id)

@@ -1,8 +1,10 @@
 import os
-from sqlalchemy import JSON, TIMESTAMP, BigInteger, Boolean, Column, Numeric, Text, Integer, ForeignKey, Enum as sa_Enum
-from sqlalchemy.sql import func
 
 from app.db import Base
+from sqlalchemy import JSON, TIMESTAMP, BigInteger, Boolean, Column, ForeignKey, Integer, Numeric, Text
+from sqlalchemy import Enum as sa_Enum
+from sqlalchemy.sql import func
+
 
 def get_id_column():
     """Get appropriate ID column type based on database URL."""
@@ -11,6 +13,7 @@ def get_id_column():
         return Column(Integer, primary_key=True, autoincrement=True)
     else:
         return Column(BigInteger, primary_key=True, autoincrement=True)
+
 
 def get_id_fk_column(table_name):
     """Get appropriate foreign key column type based on database URL."""
@@ -29,7 +32,7 @@ class Account(Base):
     domain = Column(Text, nullable=False)
     last_checked_at = Column(TIMESTAMP(timezone=True))
     last_status_seen_id = Column(Text)
-    # Enhanced fields for better scanning management
+    # fields for better scanning management
     scan_cursor_position = Column(Text)  # Tracks position in status scanning
     last_full_scan_at = Column(TIMESTAMP(timezone=True))  # When we last did a complete scan
     content_hash = Column(Text)  # Hash of account metadata to detect changes
@@ -68,7 +71,7 @@ class Config(Base):
 class Cursor(Base):
     __tablename__ = "cursors"
     name = Column(Text, primary_key=True)
-    position = Column(Text, nullable=False)
+    position = Column(Text, nullable=True)  # NULL position means start from beginning
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
@@ -104,7 +107,7 @@ class Rule(Base):
     action_warning_text = Column(Text, nullable=True)
     warning_preset_id = Column(Text, nullable=True)
     trigger_threshold = Column(Numeric, nullable=False, default=1.0)
-    # Enhanced metadata fields
+    # metadata fields
     trigger_count = Column(Integer, nullable=False, default=0)  # Number of times rule has been triggered
     last_triggered_at = Column(TIMESTAMP(timezone=True))  # When rule was last triggered
     last_triggered_content = Column(JSON)  # Content that last triggered the rule

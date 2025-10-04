@@ -4,7 +4,7 @@
 
 MastoWatch now includes comprehensive production-readiness features:
 
-### 🔧 Enhanced Development Features
+### 🔧 Development Features
 - **Comprehensive error handling** with structured logging and request IDs
 - **Extensive test coverage** with 22 edge case scenarios
 - **Real-time settings interface** with error states and validation
@@ -174,7 +174,7 @@ This application requires **two access tokens** from your Mastodon instance:
 ```
 app/                    # Backend Python code
 ├── auth.py            # API key authentication  
-├── main.py            # FastAPI application with enhanced error handling
+├── main.py            # FastAPI application with error handling
 ├── config.py          # Configuration management
 ├── models.py          # SQLAlchemy database models
 ├── startup_validation.py  # Environment validation with test bypass
@@ -182,7 +182,7 @@ app/                    # Backend Python code
 └── tasks/             # Celery background tasks
 
 frontend/              # React/TypeScript frontend
-├── src/App.tsx       # Enhanced settings interface with error states
+├── src/App.tsx       # settings interface with error states
 └── src/api.ts        # Frontend API client
 
 db/migrations/         # Database migrations
@@ -233,7 +233,7 @@ alembic history        # Show migration history
 
 ## Frontend Development
 
-### Enhanced Settings Interface
+### Settings Interface
 The frontend now includes:
 - **Real-time configuration** with immediate feedback
 - **Error handling** with user-friendly alerts

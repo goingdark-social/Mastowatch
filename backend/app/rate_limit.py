@@ -1,7 +1,6 @@
 import time
 
 import redis
-
 from app.config import get_settings
 from app.metrics import rate_limit_sleeps, redis_degraded
 

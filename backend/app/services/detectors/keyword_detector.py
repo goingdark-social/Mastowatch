@@ -29,10 +29,10 @@ class KeywordDetector(BaseDetector):
                     rule_name=rule.name,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=matched_terms_username, 
-                        matched_status_ids=[], 
+                        matched_terms=matched_terms_username,
+                        matched_status_ids=[],
                         metrics={"username": u},
-                        matched_keywords=matched_terms_username
+                        matched_keywords=matched_terms_username,
                     ),
                 )
             )
@@ -49,10 +49,10 @@ class KeywordDetector(BaseDetector):
                     rule_name=rule.name,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=matched_terms_display, 
-                        matched_status_ids=[], 
+                        matched_terms=matched_terms_display,
+                        matched_status_ids=[],
                         metrics={"display_name": dn},
-                        matched_keywords=matched_terms_display
+                        matched_keywords=matched_terms_display,
                     ),
                 )
             )
@@ -69,10 +69,10 @@ class KeywordDetector(BaseDetector):
                     rule_name=rule.name,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=matched_terms_note, 
-                        matched_status_ids=[], 
+                        matched_terms=matched_terms_note,
+                        matched_status_ids=[],
                         metrics={"note": note},
-                        matched_keywords=matched_terms_note
+                        matched_keywords=matched_terms_note,
                     ),
                 )
             )
@@ -94,7 +94,7 @@ class KeywordDetector(BaseDetector):
                             matched_terms=matched_terms_content,
                             matched_status_ids=[s.get("id")],
                             metrics={"content": content},
-                            matched_keywords=matched_terms_content
+                            matched_keywords=matched_terms_content,
                         ),
                     )
                 )

@@ -1,13 +1,12 @@
-from datetime import datetime
 import unittest
+from datetime import datetime
 from unittest.mock import MagicMock, patch
-
-from fastapi.testclient import TestClient
 
 from app.auth import require_api_key
 from app.config import get_settings
 from app.main import app
 from app.oauth import require_admin_hybrid
+from fastapi.testclient import TestClient
 
 
 def get_test_settings():
@@ -31,7 +30,7 @@ app.dependency_overrides[require_api_key] = lambda: True
 
 @unittest.skip("Test is flaky - OAuth configuration state varies depending on test execution order")
 def test_invalidate_scan_cache_and_status():
-    with patch("app.api.scanning.EnhancedScanningSystem") as MockScanner:
+    with patch("app.api.scanning.ScanningSystem") as MockScanner:
         scanner_instance = MockScanner.return_value
 
         # Mock the database session via dependency injection
@@ -46,6 +45,7 @@ def test_invalidate_scan_cache_and_status():
 
         # Override the get_db dependency
         from app.api.scanning import get_db
+
         app.dependency_overrides[get_db] = lambda: mock_db
 
         response = client.post(
@@ -68,6 +68,6 @@ def test_invalidate_scan_cache_and_status():
         assert data["needs_rescan"] == 2
         assert data["cache_hit_rate"] == 0.8
         assert data["last_scan"] == datetime(2024, 1, 1).isoformat()
-        
+
         # Clean up dependency override
         del app.dependency_overrides[get_db]

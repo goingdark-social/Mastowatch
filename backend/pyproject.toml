@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mastowatch-backend"
+version = "0.0.0"
+description = "MastoWatch backend (editable install helper)"
+authors = [ { name = "MastoWatch" } ]

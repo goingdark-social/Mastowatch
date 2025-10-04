@@ -77,9 +77,9 @@ export type AnalysisData = {
 export type RulesData = {
   rules: {
     report_threshold: number;
-    username_regex?: Array<{name: string; pattern: string; weight: number; enabled?: boolean; id?: number}>;
-    display_name_regex?: Array<{name: string; pattern: string; weight: number; enabled?: boolean; id?: number}>;
-    content_regex?: Array<{name: string; pattern: string; weight: number; enabled?: boolean; id?: number}>;
+    username_regex?: Array<{ name: string; pattern: string; weight: number; enabled?: boolean; id?: number }>;
+    display_name_regex?: Array<{ name: string; pattern: string; weight: number; enabled?: boolean; id?: number }>;
+    content_regex?: Array<{ name: string; pattern: string; weight: number; enabled?: boolean; id?: number }>;
   };
   report_threshold: number;
 };
@@ -220,19 +220,19 @@ export async function updateRule(id: number, rule: Partial<Rule>): Promise<Rule>
   });
 }
 
-export async function deleteRule(id: number): Promise<{message: string}> {
-  return apiFetch<{message: string}>(`/rules/${id}`, {
+export async function deleteRule(id: number): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/rules/${id}`, {
     method: 'DELETE'
   });
 }
 
-export async function toggleRule(id: number): Promise<{id: number; name: string; enabled: boolean; message: string}> {
-  return apiFetch<{id: number; name: string; enabled: boolean; message: string}>(`/rules/${id}/toggle`, {
+export async function toggleRule(id: number): Promise<{ id: number; name: string; enabled: boolean; message: string }> {
+  return apiFetch<{ id: number; name: string; enabled: boolean; message: string }>(`/rules/${id}/toggle`, {
     method: 'POST'
   });
 }
 
-// Enhanced Analytics Functions
+// Analytics Functions
 export async function fetchScanningAnalytics(): Promise<ScanningAnalytics> {
   return apiFetch<ScanningAnalytics>('/analytics/scanning');
 }
@@ -250,28 +250,28 @@ export async function fetchRuleDetails(id: number): Promise<RuleDetails> {
 }
 
 // Scanning Control Functions
-export async function triggerFederatedScan(domains?: string[]): Promise<{task_id: string; message: string; target_domains: string[] | string}> {
-  return apiFetch<{task_id: string; message: string; target_domains: string[] | string}>('/scanning/federated', {
+export async function triggerFederatedScan(domains?: string[]): Promise<{ task_id: string; message: string; target_domains: string[] | string }> {
+  return apiFetch<{ task_id: string; message: string; target_domains: string[] | string }>('/scanning/federated', {
     method: 'POST',
     body: JSON.stringify(domains ? { domains } : {})
   });
 }
 
-export async function triggerDomainCheck(): Promise<{task_id: string; message: string}> {
-  return apiFetch<{task_id: string; message: string}>('/scanning/domain-check', {
+export async function triggerDomainCheck(): Promise<{ task_id: string; message: string }> {
+  return apiFetch<{ task_id: string; message: string }>('/scanning/domain-check', {
     method: 'POST'
   });
 }
 
-export async function invalidateScanCache(rule_changes = false): Promise<{message: string; rule_changes: boolean}> {
-  return apiFetch<{message: string; rule_changes: boolean}>('/scanning/invalidate-cache', {
+export async function invalidateScanCache(rule_changes = false): Promise<{ message: string; rule_changes: boolean }> {
+  return apiFetch<{ message: string; rule_changes: boolean }>('/scanning/invalidate-cache', {
     method: 'POST',
     body: JSON.stringify({ rule_changes })
   });
 }
 
-export async function bulkToggleRules(rule_ids: number[], enabled: boolean): Promise<{updated_rules: string[]; enabled: boolean; message: string}> {
-  return apiFetch<{updated_rules: string[]; enabled: boolean; message: string}>('/rules/bulk-toggle', {
+export async function bulkToggleRules(rule_ids: number[], enabled: boolean): Promise<{ updated_rules: string[]; enabled: boolean; message: string }> {
+  return apiFetch<{ updated_rules: string[]; enabled: boolean; message: string }>('/rules/bulk-toggle', {
     method: 'POST',
     body: JSON.stringify({ rule_ids, enabled })
   });

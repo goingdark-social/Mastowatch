@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
 MastoWatch is a Mastodon **auto-moderation** tool that analyzes accounts/statuses for violations. While the long-term goal is automated enforcement, the system currently operates in **report-only mode** until stable enough to trust with direct moderation actions. Reports are filed for human moderator review in Mastodon's admin UI.

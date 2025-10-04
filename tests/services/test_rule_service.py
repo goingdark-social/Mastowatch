@@ -5,12 +5,11 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.db import Base
 from app.models import Rule
 from app.services.rule_service import RuleService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 class TestRuleService(unittest.TestCase):
@@ -131,7 +130,9 @@ class TestRuleService(unittest.TestCase):
 
     def test_evaluate_account_compound_and(self):
         account = {"acct": "compound@example.com", "username": "spamuser", "note": "bio"}
-        statuses = [{"id": "1", "content": "lottery games"}]  # Changed from "casino" to "lottery" to avoid existing rule
+        statuses = [
+            {"id": "1", "content": "lottery games"}
+        ]  # Changed from "casino" to "lottery" to avoid existing rule
         self.rule_service.create_rule(
             name="compound_rule",
             detector_type="regex",
@@ -234,7 +235,7 @@ class TestRuleService(unittest.TestCase):
                 mock_session = mock_session_local.return_value.__enter__.return_value
                 mock_session.query.return_value.filter.return_value.all.return_value = []
                 mock_session.execute.return_value.scalar.return_value = None
-                
+
                 service.get_active_rules()
                 self.assertEqual(service._cache.ttl_seconds, 5)
 

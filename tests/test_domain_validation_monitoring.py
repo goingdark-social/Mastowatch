@@ -42,9 +42,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
 
     def setUp(self):
         # Create database tables before setting up the app
-        from sqlalchemy import create_engine
-        from app.db import Base
         from app.config import get_settings
+        from app.db import Base
+        from sqlalchemy import create_engine
 
         settings = get_settings()
         engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
@@ -82,8 +82,8 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         self.mock_domain_task.id = "domain_task_123"
         self.mock_domain_check.delay.return_value = self.mock_domain_task
 
-        # Mock enhanced scanning system
-        self.scanning_patcher = patch("app.scanning.EnhancedScanningSystem")
+        # Mock scanning system
+        self.scanning_patcher = patch("app.scanning.ScanningSystem")
         self.mock_scanning_system = self.scanning_patcher.start()
         self.mock_scanning_instance = MagicMock()
         self.mock_scanning_system.return_value = self.mock_scanning_instance
@@ -326,7 +326,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         # Verify API was called to get domain data
         self.mock_scanning_instance.get_domain_alerts.assert_called_once()
 
-    @unittest.skip("Test expects API to throw 500 on error but implementation may handle errors differently - mock not integrated")
+    @unittest.skip(
+        "Test expects API to throw 500 on error but implementation may handle errors differently - mock not integrated"
+    )
     def test_domain_monitoring_api_failure_handling(self):
         """Test domain monitoring handles API failures gracefully"""
 
@@ -340,7 +342,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
 
     # ========== REAL-TIME JOB TRACKING TESTS ==========
 
-    @unittest.skip("API returns different fields (active_sessions) than expected (active_jobs) - feature not yet implemented")
+    @unittest.skip(
+        "API returns different fields (active_sessions) than expected (active_jobs) - feature not yet implemented"
+    )
     def test_real_time_job_tracking_15_second_refresh(self):
         """Test real-time job tracking with 15-second refresh capability"""
 
@@ -375,7 +379,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         self.assertIn("last_updated", data)
         self.assertIn("refresh_interval", data)
 
-    @unittest.skip("API returns different fields (active_sessions) than expected (session_progress) - feature not yet implemented")
+    @unittest.skip(
+        "API returns different fields (active_sessions) than expected (session_progress) - feature not yet implemented"
+    )
     def test_job_tracking_progress_monitoring(self):
         """Test job tracking provides detailed progress monitoring"""
 
@@ -593,16 +599,17 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         # Test various client errors that might occur
         with patch("app.scanning.mastodon_service") as mock_service:
             from mastodon import MastodonAPIError
+
             mock_client_instance = MagicMock()
             mock_service.get_admin_client.return_value = mock_client_instance
 
             # Test API error handling
             mock_client_instance.timeline_public.side_effect = MastodonAPIError("Unprocessable Content")
 
-            from app.scanning import EnhancedScanningSystem
+            from app.scanning import ScanningSystem
 
             with patch("app.scanning.SessionLocal"):
-                scanner = EnhancedScanningSystem()
+                scanner = ScanningSystem()
 
                 # Should handle errors gracefully
                 try:
@@ -626,14 +633,14 @@ class TestDomainValidationMonitoring(unittest.TestCase):
             # Mock admin accounts response
             mock_admin_instance.admin_accounts.return_value = [
                 {"id": "1", "username": "admin1"},
-                {"id": "2", "username": "admin2"}
+                {"id": "2", "username": "admin2"},
             ]
 
             # Verify admin endpoint usage
-            from app.scanning import EnhancedScanningSystem
+            from app.scanning import ScanningSystem
 
             with patch("app.scanning.SessionLocal"):
-                scanner = EnhancedScanningSystem()
+                scanner = ScanningSystem()
                 accounts, cursor = scanner.get_next_accounts_to_scan("local", limit=10)
 
                 # Should use admin API endpoint

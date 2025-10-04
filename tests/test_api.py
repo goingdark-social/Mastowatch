@@ -51,15 +51,15 @@ class TestAPIEndpoints(unittest.TestCase):
     def setUp(self):
         """Prepare test client with mocked dependencies."""
         # Create database tables before setting up the app
-        from sqlalchemy import create_engine
-        from app.db import Base
         from app.config import get_settings
-        
+        from app.db import Base
+        from sqlalchemy import create_engine
+
         settings = get_settings()
         engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
         Base.metadata.create_all(bind=engine)
         self.test_engine = engine
-        
+
         with patch("redis.from_url") as mock_redis, patch("app.db.SessionLocal") as mock_db:
             mock_redis_instance = MagicMock()
             mock_redis.return_value = mock_redis_instance
@@ -92,9 +92,10 @@ class TestAPIEndpoints(unittest.TestCase):
         self.redis_patcher.stop()
         self.db_patcher.stop()
         self.app.dependency_overrides.clear()
-        
+
         # Drop all tables after test
         from app.db import Base
+
         Base.metadata.drop_all(bind=self.test_engine)
         self.test_engine.dispose()
 
@@ -122,13 +123,13 @@ class TestAPIEndpoints(unittest.TestCase):
         """Toggle dry run via service."""
         from app.oauth import get_current_user
         from app.services.config_service import get_config_service
-        
+
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
-        
+
         service = MagicMock()
         self.app.dependency_overrides[get_config_service] = lambda: service
-        
+
         response = self.client.post("/config/dry_run?enable=false")
         self.assertEqual(response.status_code, 200)
         service.set_flag.assert_called_once_with("dry_run", False, updated_by="testadmin")
@@ -137,13 +138,13 @@ class TestAPIEndpoints(unittest.TestCase):
         """Toggle panic stop via service."""
         from app.oauth import get_current_user
         from app.services.config_service import get_config_service
-        
+
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
-        
+
         service = MagicMock()
         self.app.dependency_overrides[get_config_service] = lambda: service
-        
+
         response = self.client.post("/config/panic_stop?enable=true")
         self.assertEqual(response.status_code, 200)
         service.set_flag.assert_called_once_with("panic_stop", True, updated_by="testadmin")
@@ -152,13 +153,13 @@ class TestAPIEndpoints(unittest.TestCase):
         """Update report threshold via service."""
         from app.oauth import get_current_user
         from app.services.config_service import get_config_service
-        
+
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
-        
+
         service = MagicMock()
         self.app.dependency_overrides[get_config_service] = lambda: service
-        
+
         response = self.client.post("/config/report_threshold?threshold=2.5")
         self.assertEqual(response.status_code, 200)
         service.set_threshold.assert_called_once_with("report_threshold", 2.5, updated_by="testadmin")
@@ -167,10 +168,10 @@ class TestAPIEndpoints(unittest.TestCase):
         """Manage automod settings via service."""
         from app.oauth import get_current_user
         from app.services.config_service import get_config_service
-        
+
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
-        
+
         service = MagicMock()
         service.get_config.return_value = {
             "dry_run_override": True,
@@ -183,7 +184,7 @@ class TestAPIEndpoints(unittest.TestCase):
             "defederation_threshold": 7,
         }
         self.app.dependency_overrides[get_config_service] = lambda: service
-        
+
         response = self.client.get("/config/automod")
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -206,12 +207,12 @@ class TestAPIEndpoints(unittest.TestCase):
 
     def test_get_config_returns_non_sensitive_fields(self):
         """Expose only safe configuration."""
-        from app.services.config_service import get_config_service
         from app.auth import require_api_key
-        
+        from app.services.config_service import get_config_service
+
         # Override API key authentication
         self.app.dependency_overrides[require_api_key] = lambda: True
-        
+
         service = MagicMock()
         service.get_config.side_effect = lambda key: {
             "panic_stop": {"enabled": True},
@@ -219,7 +220,7 @@ class TestAPIEndpoints(unittest.TestCase):
             "report_threshold": {"threshold": 2.5},
         }.get(key)
         self.app.dependency_overrides[get_config_service] = lambda: service
-        
+
         headers = {"X-API-Key": os.environ["API_KEY"]}
         response = self.client.get("/config", headers=headers)
         self.assertEqual(response.status_code, 200)
@@ -233,7 +234,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_analytics_overview_new_endpoint(self):
         """Test analytics overview endpoint with new API structure."""
         from app.oauth import get_current_user
-        
+
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
@@ -246,7 +247,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_analytics_timeline_new_endpoint(self):
         """Test analytics timeline endpoint with new API structure."""
         from app.oauth import get_current_user
-        
+
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
@@ -258,12 +259,12 @@ class TestAPIEndpoints(unittest.TestCase):
 
     def test_logs_endpoint(self):
         """Test audit log retrieval."""
-        from app.oauth import get_current_user
         from app.db import SessionLocal
-        
+        from app.oauth import get_current_user
+
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
-        
+
         # Insert test data into the real test database
         with SessionLocal() as session:
             log = AuditLog(
@@ -276,7 +277,7 @@ class TestAPIEndpoints(unittest.TestCase):
             )
             session.add(log)
             session.commit()
-        
+
         response = self.client.get("/logs")
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -287,7 +288,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_get_current_rules_new_endpoint(self):
         """Test current rules endpoint with new API structure."""
         from app.oauth import get_current_user
-        
+
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         # Test the list rules endpoint (which queries the database)
@@ -301,7 +302,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_create_rule_new_endpoint(self):
         """Test creating a new rule via API."""
         from app.oauth import get_current_user
-        
+
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         with patch("app.api.rules.rule_service") as mock_rule_service:
@@ -332,7 +333,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_update_rule_new_endpoint(self):
         """Test updating a rule via API."""
         from app.oauth import get_current_user
-        
+
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         with patch("app.api.rules.rule_service") as mock_rule_service:
@@ -353,7 +354,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_delete_rule_new_endpoint(self):
         """Test deleting a rule via API."""
         from app.oauth import get_current_user
-        
+
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()
 
         with patch("app.api.rules.rule_service") as mock_rule_service:
@@ -368,10 +369,10 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_get_next_accounts_to_scan_endpoint(self):
         """Fetch the next accounts to scan."""
         from app.auth import require_api_key
-        
+
         self.app.dependency_overrides[require_api_key] = lambda: True
-        
-        with patch("app.api.scanning.EnhancedScanningSystem") as mock_scanner:
+
+        with patch("app.api.scanning.ScanningSystem") as mock_scanner:
             instance = mock_scanner.return_value
             instance.get_next_accounts_to_scan.return_value = ([{"id": "1"}], "next123")
             response = self.client.get("/scan/accounts?session_type=remote&limit=1")
@@ -392,7 +393,7 @@ class TestAPIEndpoints(unittest.TestCase):
         }
         webhook_secret = os.environ["WEBHOOK_SECRET"]
         # Use json.dumps with separators to match FastAPI's JSON encoding
-        body = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         signature = "sha256=" + hmac.new(webhook_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         response = self.client.post(
             "/webhooks/mastodon_events",
@@ -417,7 +418,7 @@ class TestAPIEndpoints(unittest.TestCase):
         }
         webhook_secret = os.environ["WEBHOOK_SECRET"]
         # Use json.dumps with separators to match FastAPI's JSON encoding
-        body = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         signature = "sha256=" + hmac.new(webhook_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         response = self.client.post(
             "/webhooks/mastodon_events",

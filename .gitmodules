@@ -1,4 +1,0 @@
-[submodule "specs/mastodon-openapi"]
-	path = specs/mastodon-openapi
-	url = https://github.com/abraham/mastodon-openapi.git
-	branch = main

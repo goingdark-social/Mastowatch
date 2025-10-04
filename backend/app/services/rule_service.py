@@ -3,7 +3,7 @@
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.config import get_settings
@@ -32,7 +32,8 @@ class RuleCache:
 
     def is_expired(self) -> bool:
         """Check if the cache has expired"""
-        return datetime.utcnow() - self.cached_at > timedelta(seconds=self.ttl_seconds)
+
+        return datetime.now(UTC) - self.cached_at > timedelta(seconds=self.ttl_seconds)
 
 
 class RuleService:
@@ -110,7 +111,7 @@ class RuleService:
                 rules=db_rules,
                 config=config,
                 ruleset_sha256=ruleset_sha256,
-                cached_at=datetime.utcnow(),
+                cached_at=datetime.now(UTC),
                 ttl_seconds=self._cache_ttl,
             )
 
@@ -206,7 +207,7 @@ class RuleService:
                 if hasattr(rule, field):
                     setattr(rule, field, value)
 
-            rule.updated_at = datetime.utcnow()
+            rule.updated_at = datetime.now(UTC)
             session.commit()
             session.refresh(rule)
 
@@ -270,7 +271,7 @@ class RuleService:
 
             for rule in rules:
                 rule.enabled = enabled
-                rule.updated_at = datetime.utcnow()
+                rule.updated_at = datetime.now(UTC)
                 updated_rules.append(rule)
 
             session.commit()
@@ -376,19 +377,37 @@ class RuleService:
                             metrics={k: v for viol in primary + secondary for k, v in viol.evidence.metrics.items()},
                         )
                         violations.append(
-                            Violation(rule_name=rule.name, rule_type=rule.detector_type, score=rule.weight, evidence=evidence, actions=actions)
+                            Violation(
+                                rule_name=rule.name,
+                                rule_type=rule.detector_type,
+                                score=rule.weight,
+                                evidence=evidence,
+                                actions=actions,
+                            )
                         )
                 else:
                     for v in primary + secondary:
                         if v.score >= rule.trigger_threshold:
                             violations.append(
-                                Violation(rule_name=rule.name, rule_type=rule.detector_type, score=v.score, evidence=v.evidence, actions=actions)
+                                Violation(
+                                    rule_name=rule.name,
+                                    rule_type=rule.detector_type,
+                                    score=v.score,
+                                    evidence=v.evidence,
+                                    actions=actions,
+                                )
                             )
             else:
                 for v in primary:
                     if v.score >= rule.trigger_threshold:
                         violations.append(
-                            Violation(rule_name=rule.name, rule_type=rule.detector_type, score=v.score, evidence=v.evidence, actions=actions)
+                            Violation(
+                                rule_name=rule.name,
+                                rule_type=rule.detector_type,
+                                score=v.score,
+                                evidence=v.evidence,
+                                actions=actions,
+                            )
                         )
         return violations
 

@@ -6,16 +6,16 @@ import {
   NumberInput, Anchor
 } from '@mantine/core';
 import { IconRefresh, IconEye, IconChartBar, IconUsers, IconFlag, IconSettings, IconRuler, IconInfoCircle, IconLogout, IconLogin, IconUser, IconPlus, IconTrash, IconEdit, IconToggleLeft, IconToggleRight, IconRadar, IconShield, IconTrendingUp } from '@tabler/icons-react';
-import { 
+import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { apiFetch } from './api';
 import { getCurrentUser, logout, login, User } from './auth';
-import { 
-  fetchOverview, fetchTimeline, fetchAccounts, fetchReports, 
-  fetchAccountAnalyses, fetchCurrentRules, fetchRulesList, 
-  createRule, updateRule, deleteRule, toggleRule, OverviewMetrics, 
+import {
+  fetchOverview, fetchTimeline, fetchAccounts, fetchReports,
+  fetchAccountAnalyses, fetchCurrentRules, fetchRulesList,
+  createRule, updateRule, deleteRule, toggleRule, OverviewMetrics,
   TimelineData, AccountData, ReportData, AnalysisData, RulesData, Rule, RulesList,
   fetchScanningAnalytics, fetchDomainAnalytics, fetchRuleStatistics, fetchRuleDetails,
   triggerFederatedScan, triggerDomainCheck, invalidateScanCache, bulkToggleRules,
@@ -68,7 +68,7 @@ export default function App() {
         }
       }
     }, 1000);
-    
+
     return () => clearTimeout(timeoutId);
   }, []);
   const [scanningAnalytics, setScanningAnalytics] = useState<ScanningAnalytics | null>(null);
@@ -297,6 +297,17 @@ export default function App() {
     }
   }, [currentUser, authLoading]);
 
+  // Poll scanning analytics every 5 seconds for real-time updates
+  useEffect(() => {
+    if (!currentUser || authLoading) return;
+
+    const interval = setInterval(() => {
+      loadScanningAnalytics();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentUser, authLoading]);
+
   useEffect(() => {
     loadTimeline();
   }, [timeRange]);
@@ -347,7 +358,7 @@ export default function App() {
                 Please sign in with your Mastodon admin account to access the dashboard.
               </Text>
             </div>
-            <Button 
+            <Button
               leftSection={<IconLogin size={16} />}
               onClick={handleLogin}
               loading={loginLoading}
@@ -383,7 +394,7 @@ export default function App() {
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  <Menu.Item 
+                  <Menu.Item
                     leftSection={<IconLogout size={16} />}
                     onClick={handleLogout}
                   >
@@ -391,7 +402,7 @@ export default function App() {
                   </Menu.Item>
                 </Menu.Dropdown>
               </Menu>
-              
+
               <Select
                 placeholder="Time Range"
                 value={timeRange}
@@ -405,9 +416,9 @@ export default function App() {
                 w={120}
               />
               <Tooltip label="Refresh all data">
-                <ActionIcon 
-                  variant="light" 
-                  onClick={refreshAllData} 
+                <ActionIcon
+                  variant="light"
+                  onClick={refreshAllData}
                   loading={refreshing}
                   aria-label="Refresh"
                 >
@@ -451,8 +462,8 @@ export default function App() {
             </Tabs.Panel>
 
             <Tabs.Panel value="accounts" pt="md">
-              <AccountsTab 
-                accounts={accounts} 
+              <AccountsTab
+                accounts={accounts}
                 onViewAccount={(accountId) => {
                   setSelectedAccount(accountId);
                   loadAccountAnalyses(accountId);
@@ -469,8 +480,8 @@ export default function App() {
             </Tabs.Panel>
 
             <Tabs.Panel value="scanning" pt="md">
-              <ScanningTab 
-                scanningAnalytics={scanningAnalytics} 
+              <ScanningTab
+                scanningAnalytics={scanningAnalytics}
                 ruleStatistics={ruleStatistics}
                 onTriggerFederatedScan={handleTriggerFederatedScan}
                 onTriggerDomainCheck={handleTriggerDomainCheck}
@@ -480,7 +491,7 @@ export default function App() {
             </Tabs.Panel>
 
             <Tabs.Panel value="domains" pt="md">
-              <DomainsTab 
+              <DomainsTab
                 domainAnalytics={domainAnalytics}
                 onRefresh={loadDomainAnalytics}
                 loading={loading}
@@ -516,7 +527,7 @@ export default function App() {
         size="xl"
       >
         {selectedAccount && (
-          <AccountDetailModal 
+          <AccountDetailModal
             accountId={selectedAccount}
             analyses={accountAnalyses}
           />
@@ -531,7 +542,7 @@ function OverviewTab({ overview, timeline }: { overview: OverviewMetrics | null,
     return <Skeleton height={400} />;
   }
 
-  const timelineData = timeline ? 
+  const timelineData = timeline ?
     timeline.analyses.map((item, idx) => ({
       date: item.date,
       analyses: item.count,
@@ -583,7 +594,7 @@ function OverviewTab({ overview, timeline }: { overview: OverviewMetrics | null,
             <Stack gap="xs">
               <Text size="sm" c="dimmed">Report Rate</Text>
               <Text size="xl" fw={700}>
-                {overview.totals.analyses > 0 
+                {overview.totals.analyses > 0
                   ? ((overview.totals.reports / overview.totals.analyses) * 100).toFixed(1)
                   : '0'}%
               </Text>
@@ -602,20 +613,20 @@ function OverviewTab({ overview, timeline }: { overview: OverviewMetrics | null,
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Area 
-                  type="monotone" 
-                  dataKey="analyses" 
+                <Area
+                  type="monotone"
+                  dataKey="analyses"
                   stackId="1"
-                  stroke="#8884d8" 
-                  fill="#8884d8" 
+                  stroke="#8884d8"
+                  fill="#8884d8"
                   fillOpacity={0.6}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="reports" 
+                <Area
+                  type="monotone"
+                  dataKey="reports"
                   stackId="1"
-                  stroke="#82ca9d" 
-                  fill="#82ca9d" 
+                  stroke="#82ca9d"
+                  fill="#82ca9d"
                   fillOpacity={0.6}
                 />
               </AreaChart>
@@ -661,9 +672,9 @@ function OverviewTab({ overview, timeline }: { overview: OverviewMetrics | null,
   );
 }
 
-function AccountsTab({ accounts, onViewAccount }: { 
-  accounts: AccountData | null, 
-  onViewAccount: (accountId: string) => void 
+function AccountsTab({ accounts, onViewAccount }: {
+  accounts: AccountData | null,
+  onViewAccount: (accountId: string) => void
 }) {
   if (!accounts) {
     return <Skeleton height={400} />;
@@ -705,7 +716,7 @@ function AccountsTab({ accounts, onViewAccount }: {
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" c="dimmed">
-                    {account.last_analysis 
+                    {account.last_analysis
                       ? new Date(account.last_analysis).toLocaleDateString()
                       : 'Never'
                     }
@@ -809,10 +820,10 @@ function RulesTab({ rules, onReload }: {
   async function handleCreateRule() {
     try {
       setLoading(true);
-      
+
       // Map frontend rule_type to backend detector_type
       let detector_type = newRule.rule_type; // Use rule_type directly as it now matches detector_type
-      
+
       await createRule({
         name: newRule.name,
         detector_type: detector_type,
@@ -836,7 +847,7 @@ function RulesTab({ rules, onReload }: {
 
   async function handleToggleRule(rule: Rule) {
     if (!rule.id) return;
-    
+
     try {
       setLoading(true);
       await toggleRule(rule.id);
@@ -851,7 +862,7 @@ function RulesTab({ rules, onReload }: {
 
   async function handleDeleteRule(rule: Rule) {
     if (!rule.id) return;
-    
+
     try {
       setLoading(true);
       await deleteRule(rule.id);
@@ -866,7 +877,7 @@ function RulesTab({ rules, onReload }: {
 
   async function handleUpdateRule() {
     if (!editingRule?.id) return;
-    
+
     try {
       setLoading(true);
       await updateRule(editingRule.id, {
@@ -905,8 +916,8 @@ function RulesTab({ rules, onReload }: {
             </Text>
           </Stack>
           <Group>
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               leftSection={<IconPlus size={16} />}
               onClick={() => setShowCreateModal(true)}
             >
@@ -921,18 +932,18 @@ function RulesTab({ rules, onReload }: {
             </Button>
           </Group>
         </Group>
-        
+
         <Divider my="md" />
-        
+
         <Grid>
           {['regex', 'keyword', 'behavioral', 'media'].map((ruleType) => (
             <Grid.Col span={4} key={ruleType}>
               <Card withBorder padding="sm">
                 <Title order={5} mb="sm">
                   {ruleType === 'regex' ? 'Regex Rules' :
-                   ruleType === 'keyword' ? 'Keyword Rules' :
-                   ruleType === 'behavioral' ? 'Behavioral Rules' :
-                   'Media Rules'}
+                    ruleType === 'keyword' ? 'Keyword Rules' :
+                      ruleType === 'behavioral' ? 'Behavioral Rules' :
+                        'Media Rules'}
                 </Title>
                 <Stack gap="xs">
                   {(groupedRules[ruleType] || []).map((rule) => (
@@ -1017,13 +1028,13 @@ function RulesTab({ rules, onReload }: {
           <TextInput
             label="Rule Name"
             value={newRule.name}
-            onChange={(e) => setNewRule({...newRule, name: e.target.value})}
+            onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
             placeholder="Enter rule name"
           />
           <Select
             label="Rule Type"
             value={newRule.rule_type}
-            onChange={(value) => setNewRule({...newRule, rule_type: value as Rule['rule_type']})}
+            onChange={(value) => setNewRule({ ...newRule, rule_type: value as Rule['rule_type'] })}
             data={[
               { value: 'regex', label: 'Regex Rules' },
               { value: 'keyword', label: 'Keyword Rules' },
@@ -1034,13 +1045,13 @@ function RulesTab({ rules, onReload }: {
           <TextInput
             label="Pattern (Regex)"
             value={newRule.pattern}
-            onChange={(e) => setNewRule({...newRule, pattern: e.target.value})}
+            onChange={(e) => setNewRule({ ...newRule, pattern: e.target.value })}
             placeholder="Enter regex pattern"
           />
           <NumberInput
             label="Weight"
             value={newRule.weight}
-            onChange={(value) => setNewRule({...newRule, weight: Number(value) || 0})}
+            onChange={(value) => setNewRule({ ...newRule, weight: Number(value) || 0 })}
             min={0}
             max={2}
             step={0.1}
@@ -1049,7 +1060,7 @@ function RulesTab({ rules, onReload }: {
             <Button variant="subtle" onClick={() => setShowCreateModal(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleCreateRule}
               loading={loading}
               disabled={!newRule.name || !newRule.pattern}
@@ -1071,19 +1082,19 @@ function RulesTab({ rules, onReload }: {
             <TextInput
               label="Rule Name"
               value={editingRule.name}
-              onChange={(e) => setEditingRule({...editingRule, name: e.target.value})}
+              onChange={(e) => setEditingRule({ ...editingRule, name: e.target.value })}
               placeholder="Enter rule name"
             />
             <TextInput
               label="Pattern (Regex)"
               value={editingRule.pattern}
-              onChange={(e) => setEditingRule({...editingRule, pattern: e.target.value})}
+              onChange={(e) => setEditingRule({ ...editingRule, pattern: e.target.value })}
               placeholder="Enter regex pattern"
             />
             <NumberInput
               label="Weight"
               value={editingRule.weight}
-              onChange={(value) => setEditingRule({...editingRule, weight: Number(value) || 0})}
+              onChange={(value) => setEditingRule({ ...editingRule, weight: Number(value) || 0 })}
               min={0}
               max={2}
               step={0.1}
@@ -1092,7 +1103,7 @@ function RulesTab({ rules, onReload }: {
               <Button variant="subtle" onClick={() => setEditingRule(null)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleUpdateRule}
                 loading={loading}
                 disabled={!editingRule.name || !editingRule.pattern}
@@ -1124,30 +1135,30 @@ function RulesTab({ rules, onReload }: {
                 <Badge variant="light">{selectedRuleForInfo.rule_type}</Badge>
               </Group>
             </Group>
-            
+
             {selectedRuleForInfo.description && (
               <Alert>
                 <Text size="sm">{selectedRuleForInfo.description}</Text>
               </Alert>
             )}
-            
+
             <Divider />
-            
+
             <div>
               <Text fw={500} mb="xs">Pattern</Text>
               <Code block>{selectedRuleForInfo.pattern}</Code>
             </div>
-            
+
             <div>
               <Text fw={500} mb="xs">Weight</Text>
               <Text size="sm">
-                {selectedRuleForInfo.weight} 
+                {selectedRuleForInfo.weight}
                 <Text span c="dimmed" size="xs" ml="xs">
                   (Higher values increase likelihood of reporting)
                 </Text>
               </Text>
             </div>
-            
+
             {selectedRuleForInfo.rule_type === 'regex' && (
               <div>
                 <Text fw={500} mb="xs">Username Pattern Examples</Text>
@@ -1159,7 +1170,7 @@ function RulesTab({ rules, onReload }: {
                 </Stack>
               </div>
             )}
-            
+
             {selectedRuleForInfo.rule_type === 'keyword' && (
               <div>
                 <Text fw={500} mb="xs">Display Name Pattern Examples</Text>
@@ -1171,7 +1182,7 @@ function RulesTab({ rules, onReload }: {
                 </Stack>
               </div>
             )}
-            
+
             {selectedRuleForInfo.rule_type === 'behavioral' && (
               <div>
                 <Text fw={500} mb="xs">Content Pattern Examples</Text>
@@ -1183,7 +1194,7 @@ function RulesTab({ rules, onReload }: {
                 </Stack>
               </div>
             )}
-            
+
             {selectedRuleForInfo.trigger_count !== undefined && (
               <div>
                 <Text fw={500} mb="xs">Statistics</Text>
@@ -1195,7 +1206,7 @@ function RulesTab({ rules, onReload }: {
                   <Grid.Col span={6}>
                     <Text size="sm" c="dimmed">Last Triggered</Text>
                     <Text fw={500}>
-                      {selectedRuleForInfo.last_triggered_at 
+                      {selectedRuleForInfo.last_triggered_at
                         ? new Date(selectedRuleForInfo.last_triggered_at).toLocaleDateString()
                         : 'Never'
                       }
@@ -1204,9 +1215,9 @@ function RulesTab({ rules, onReload }: {
                 </Grid>
               </div>
             )}
-            
-            <Button 
-              variant="subtle" 
+
+            <Button
+              variant="subtle"
               onClick={() => setShowRuleInfoModal(false)}
               fullWidth
             >
@@ -1249,7 +1260,7 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
           <Text size="sm">{configError}</Text>
         </Alert>
       )}
-      
+
       {configSuccess && (
         <Alert color="green" withCloseButton onClose={() => setConfigSuccess(null)}>
           <Text size="sm">{configSuccess}</Text>
@@ -1291,7 +1302,7 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
             <div>
               <Group gap="xs" align="center">
                 <Text fw={500}>Dry Run Mode</Text>
-                <Tooltip 
+                <Tooltip
                   label="When enabled, no reports are sent; use this to test your rules safely."
                   withArrow
                   position="top"
@@ -1306,10 +1317,10 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
                 When enabled, analyses will run but no reports will be submitted to Mastodon.
                 Use this for testing rules and configurations safely.
               </Text>
-              <Badge 
-                color={health?.dry_run ? "blue" : "gray"} 
-                variant="light" 
-                size="sm" 
+              <Badge
+                color={health?.dry_run ? "blue" : "gray"}
+                variant="light"
+                size="sm"
                 mt="xs"
               >
                 {health?.dry_run ? "ENABLED - Testing Mode" : "DISABLED - Live Mode"}
@@ -1326,14 +1337,14 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
               color="blue"
             />
           </Group>
-          
+
           <Divider />
-          
+
           <Group justify="space-between" align="flex-start">
             <div>
               <Group gap="xs" align="center">
                 <Text fw={500}>Panic Stop</Text>
-                <Tooltip 
+                <Tooltip
                   label="When active, all polling and reporting pauses immediately."
                   withArrow
                   position="top"
@@ -1345,13 +1356,13 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
                 </Tooltip>
               </Group>
               <Text size="sm" c="dimmed">
-                Emergency stop for all polling and reporting operations. 
+                Emergency stop for all polling and reporting operations.
                 Use this to immediately halt all automated moderation activities.
               </Text>
-              <Badge 
-                color={health?.panic_stop ? "red" : "gray"} 
-                variant="light" 
-                size="sm" 
+              <Badge
+                color={health?.panic_stop ? "red" : "gray"}
+                variant="light"
+                size="sm"
                 mt="xs"
               >
                 {health?.panic_stop ? "ACTIVE - All Operations Stopped" : "INACTIVE - Normal Operations"}
@@ -1368,7 +1379,7 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
               color="red"
             />
           </Group>
-          
+
         </Stack>
       </Card>
 
@@ -1424,7 +1435,7 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
         <Title order={4} mb="md">Help & Documentation</Title>
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            For more information about configuration options and troubleshooting, 
+            For more information about configuration options and troubleshooting,
             refer to the project documentation.
           </Text>
           <Group>
@@ -1441,9 +1452,9 @@ function SettingsTab({ health, onUpdateDryRun, onUpdatePanic, saving }: {
   );
 }
 
-function AccountDetailModal({ accountId, analyses }: { 
-  accountId: string, 
-  analyses: AnalysisData | null 
+function AccountDetailModal({ accountId, analyses }: {
+  accountId: string,
+  analyses: AnalysisData | null
 }) {
   if (!analyses) {
     return <Skeleton height={300} />;
@@ -1456,7 +1467,7 @@ function AccountDetailModal({ accountId, analyses }: {
           Showing recent analysis results for account: <Code>{accountId}</Code>
         </Text>
       </Alert>
-      
+
       <ScrollArea h={400}>
         <Table striped>
           <Table.Thead>
@@ -1472,11 +1483,11 @@ function AccountDetailModal({ accountId, analyses }: {
             {analyses.analyses.map((analysis) => (
               <Table.Tr key={`${analysis.id}-${analysis.scan_type || 'traditional'}`}>
                 <Table.Td>
-                  <Badge 
-                    color={analysis.scan_type === 'enhanced_scan' ? 'blue' : 'gray'}
+                  <Badge
+                    color={analysis.scan_type === '_scan' ? 'blue' : 'gray'}
                     variant="light"
                   >
-                    {analysis.scan_type === 'enhanced_scan' ? 'Enhanced' : 'Traditional'}
+                    {analysis.scan_type === '_scan' ? '' : 'Traditional'}
                   </Badge>
                 </Table.Td>
                 <Table.Td>
@@ -1488,7 +1499,7 @@ function AccountDetailModal({ accountId, analyses }: {
                   )}
                 </Table.Td>
                 <Table.Td>
-                  <Badge 
+                  <Badge
                     color={analysis.score >= 1.0 ? "red" : analysis.score >= 0.5 ? "yellow" : "green"}
                     variant="light"
                   >
@@ -1496,7 +1507,7 @@ function AccountDetailModal({ accountId, analyses }: {
                   </Badge>
                 </Table.Td>
                 <Table.Td>
-                  {analysis.scan_type === 'enhanced_scan' ? (
+                  {analysis.scan_type === '_scan' ? (
                     <div>
                       {analysis.scan_result && (
                         <Stack gap="xs">
@@ -1547,14 +1558,14 @@ function Stat({ label, ok, onColor, value }: { label: string; ok?: boolean; onCo
   );
 }
 
-function ScanningTab({ 
-  scanningAnalytics, 
-  ruleStatistics, 
-  onTriggerFederatedScan, 
-  onTriggerDomainCheck, 
-  onInvalidateCache, 
-  loading 
-}: { 
+function ScanningTab({
+  scanningAnalytics,
+  ruleStatistics,
+  onTriggerFederatedScan,
+  onTriggerDomainCheck,
+  onInvalidateCache,
+  loading
+}: {
   scanningAnalytics: ScanningAnalytics | null;
   ruleStatistics: RuleStatistics | null;
   onTriggerFederatedScan: (domains?: string[]) => void;
@@ -1593,9 +1604,9 @@ function ScanningTab({
                     <Stack gap="xs">
                       <Text size="sm">{session.accounts_processed} accounts processed</Text>
                       {session.total_accounts && (
-                        <Progress 
-                          value={(session.accounts_processed / session.total_accounts) * 100} 
-                          size="sm" 
+                        <Progress
+                          value={(session.accounts_processed / session.total_accounts) * 100}
+                          size="sm"
                         />
                       )}
                     </Stack>
@@ -1617,7 +1628,7 @@ function ScanningTab({
       <Card withBorder padding="md">
         <Title order={4} mb="md">Scanning Controls</Title>
         <Group>
-          <Button 
+          <Button
             leftSection={<IconRadar size={16} />}
             onClick={() => onTriggerFederatedScan()}
             loading={loading}
@@ -1625,7 +1636,7 @@ function ScanningTab({
           >
             Trigger Federated Scan
           </Button>
-          <Button 
+          <Button
             leftSection={<IconShield size={16} />}
             onClick={onTriggerDomainCheck}
             loading={loading}
@@ -1633,7 +1644,7 @@ function ScanningTab({
           >
             Check Domain Violations
           </Button>
-          <Button 
+          <Button
             leftSection={<IconRefresh size={16} />}
             onClick={() => onInvalidateCache(false)}
             loading={loading}
@@ -1641,7 +1652,7 @@ function ScanningTab({
           >
             Invalidate Cache
           </Button>
-          <Button 
+          <Button
             leftSection={<IconTrendingUp size={16} />}
             onClick={() => onInvalidateCache(true)}
             loading={loading}
@@ -1701,12 +1712,12 @@ function ScanningTab({
             <Stat label="Needs Re-scan" value={scanningAnalytics.content_scan_stats.needs_rescan.toLocaleString()} />
           </Grid.Col>
           <Grid.Col span={4}>
-            <Stat 
-              label="Last Scan" 
-              value={scanningAnalytics.content_scan_stats.last_scan 
+            <Stat
+              label="Last Scan"
+              value={scanningAnalytics.content_scan_stats.last_scan
                 ? new Date(scanningAnalytics.content_scan_stats.last_scan).toLocaleDateString()
                 : 'Never'
-              } 
+              }
             />
           </Grid.Col>
         </Grid>
@@ -1754,11 +1765,11 @@ function ScanningTab({
   );
 }
 
-function DomainsTab({ 
-  domainAnalytics, 
-  onRefresh, 
-  loading 
-}: { 
+function DomainsTab({
+  domainAnalytics,
+  onRefresh,
+  loading
+}: {
   domainAnalytics: DomainAnalytics | null;
   onRefresh: () => void;
   loading: boolean;
@@ -1773,7 +1784,7 @@ function DomainsTab({
       <Card withBorder padding="md">
         <Group justify="space-between" align="flex-start">
           <Title order={4}>Domain Monitoring Overview</Title>
-          <Button 
+          <Button
             leftSection={<IconRefresh size={16} />}
             onClick={onRefresh}
             loading={loading}
@@ -1782,7 +1793,7 @@ function DomainsTab({
             Refresh
           </Button>
         </Group>
-        
+
         <Grid mt="md">
           <Grid.Col span={3}>
             <Card withBorder padding="sm" bg="blue.0">
@@ -1832,9 +1843,9 @@ function DomainsTab({
                     <Text fw={500}>{alert.domain}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Badge 
-                      color={alert.violation_count >= alert.defederation_threshold ? 'red' : 
-                             alert.violation_count >= alert.defederation_threshold * 0.8 ? 'orange' : 'blue'}
+                    <Badge
+                      color={alert.violation_count >= alert.defederation_threshold ? 'red' :
+                        alert.violation_count >= alert.defederation_threshold * 0.8 ? 'orange' : 'blue'}
                       variant="light"
                     >
                       {alert.violation_count}
@@ -1845,7 +1856,7 @@ function DomainsTab({
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm" c="dimmed">
-                      {alert.last_violation_at 
+                      {alert.last_violation_at
                         ? new Date(alert.last_violation_at).toLocaleDateString()
                         : 'Never'
                       }
@@ -1871,8 +1882,8 @@ function DomainsTab({
       <Card withBorder padding="md">
         <Title order={5} mb="sm">About Domain Monitoring</Title>
         <Text size="sm" c="dimmed">
-          Domain monitoring tracks violations across federated instances. When a domain accumulates 
-          violations above the threshold, it can be automatically marked for defederation. High-risk 
+          Domain monitoring tracks violations across federated instances. When a domain accumulates
+          violations above the threshold, it can be automatically marked for defederation. High-risk
           domains (80% of threshold) are highlighted for manual review.
         </Text>
       </Card>

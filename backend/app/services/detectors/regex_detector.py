@@ -26,10 +26,10 @@ class RegexDetector(BaseDetector):
                     rule_type=rule.detector_type,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=[u], 
-                        matched_status_ids=[], 
+                        matched_terms=[u],
+                        matched_status_ids=[],
                         metrics={"username": u},
-                        matched_pattern=match.group(0)
+                        matched_pattern=match.group(0),
                     ),
                 )
             )
@@ -42,10 +42,10 @@ class RegexDetector(BaseDetector):
                     rule_type=rule.detector_type,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=[dn], 
-                        matched_status_ids=[], 
+                        matched_terms=[dn],
+                        matched_status_ids=[],
                         metrics={"display_name": dn},
-                        matched_pattern=match.group(0)
+                        matched_pattern=match.group(0),
                     ),
                 )
             )
@@ -58,10 +58,10 @@ class RegexDetector(BaseDetector):
                     rule_type=rule.detector_type,
                     score=rule.weight,
                     evidence=Evidence(
-                        matched_terms=[note], 
-                        matched_status_ids=[], 
+                        matched_terms=[note],
+                        matched_status_ids=[],
                         metrics={"note": note},
-                        matched_pattern=match.group(0)
+                        matched_pattern=match.group(0),
                     ),
                 )
             )
@@ -76,10 +76,10 @@ class RegexDetector(BaseDetector):
                         rule_type=rule.detector_type,
                         score=rule.weight,
                         evidence=Evidence(
-                            matched_terms=[content], 
-                            matched_status_ids=[s.get("id")], 
+                            matched_terms=[content],
+                            matched_status_ids=[s.get("id")],
                             metrics={"content": content},
-                            matched_pattern=match.group(0)
+                            matched_pattern=match.group(0),
                         ),
                     )
                 )

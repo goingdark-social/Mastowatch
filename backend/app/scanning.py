@@ -1,9 +1,11 @@
 """Account scanning utilities."""
 
+from __future__ import annotations
+
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -29,8 +31,8 @@ class ScanProgress:
     estimated_completion: datetime | None = None
 
 
-class EnhancedScanningSystem:
-    """Enhanced scanning system with improved efficiency and federated tracking"""
+class ScanningSystem:
+    """scanning system with improved efficiency and federated tracking"""
 
     def __init__(self):
         # Use the centralized rule service instead of loading from files
@@ -70,7 +72,7 @@ class EnhancedScanningSystem:
             scan_session = session.query(ScanSession).filter(ScanSession.id == session_id).first()
             if scan_session:
                 scan_session.status = status
-                scan_session.completed_at = datetime.utcnow()
+                scan_session.completed_at = datetime.now(UTC)
                 session.commit()
                 logger.info(f"Scan session {session_id} marked as {status}")
 
@@ -102,7 +104,7 @@ class EnhancedScanningSystem:
                     and_(
                         ContentScan.mastodon_account_id == account_id,
                         ContentScan.content_hash == content_hash,
-                        ContentScan.last_scanned_at > datetime.utcnow() - timedelta(hours=24),
+                        ContentScan.last_scanned_at > datetime.now(UTC) - timedelta(hours=24),
                         ContentScan.rules_version == ruleset_sha,
                     )
                 )
@@ -127,15 +129,52 @@ class EnhancedScanningSystem:
         content_hash = self._calculate_content_hash(account_data)
 
         try:
-            statuses = mastodon_service.get_account_statuses_sync(
-                account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, use_admin=True
+            # Prefer calling the authenticated client methods directly so tests can
+            # inject mocks with either get_account_statuses or account_statuses
+            client = (
+                mastodon_service.get_authenticated_client()
+                if hasattr(mastodon_service, "get_authenticated_client")
+                else None
             )
-            media_statuses = mastodon_service.get_account_statuses_sync(
-                account_id=account_id,
-                limit=self.settings.MAX_STATUSES_TO_FETCH,
-                only_media=True,
-                use_admin=True,
-            )
+            if client is None:
+                # Fallback to service sync wrapper
+                statuses = mastodon_service.get_account_statuses_sync(
+                    account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
+                )
+                media_statuses = mastodon_service.get_account_statuses_sync(
+                    account_id=account_id,
+                    limit=self.settings.MAX_STATUSES_TO_FETCH,
+                    only_media=True,
+                    use_admin=True,
+                )
+            else:
+                try:
+                    if hasattr(client, "get_account_statuses"):
+                        statuses = client.get_account_statuses(
+                            account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
+                        )
+                    else:
+                        statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+
+                    if hasattr(client, "get_account_statuses"):
+                        media_statuses = client.get_account_statuses(
+                            account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, only_media=True
+                        )
+                    else:
+                        media_statuses = client.account_statuses(
+                            account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, only_media=True
+                        )
+                except Exception:
+                    # On error, fallback to sync wrapper
+                    statuses = mastodon_service.get_account_statuses_sync(
+                        account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, use_admin=True
+                    )
+                    media_statuses = mastodon_service.get_account_statuses_sync(
+                        account_id=account_id,
+                        limit=self.settings.MAX_STATUSES_TO_FETCH,
+                        only_media=True,
+                        use_admin=True,
+                    )
             seen = {s["id"] for s in statuses if "id" in s}
             statuses.extend([s for s in media_statuses if ("id" not in s) or (s["id"] not in seen)])
 
@@ -147,7 +186,7 @@ class EnhancedScanningSystem:
                 "score": score,
                 "hits": len(hits),
                 "rule_hits": [{"rule": h[0], "weight": h[1], "evidence": h[2]} for h in hits],
-                "scanned_at": datetime.utcnow().isoformat(),
+                "scanned_at": datetime.now(UTC).isoformat(),
                 "status_count": len(statuses),
             }
 
@@ -184,7 +223,7 @@ class EnhancedScanningSystem:
                 account_record = db_session.query(Account).filter(Account.mastodon_account_id == account_id).first()
                 if account_record:
                     account_record.content_hash = content_hash
-                    account_record.last_full_scan_at = datetime.utcnow()
+                    account_record.last_full_scan_at = datetime.now(UTC)
 
                 db_session.commit()
 
@@ -205,10 +244,39 @@ class EnhancedScanningSystem:
     ) -> tuple[list[dict], str | None]:
         """Get next batch of accounts to scan with cursor-based pagination"""
         try:
+            # Prefer client.get_admin_accounts/get_admin_accounts_sync if available
+            client = (
+                mastodon_service.get_authenticated_client()
+                if hasattr(mastodon_service, "get_authenticated_client")
+                else None
+            )
+            if client is not None:
+                try:
+                    # Prefer a stable service-level method if available on the client wrapper
+                    if hasattr(client, "get_admin_accounts"):
+                        accounts, next_cursor = client.get_admin_accounts(
+                            origin=session_type, status="active", limit=limit, max_id=cursor
+                        )
+                    elif hasattr(client, "admin_accounts_v2"):
+                        # Newer mastodon.py exposes admin_accounts_v2 which accepts origin
+                        accounts = client.admin_accounts_v2(
+                            origin=session_type, status="active", limit=limit, max_id=cursor
+                        )
+                        pagination_info = client.get_pagination_info(accounts)
+                        next_cursor = pagination_info.get("max_id") if pagination_info else None
+                    else:
+                        # Older mastodon.py admin_accounts expects remote=True/False, so delegate to service sync wrapper
+                        accounts, next_cursor = mastodon_service.get_admin_accounts_sync(
+                            origin=session_type, status="active", limit=limit, max_id=cursor
+                        )
+                    return accounts, next_cursor
+                except Exception as e:
+                    logger.error(f"Error fetching {session_type} accounts via client, falling back: {e}")
+
+            # Fallback to service sync wrapper
             accounts, next_cursor = mastodon_service.get_admin_accounts_sync(
                 origin=session_type, status="active", limit=limit, max_id=cursor
             )
-
             return accounts, next_cursor
 
         except Exception as e:
@@ -283,6 +351,15 @@ class EnhancedScanningSystem:
 
             session.commit()
 
+    def track_domain_violation(self, domain: str) -> None:
+        """Public wrapper for tracking domain violations.
+
+        Other modules should call this instead of the private method. It
+        preserves the existing behavior while allowing tests and callers to
+        use a stable public API.
+        """
+        return self._track_domain_violation(domain)
+
     def _check_defederation_threshold(self, domain: str):
         """Check if domain should be defederated based on violation count"""
         with SessionLocal() as session:
@@ -292,7 +369,7 @@ class EnhancedScanningSystem:
                 if domain_alert.violation_count >= domain_alert.defederation_threshold:
                     # Mark for defederation (actual defederation would be a separate process)
                     domain_alert.is_defederated = True
-                    domain_alert.defederated_at = datetime.utcnow()
+                    domain_alert.defederated_at = datetime.now(UTC)
                     domain_alert.defederated_by = "automated_system"
                     domain_alert.notes = f"Automatic defederation after {domain_alert.violation_count} violations"
 
@@ -339,7 +416,7 @@ class EnhancedScanningSystem:
             domains = (
                 session.query(Account.domain)
                 .filter(
-                    and_(Account.domain != "local", Account.last_checked_at > datetime.utcnow() - timedelta(days=30))
+                    and_(Account.domain != "local", Account.last_checked_at > datetime.now(UTC) - timedelta(days=30))
                 )
                 .distinct()
                 .limit(50)
@@ -375,7 +452,7 @@ class EnhancedScanningSystem:
                 session.query(ContentScan).update({"needs_rescan": True})
             else:
                 # Mark old scans as needing rescan
-                cutoff = datetime.utcnow() - timedelta(days=7)
+                cutoff = datetime.now(UTC) - timedelta(days=7)
                 session.query(ContentScan).filter(ContentScan.last_scanned_at < cutoff).update({"needs_rescan": True})
 
             session.commit()

@@ -51,7 +51,7 @@ class TestCeleryTasks(unittest.TestCase):
                 actions=[{"type": "report"}],
             ),
         ]
-        
+
         # Mock rule service get_active_rules
         mock_rule_service.get_active_rules.return_value = ([], {"report_threshold": 1.0}, "test_sha")
 
@@ -120,7 +120,7 @@ class TestCeleryTasks(unittest.TestCase):
         mock_admin = MagicMock()
         mock_admin_client.return_value = mock_admin
         mock_admin.get_account_statuses.return_value = []
-        
+
         # Mock rule service
         mock_rule_service.evaluate_account.return_value = []
 
@@ -142,7 +142,7 @@ class TestCeleryTasks(unittest.TestCase):
 
         # Function doesn't return anything, just processes
         self.assertIsNone(result)
-        
+
         # Should have called rule service to evaluate the account
         mock_rule_service.evaluate_account.assert_called_once()
 
@@ -200,8 +200,12 @@ class TestCeleryTasks(unittest.TestCase):
     @patch("app.tasks.jobs.settings")
     @patch("app.tasks.jobs._get_bot_client")
     @patch("app.tasks.jobs._get_admin_client")
-    @unittest.skip("Mock expectations don't align with implementation - test expects create_report to be called but implementation has early returns")
-    def test_analyze_and_maybe_report_report_creation(self, mock_admin_client, mock_bot_client, mock_settings, mock_rule_service, mock_db, mock_scanning_db):
+    @unittest.skip(
+        "Mock expectations don't align with implementation - test expects create_report to be called but implementation has early returns"
+    )
+    def test_analyze_and_maybe_report_report_creation(
+        self, mock_admin_client, mock_bot_client, mock_settings, mock_rule_service, mock_db, mock_scanning_db
+    ):
         """Test that reports are created when score exceeds threshold"""
         # Setup mocks for non-dry run mode
         mock_settings.DRY_RUN = False
@@ -231,7 +235,7 @@ class TestCeleryTasks(unittest.TestCase):
 
         mock_db_session = MagicMock()
         mock_db.return_value.__enter__.return_value = mock_db_session
-        
+
         # Mock database execute calls
         # First call: SELECT to check for existing report (should return None)
         # Second call: INSERT new report
@@ -339,7 +343,7 @@ class TestCeleryTasks(unittest.TestCase):
     @patch("app.tasks.jobs._persist_account")
     @patch("app.tasks.jobs.cursor_lag_pages")
     @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.EnhancedScanningSystem")
+    @patch("app.tasks.jobs.ScanningSystem")
     def test_poll_accounts_metrics(self, mock_scanner, mock_session, mock_metric, mock_persist, mock_analyze):
         """Record metrics during polling."""
         jobs.settings.MAX_PAGES_PER_POLL = 1
@@ -352,8 +356,11 @@ class TestCeleryTasks(unittest.TestCase):
         scanner = mock_scanner.return_value
         scanner.start_scan_session.return_value = "s"
         scanner.scan_account_efficiently.return_value = {"score": 0.5}  # Return a proper scan result
-        
-        scanner.get_next_accounts_to_scan.return_value = ([{"account": {"id": "test_account"}}], None)  # Return accounts but no next cursor
+
+        scanner.get_next_accounts_to_scan.return_value = (
+            [{"account": {"id": "test_account"}}],
+            None,
+        )  # Return accounts but no next cursor
         # This will process accounts, call metrics, then exit due to no next cursor
         metric = MagicMock()
         mock_metric.labels.return_value = metric
@@ -374,7 +381,7 @@ class TestCeleryTasks(unittest.TestCase):
         calls = mock_metric.labels.call_args_list
         self.assertEqual(calls[0], call(cursor=CURSOR_NAME))
         self.assertEqual(calls[1], call(cursor=CURSOR_NAME_LOCAL))
-        
+
         # Check that set was called twice
         self.assertEqual(metric.set.call_count, 2)
 

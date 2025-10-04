@@ -98,8 +98,11 @@ class TestConfig(unittest.TestCase):
         # Remove a required field
         del os.environ["BOT_TOKEN"]
 
-        with self.assertRaises(Exception):  # Pydantic ValidationError
-            Settings()
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            # Prevent .env file loading by passing _env_file=None
+            Settings(_env_file=None)
 
         # Restore for tearDown
         os.environ["BOT_TOKEN"] = self.test_env["BOT_TOKEN"]

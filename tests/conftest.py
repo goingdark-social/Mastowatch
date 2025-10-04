@@ -8,6 +8,13 @@ This module provides shared pytest fixtures for all tests, including:
 
 import os
 import sys
+
+# Ensure backend is on sys.path so imports like `import app.models` work
+# regardless of the current working directory or pytest --rootdir used by VS Code.
+ROOT = os.path.dirname(os.path.dirname(__file__))
+BACKEND_PATH = os.path.join(ROOT, "backend")
+if BACKEND_PATH not in sys.path:
+    sys.path.insert(0, BACKEND_PATH)
 import tempfile
 from unittest.mock import MagicMock
 
@@ -29,11 +36,11 @@ os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Use test Redis DB
 os.environ["DATABASE_URL"] = "sqlite:///test.db"  # Temporary, will be overridden in fixtures
 os.environ["UI_ORIGIN"] = "http://localhost:3000"  # Test UI origin
 
+# Import models to ensure they're registered with Base.metadata
+import app.models
 from app.config import Settings
 from app.db import Base, get_db
 from app.main import app
-# Import models to ensure they're registered with Base.metadata
-import app.models
 
 
 @pytest.fixture(scope="session")
@@ -98,7 +105,7 @@ def test_client(test_db_session):
 
 
 @pytest.fixture
-def mock_mastodon_client():
+def mock_mastodon_client(sample_admin_account_data):
     """Create a mock Mastodon client for testing."""
     mock_client = MagicMock()
 
@@ -115,6 +122,10 @@ def mock_mastodon_client():
     }
     mock_client.submit_report.return_value = {"id": "report_123"}
 
+    # Mock admin API responses (critical for testing!)
+    mock_client.admin_accounts.return_value = [sample_admin_account_data]
+    mock_client.get_pagination_info.return_value = {"max_id": "999999", "since_id": "000001", "min_id": None}
+
     return mock_client
 
 
@@ -130,7 +141,7 @@ def mock_redis():
 
 @pytest.fixture
 def sample_account_data():
-    """Sample account data for testing."""
+    """Sample PUBLIC account data for testing (from regular account API)."""
     return {
         "id": "123456789",
         "username": "testuser",
@@ -144,6 +155,70 @@ def sample_account_data():
         "bot": False,
         "discoverable": True,
     }
+
+
+@pytest.fixture
+def sample_admin_account_data():
+    """Sample ADMIN account data for testing (from admin_accounts API).
+
+    Structure matches Mastodon API v2:
+    https://docs.joinmastodon.org/methods/admin/accounts/#v2
+    """
+    return {
+        "id": "108267695853695427",
+        "username": "testuser",
+        "domain": None,
+        "created_at": "2022-05-08T18:18:53.221Z",
+        "email": "testuser@mastodon.local",
+        "ip": {"user_id": 1, "ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"},
+        "role": {
+            "id": 3,
+            "name": "User",
+            "color": "",
+            "position": 1000,
+            "permissions": 1,
+            "highlighted": True,
+            "created_at": "2022-09-08T22:48:07.983Z",
+            "updated_at": "2022-09-08T22:48:07.983Z",
+        },
+        "confirmed": True,
+        "suspended": False,
+        "silenced": False,
+        "disabled": False,
+        "approved": True,
+        "locale": None,
+        "invite_request": None,
+        "ips": [{"ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"}],
+        "account": {
+            "id": "108267695853695427",
+            "username": "testuser",
+            "acct": "testuser",
+            "display_name": "Test User",
+            "locked": False,
+            "bot": False,
+            "discoverable": None,
+            "group": False,
+            "created_at": "2022-09-08T00:00:00.000Z",
+            "note": "<p>This is a test account</p>",
+            "url": "https://mastodon.local/@testuser",
+            "avatar": "https://mastodon.local/avatars/original/missing.png",
+            "avatar_static": "https://mastodon.local/avatars/original/missing.png",
+            "header": "https://mastodon.local/headers/original/missing.png",
+            "header_static": "https://mastodon.local/headers/original/missing.png",
+            "followers_count": 100,
+            "following_count": 50,
+            "statuses_count": 25,
+            "last_status_at": "2022-09-08",
+            "emojis": [],
+            "fields": [],
+        },
+    }
+
+
+@pytest.fixture
+def sample_admin_accounts_list(sample_admin_account_data):
+    """Sample list response from admin_accounts() API."""
+    return [sample_admin_account_data]
 
 
 @pytest.fixture

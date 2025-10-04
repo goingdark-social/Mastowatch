@@ -16,8 +16,8 @@ from app.api.scanning import router as scanning_router
 from app.config import get_settings
 from app.db import SessionLocal
 from app.logging_conf import setup_logging
-from app.oauth import require_admin_hybrid, get_oauth_config, get_current_user
-from app.scanning import EnhancedScanningSystem
+from app.oauth import get_current_user, require_admin_hybrid
+
 
 # For backward compatibility with tests
 def get_current_user_hybrid(request=None):
@@ -25,14 +25,22 @@ def get_current_user_hybrid(request=None):
     if request is None:
         # Import here to avoid circular imports
         from fastapi import Request
+
         request = Request(scope={"type": "http", "headers": []})
     return get_current_user(request)
 
+
 # Make require_admin_hybrid available for test patching
 require_admin_hybrid = require_admin_hybrid
-from app.services.rule_service import rule_service
+import app.tasks.jobs as _jobs
 from app.startup_validation import run_all_startup_validations
-from app.tasks.jobs import process_new_report, process_new_status, scan_federated_content, check_domain_violations
+from app.tasks.jobs import process_new_report, process_new_status
+
+# Expose tasks at module level for test patching
+scan_federated_content = _jobs.scan_federated_content
+check_domain_violations = _jobs.check_domain_violations
+poll_admin_accounts = _jobs.poll_admin_accounts
+poll_admin_accounts_local = _jobs.poll_admin_accounts_local
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -203,9 +211,6 @@ def readyz():
 @app.get("/metrics", response_class=PlainTextResponse, tags=["ops"])
 def metrics():
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
-
-
-
 
 
 @app.post("/webhooks/mastodon_events", tags=["webhooks"])

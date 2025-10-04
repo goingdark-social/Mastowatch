@@ -1,6 +1,6 @@
 """Audit log inspection endpoints."""
 
-from app.db import SessionLocal, get_db
+from app.db import get_db
 from app.models import AuditLog
 from app.oauth import User, require_admin_hybrid
 from fastapi import APIRouter, Depends, Query

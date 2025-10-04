@@ -1,19 +1,25 @@
 !.pylintrc
 !.eslintrc.cjs
 !.github/**
-
+!.github
 # Byte-code files
 **/__pycache__/**
 *.pyc
-
 # Environment variables
 .env
-
 # Celery beat schedule file
 celerybeat-schedule
 **/node_modules/**
 **/dist/**
 venv/**
-.**
+# Common dotfiles to ignore (specific, not .** wildcard)
+.DS_Store
+.vscode/
+.idea/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 *.db
 !.env.development
+.serena/
+!.vscode/
