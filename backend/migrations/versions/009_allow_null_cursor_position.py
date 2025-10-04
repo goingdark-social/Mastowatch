@@ -1,7 +1,7 @@
 """allow null cursor position
 
 Revision ID: 009_allow_null_cursor
-Revises: 008_add_boolean_operator_and_secondary_pattern
+Revises: 008_add_boolean_operator
 Create Date: 2025-10-04
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '009_allow_null_cursor'
-down_revision = '008_add_boolean_operator_and_secondary_pattern'
+down_revision = '008_add_boolean_operator'
 branch_labels = None
 depends_on = None
 
