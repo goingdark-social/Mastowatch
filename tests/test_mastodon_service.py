@@ -76,75 +76,75 @@ class TestMastodonService(unittest.TestCase):
         bot_client = self.service.get_bot_client()
         self.assertIsNotNone(bot_client)
 
-    @patch("app.services.mastodon_service.asyncio.to_thread")
-    @patch("app.services.mastodon_service.Mastodon")
-    async def test_exchange_oauth_code(self, mock_mastodon_class, mock_to_thread):
+    def test_exchange_oauth_code(self):
         """Test OAuth code exchange."""
         # Mock the log_in call
-        mock_to_thread.return_value = "test_access_token"
+        with patch("app.services.mastodon_service.Mastodon") as mock_mastodon_class:
+            with patch("app.services.mastodon_service.asyncio.to_thread") as mock_to_thread:
+                mock_to_thread.return_value = "test_access_token"
 
-        result = await self.service.exchange_oauth_code(code="auth_code", redirect_uri="https://example.com/callback")
+                result = __import__('asyncio').run(self.service.exchange_oauth_code(code="auth_code", redirect_uri="https://example.com/callback"))
 
-        self.assertEqual(result["access_token"], "test_access_token")
-        self.assertEqual(result["token_type"], "Bearer")
+                self.assertEqual(result["access_token"], "test_access_token")
+                self.assertEqual(result["token_type"], "Bearer")
 
-    @patch("app.services.mastodon_service.asyncio.to_thread")
-    async def test_verify_credentials(self, mock_to_thread):
+    def test_verify_credentials(self):
         """Test credential verification."""
         # Mock the account_verify_credentials call
-        mock_account = {
-            "id": "123",
-            "username": "testuser",
-            "acct": "testuser@example.com",
-            "display_name": "Test User",
-        }
-        mock_to_thread.return_value = mock_account
+        with patch("app.services.mastodon_service.asyncio.to_thread") as mock_to_thread:
+            mock_account = {
+                "id": "123",
+                "username": "testuser",
+                "acct": "testuser@example.com",
+                "display_name": "Test User",
+            }
+            mock_to_thread.return_value = mock_account
 
-        result = await self.service.verify_credentials("test_token")
+            result = __import__('asyncio').run(self.service.verify_credentials("test_token"))
 
-        self.assertEqual(result["id"], "123")
-        self.assertEqual(result["username"], "testuser")
+            self.assertEqual(result["id"], "123")
+            self.assertEqual(result["username"], "testuser")
 
-    @patch("app.services.mastodon_service.asyncio.to_thread")
-    async def test_get_account(self, mock_to_thread):
+    def test_get_account(self):
         """Test fetching account information."""
-        mock_account = {
-            "id": "456",
-            "username": "otheraccount",
-            "acct": "otheraccount@example.com",
-        }
-        mock_to_thread.return_value = mock_account
+        with patch("app.services.mastodon_service.asyncio.to_thread") as mock_to_thread:
+            mock_account = {
+                "id": "456",
+                "username": "otheraccount",
+                "acct": "otheraccount@example.com",
+            }
+            mock_to_thread.return_value = mock_account
 
-        result = await self.service.get_account("456", use_admin=False)
+            result = __import__('asyncio').run(self.service.get_account("456", use_admin=False))
 
-        self.assertEqual(result["id"], "456")
-        self.assertEqual(result["username"], "otheraccount")
+            self.assertEqual(result["id"], "456")
+            self.assertEqual(result["username"], "otheraccount")
 
-    @patch("app.services.mastodon_service.asyncio.to_thread")
-    async def test_get_account_statuses(self, mock_to_thread):
+    def test_get_account_statuses(self):
         """Test fetching account statuses."""
-        mock_statuses = [
-            {"id": "1", "content": "Status 1"},
-            {"id": "2", "content": "Status 2"},
-        ]
-        mock_to_thread.return_value = mock_statuses
+        with patch("app.services.mastodon_service.asyncio.to_thread") as mock_to_thread:
+            mock_statuses = [
+                {"id": "1", "content": "Status 1"},
+                {"id": "2", "content": "Status 2"},
+            ]
+            mock_to_thread.return_value = mock_statuses
 
-        result = await self.service.get_account_statuses("123", limit=20)
+            result = __import__('asyncio').run(self.service.get_account_statuses("123", limit=20))
 
-        self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]["id"], "1")
+            self.assertEqual(len(result), 2)
+            self.assertEqual(result[0]["id"], "1")
 
-    @patch("app.services.mastodon_service.asyncio.to_thread")
-    async def test_create_report(self, mock_to_thread):
+    def test_create_report(self):
         """Test creating a report."""
-        mock_report = {"id": "report_123", "comment": "Test report"}
-        mock_to_thread.return_value = mock_report
+        with patch("app.services.mastodon_service.asyncio.to_thread") as mock_to_thread:
+            mock_report = {"id": "report_123", "comment": "Test report"}
+            mock_to_thread.return_value = mock_report
 
-        result = await self.service.create_report(
-            account_id="123", status_ids=["456"], comment="Test report", forward=False
-        )
+            result = __import__('asyncio').run(self.service.create_report(
+                account_id="123", status_ids=["456"], comment="Test report", forward=False
+            ))
 
-        self.assertEqual(result["id"], "report_123")
+            self.assertEqual(result["id"], "report_123")
 
     def test_singleton_pattern(self):
         """Test that mastodon_service is a singleton."""
