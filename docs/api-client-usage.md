@@ -1,97 +1,33 @@
 # API Client Usage Guide
 
-## Overview
+**⚠️ DEPRECATED**: This document describes the old OpenAPI-generated client that has been removed.
 
-This project uses a generated OpenAPI client for Mastodon API interactions, ensuring type safety, consistency, and centralized configuration.
+**Please refer to [mastodon-py-integration.md](mastodon-py-integration.md) for current Mastodon API usage.**
 
-## Recommended Usage
+## Migration Complete
 
-### 1. Use the Generated Client
+MastoWatch now exclusively uses the official `mastodon.py` library through the `MastodonService` wrapper. 
 
-**Preferred:** Always use the generated `Client` or `AuthenticatedClient` from `app.clients.mastodon.client`:
+All Mastodon API operations should go through `MastodonService`:
 
 ```python
-from app.clients.mastodon.client import AuthenticatedClient
-from app.clients.mastodon.api.accounts.get_accounts_verify_credentials import (
-    asyncio as verify_credentials_async,
+from app.services.mastodon_service import mastodon_service
+
+# Get account information
+account = await mastodon_service.get_account(
+    account_id="123456",
+    use_admin=True
 )
 
-client = AuthenticatedClient(
-    base_url=str(settings.INSTANCE_BASE),
-    token=access_token,
-    prefix="Bearer",
-    timeout=10.0,
+# Create a report
+report = await mastodon_service.create_report(
+    account_id="12345",
+    status_ids=["67890"],
+    comment="Automated moderation report"
 )
-
-account = await verify_credentials_async(client=client)
 ```
 
-### 2. Avoid Direct httpx Usage
-
-**Avoid:** Direct `httpx.Client()` or `httpx.AsyncClient()` instantiation outside `/app/clients/mastodon`:
-
-```python
-# ❌ Don't do this
-import httpx
-async with httpx.AsyncClient() as client:
-    await client.get(f"{base_url}/api/v1/admin/accounts")
-```
-
-**Instead:** Use the generated client's HTTP session:
-
-```python
-# ✅ Do this
-from app.clients.mastodon.client import AuthenticatedClient
-
-client = AuthenticatedClient(base_url=base_url, token=token)
-async with client.get_async_httpx_client() as http_client:
-    await http_client.get("/api/v1/admin/accounts")
-```
-
-### 3. High-Level Facade (Optional)
-
-For complex workflows, use `MastoClient` as a high-level facade:
-
-```python
-from app.mastodon_client import MastoClient
-
-client = MastoClient(token="your_token")
-account = client.get_account("123")
-statuses = client.get_account_statuses("123", limit=10)
-```
-
-## Benefits of This Approach
-
-1. **Centralized Configuration**: Headers, timeouts, SSL verification, and other settings are managed in one place
-2. **Type Safety**: Generated models provide better IDE support and error detection
-3. **Consistency**: All HTTP calls use the same transport layer
-4. **Rate Limiting**: Centralized rate limiting and metrics collection
-5. **Testability**: Easier to mock and test with a consistent interface
-
-## Adding New Endpoints
-
-1. **First choice**: Use the generated client's HTTP session for the new endpoint
-2. **If complex**: Add a method to `MastoClient` that uses `_make_raw_request`
-3. **Document** any endpoints not in the OpenAPI spec for future addition
-
-## Testing
-
-When testing code that makes API calls:
-
-```python
-# Mock the generated client's HTTP session
-@patch.object(AuthenticatedClient, 'get_async_httpx_client')
-def test_api_call(self, mock_get_client):
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"id": "123"}
-    
-    mock_client = AsyncMock()
-    mock_client.get.return_value = mock_response
-    mock_get_client.return_value.__aenter__.return_value = mock_client
-
-    # Test your code here
-```
+See [mastodon-py-integration.md](mastodon-py-integration.md) for complete documentation.
 
 ## Scanning
 

@@ -1,53 +1,16 @@
 # Mastodon API Client Integration
 
-This document explains how Mastowatch uses a type-safe, automatically-updated Mastodon API client.
+**⚠️ DEPRECATED**: This document describes the old MastoClient wrapper that has been removed.
 
-## Overview
+**Please refer to [mastodon-py-integration.md](mastodon-py-integration.md) for current Mastodon API usage.**
 
-We use the [abraham/mastodon-openapi](https://github.com/abraham/mastodon-openapi) project as a Git submodule to:
+## Migration Complete
 
-1. **Track API changes** - The upstream repository is automatically updated weekly with the latest Mastodon API
-2. **Generate type-safe clients** - We generate Python clients from the OpenAPI spec for better development experience
-3. **Maintain reproducibility** - Git submodules ensure everyone uses the exact same API specification version
+As of this version, MastoWatch has fully migrated to using the official `mastodon.py` library through the `MastodonService` wrapper. The old OpenAPI-generated `MastoClient` and `app/clients/mastodon/` have been removed.
 
-## Architecture
+All Mastodon API operations now go through `MastodonService` in `backend/app/services/mastodon_service.py`.
 
-```
-Mastowatch/
-├── specs/
-│   ├── mastodon-openapi/           # Git submodule tracking abraham/mastodon-openapi
-│   │   └── dist/schema.json        # Pre-built OpenAPI specification
-│   └── openapi.json               # Our copy of the spec
-├── app/
-│   ├── clients/mastodon/          # Generated Python client
-│   └── mastodon_client.py         # Type-safe client with admin fallbacks
-└── scripts/
-    └── mastodon_api.sh            # Management script
-```
-
-## Mastodon Client
-
-### MastoClient
-- **JSON dictionary responses** (Python dicts representing JSON objects) for common endpoints (accounts, statuses, reports)
-- **Helper methods** for admin endpoints not in the OpenAPI spec
-- **Full compatibility** with existing rate limiting and metrics
-- **Auto-completion** and validation in IDEs
-
-## Usage Examples
-
-### Account Operations
-```python
-from app.mastodon_client import MastoClient
-
-client = MastoClient(token)
-
-account = client.get_account("123456")
-print(f"@{account['username']} has {account['followers_count']} followers")
-
-statuses = client.get_account_statuses(
-    account_id="123456",
-    limit=50,
-    exclude_reblogs=True,
+See [mastodon-py-integration.md](mastodon-py-integration.md) for complete documentation on the current implementation.
 )
 for status in statuses:
     print(f"Status {status['id']}: {len(status['content'])} characters")
