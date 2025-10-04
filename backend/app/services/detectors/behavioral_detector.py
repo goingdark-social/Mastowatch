@@ -1,16 +1,15 @@
 """Behavioral detector for account behavior analysis."""
 
-from datetime import datetime, timedelta
 import re
-from urllib.parse import urlparse
+from datetime import datetime, timedelta
 from typing import Any
-
-from sqlalchemy.orm import Session
+from urllib.parse import urlparse
 
 from app.db import engine
 from app.models import AccountBehaviorMetrics, InteractionHistory, Rule
 from app.schemas import Evidence, Violation
 from app.services.detectors.base import BaseDetector
+from sqlalchemy.orm import Session
 
 
 class BehavioralDetector(BaseDetector):

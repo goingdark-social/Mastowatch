@@ -7,7 +7,6 @@ This module provides shared pytest fixtures for all tests, including:
 """
 
 import os
-import sys
 import tempfile
 from unittest.mock import MagicMock
 
@@ -29,12 +28,11 @@ os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Use test Redis DB
 os.environ["DATABASE_URL"] = "sqlite:///test.db"  # Temporary, will be overridden in fixtures
 os.environ["UI_ORIGIN"] = "http://localhost:3000"  # Test UI origin
 
+# Import models to ensure they're registered with Base.metadata
+import app.models
 from app.config import Settings
 from app.db import Base, get_db
 from app.main import app
-
-# Import models to ensure they're registered with Base.metadata
-import app.models
 
 
 @pytest.fixture(scope="session")

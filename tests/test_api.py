@@ -51,9 +51,9 @@ class TestAPIEndpoints(unittest.TestCase):
     def setUp(self):
         """Prepare test client with mocked dependencies."""
         # Create database tables before setting up the app
-        from sqlalchemy import create_engine
-        from app.db import Base
         from app.config import get_settings
+        from app.db import Base
+        from sqlalchemy import create_engine
 
         settings = get_settings()
         engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
@@ -207,8 +207,8 @@ class TestAPIEndpoints(unittest.TestCase):
 
     def test_get_config_returns_non_sensitive_fields(self):
         """Expose only safe configuration."""
-        from app.services.config_service import get_config_service
         from app.auth import require_api_key
+        from app.services.config_service import get_config_service
 
         # Override API key authentication
         self.app.dependency_overrides[require_api_key] = lambda: True
@@ -259,8 +259,8 @@ class TestAPIEndpoints(unittest.TestCase):
 
     def test_logs_endpoint(self):
         """Test audit log retrieval."""
-        from app.oauth import get_current_user
         from app.db import SessionLocal
+        from app.oauth import get_current_user
 
         # Override the get_current_user dependency
         self.app.dependency_overrides[get_current_user] = lambda: create_mock_admin_user()

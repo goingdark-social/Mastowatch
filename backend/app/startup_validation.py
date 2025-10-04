@@ -3,10 +3,9 @@
 import logging
 import sys
 
-from pydantic import ValidationError
-
 from app.config import get_settings
 from app.services.mastodon_service import mastodon_service
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +84,8 @@ def validate_startup_configuration() -> None:
 def validate_database_connection() -> None:
     """Test database connectivity and migration status."""
     try:
-        from sqlalchemy import text
-
         from app.db import SessionLocal
+        from sqlalchemy import text
 
         with SessionLocal() as db:
             # Test basic connectivity
@@ -111,7 +109,6 @@ def validate_redis_connection() -> None:
     """Test Redis connectivity."""
     try:
         import redis
-
         from app.config import get_settings
 
         settings = get_settings()

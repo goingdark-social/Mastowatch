@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-
 from app.startup_validation import validate_mastodon_version
 
 

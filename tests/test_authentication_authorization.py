@@ -43,9 +43,9 @@ class TestAuthenticationAuthorization(unittest.TestCase):
 
     def setUp(self):
         # Create database tables before setting up the app
-        from sqlalchemy import create_engine
-        from app.db import Base
         from app.config import get_settings
+        from app.db import Base
+        from sqlalchemy import create_engine
 
         settings = get_settings()
         engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})

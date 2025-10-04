@@ -5,12 +5,11 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.db import Base
 from app.models import Rule
 from app.services.rule_service import RuleService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 class TestRuleService(unittest.TestCase):

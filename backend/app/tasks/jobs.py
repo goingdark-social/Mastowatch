@@ -299,7 +299,7 @@ def analyze_and_maybe_report(payload: dict):
                 violated_rule_names.add(name)
         else:
             # Tests sometimes include recent statuses in the payload to avoid network calls
-            statuses: Optional[List[Dict[str, Any]]] = payload.get("statuses") or payload.get("recent_statuses")
+            statuses: list[dict[str, Any]] | None = payload.get("statuses") or payload.get("recent_statuses")
             if statuses is None:
                 # Use admin client helper if it exposes a get_account_statuses method
                 try:
@@ -316,7 +316,7 @@ def analyze_and_maybe_report(payload: dict):
                         account_id=acct_id, limit=settings.MAX_STATUSES_TO_FETCH
                     )
 
-            violations: List[Any] = rule_service.evaluate_account(acct, statuses or [])
+            violations: list[Any] = rule_service.evaluate_account(acct, statuses or [])
             score = sum(v.score for v in violations)
             hits = [(f"{v.rule_type}/{v.rule_name}", v.score, v.evidence or {}) for v in violations]
             violated_rule_names = {v.rule_name for v in violations}

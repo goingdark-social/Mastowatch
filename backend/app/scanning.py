@@ -1,4 +1,5 @@
 """Account scanning utilities."""
+from __future__ import annotations
 
 import hashlib
 import logging
@@ -332,6 +333,15 @@ class EnhancedScanningSystem:
                 session.add(domain_alert)
 
             session.commit()
+
+    def track_domain_violation(self, domain: str) -> None:
+        """Public wrapper for tracking domain violations.
+
+        Other modules should call this instead of the private method. It
+        preserves the existing behavior while allowing tests and callers to
+        use a stable public API.
+        """
+        return self._track_domain_violation(domain)
 
     def _check_defederation_threshold(self, domain: str):
         """Check if domain should be defederated based on violation count"""

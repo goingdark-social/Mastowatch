@@ -1,8 +1,9 @@
 import os
-from sqlalchemy import JSON, TIMESTAMP, BigInteger, Boolean, Column, Numeric, Text, Integer, ForeignKey, Enum as sa_Enum
-from sqlalchemy.sql import func
 
 from app.db import Base
+from sqlalchemy import JSON, TIMESTAMP, BigInteger, Boolean, Column, ForeignKey, Integer, Numeric, Text
+from sqlalchemy import Enum as sa_Enum
+from sqlalchemy.sql import func
 
 
 def get_id_column():

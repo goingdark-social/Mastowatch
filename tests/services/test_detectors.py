@@ -1,9 +1,9 @@
 """Test cases for detector modules."""
 
 import unittest
+from datetime import datetime, timedelta
 from hashlib import sha256
 from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
 
 from app.schemas import Violation
 from app.services.detectors.behavioral_detector import BehavioralDetector
