@@ -43,6 +43,25 @@ def _get_client():
     return mastodon_service.get_authenticated_client()
 
 
+def _get_admin_client():
+    """Backwards-compatible helper used in tests to obtain an admin client.
+
+    Tests patch this symbol in `app.tasks.jobs`, so keep a thin wrapper around
+    the service that returns the authenticated client.
+    """
+    return mastodon_service.get_authenticated_client()
+
+
+def _get_bot_client():
+    """Backwards-compatible helper used in tests to obtain a bot client.
+
+    Returns the same authenticated client by default. Tests mock this out as
+    needed; production code should use MastodonService directly when a
+    different token is required.
+    """
+    return mastodon_service.get_authenticated_client()
+
+
 def _should_pause():
     # Honor PANIC_STOP from DB or env
     if settings.PANIC_STOP:

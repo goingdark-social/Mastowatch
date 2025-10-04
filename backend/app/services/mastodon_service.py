@@ -306,23 +306,56 @@ class MastodonService:
         client = self.get_authenticated_client()
 
         try:
-            # Use admin_accounts which returns paginated results
-            accounts = await asyncio.to_thread(
-                client.admin_accounts,
-                origin=origin,
-                status=status,
-                max_id=max_id,
-                limit=limit,
-            )
+            # mastodon.py has diverged across versions:
+            # - newer versions expose `admin_accounts_v2(origin=...)`
+            # - older versions expose `admin_accounts(remote=bool)` (accessible via `admin_accounts`)
+            # Prefer calling v2 if present, otherwise map origin -> remote boolean for v1.
+            if hasattr(client, "admin_accounts_v2"):
+                accounts = await asyncio.to_thread(
+                    client.admin_accounts_v2,
+                    origin=origin,
+                    status=status,
+                    max_id=max_id,
+                    limit=limit,
+                )
+            else:
+                # Map origin to the older `remote` boolean parameter
+                remote_flag = None
+                if origin == "remote":
+                    remote_flag = True
+                elif origin == "local":
+                    remote_flag = False
 
-            # mastodon.py handles pagination internally
-            # Extract next cursor from the response if available
+                # Call admin_accounts (v1) accordingly. It will accept remote=bool or default behavior.
+                if remote_flag is None:
+                    accounts = await asyncio.to_thread(
+                        client.admin_accounts,
+                        status=status,
+                        max_id=max_id,
+                        limit=limit,
+                    )
+                else:
+                    accounts = await asyncio.to_thread(
+                        client.admin_accounts,
+                        remote=remote_flag,
+                        status=status,
+                        max_id=max_id,
+                        limit=limit,
+                    )
+
+            # Try to obtain pagination cursor in a robust way
             next_cursor = None
-            if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
-                # Try to extract max_id from pagination info
-                next_params = accounts._pagination_next
-                if "max_id" in next_params:
-                    next_cursor = next_params["max_id"]
+            try:
+                # Preferred: use public helper
+                pagination_info = client.get_pagination_info(accounts)
+                if pagination_info:
+                    next_cursor = pagination_info.get("max_id") or pagination_info.get("since_id")
+            except Exception:
+                # Fall back to private attribute if present
+                if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
+                    next_params = accounts._pagination_next
+                    if isinstance(next_params, dict) and "max_id" in next_params:
+                        next_cursor = next_params["max_id"]
 
             return accounts, next_cursor
 
@@ -483,18 +516,33 @@ class MastodonService:
         client = self.get_authenticated_client()
 
         try:
-            # Use admin_accounts which returns paginated results
-            accounts = client.admin_accounts(
-                origin=origin,
-                status=status,
-                max_id=max_id,
-                limit=limit,
-            )
+            # Prefer v2 if available
+            if hasattr(client, "admin_accounts_v2"):
+                accounts = client.admin_accounts_v2(origin=origin, status=status, max_id=max_id, limit=limit)
+            else:
+                # Map origin to remote boolean for older v1 API
+                remote_flag = None
+                if origin == "remote":
+                    remote_flag = True
+                elif origin == "local":
+                    remote_flag = False
 
-            # Use mastodon.py's official pagination utility method
-            # instead of accessing internal _pagination_next attribute
-            pagination_info = client.get_pagination_info(accounts)
-            next_cursor = pagination_info.get("max_id") if pagination_info else None
+                if remote_flag is None:
+                    accounts = client.admin_accounts(status=status, max_id=max_id, limit=limit)
+                else:
+                    accounts = client.admin_accounts(remote=remote_flag, status=status, max_id=max_id, limit=limit)
+
+            # Use mastodon.py's pagination helper when available
+            try:
+                pagination_info = client.get_pagination_info(accounts)
+                next_cursor = pagination_info.get("max_id") if pagination_info else None
+            except Exception:
+                # Fallback to private attribute
+                next_cursor = None
+                if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
+                    next_params = accounts._pagination_next
+                    if isinstance(next_params, dict) and "max_id" in next_params:
+                        next_cursor = next_params["max_id"]
 
             return accounts, next_cursor
 

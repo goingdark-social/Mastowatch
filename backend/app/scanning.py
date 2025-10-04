@@ -252,17 +252,23 @@ class ScanningSystem:
             )
             if client is not None:
                 try:
+                    # Prefer a stable service-level method if available on the client wrapper
                     if hasattr(client, "get_admin_accounts"):
                         accounts, next_cursor = client.get_admin_accounts(
                             origin=session_type, status="active", limit=limit, max_id=cursor
                         )
-                    else:
-                        # Use admin_accounts and extract pagination cursor
-                        accounts = client.admin_accounts(
+                    elif hasattr(client, "admin_accounts_v2"):
+                        # Newer mastodon.py exposes admin_accounts_v2 which accepts origin
+                        accounts = client.admin_accounts_v2(
                             origin=session_type, status="active", limit=limit, max_id=cursor
                         )
                         pagination_info = client.get_pagination_info(accounts)
                         next_cursor = pagination_info.get("max_id") if pagination_info else None
+                    else:
+                        # Older mastodon.py admin_accounts expects remote=True/False, so delegate to service sync wrapper
+                        accounts, next_cursor = mastodon_service.get_admin_accounts_sync(
+                            origin=session_type, status="active", limit=limit, max_id=cursor
+                        )
                     return accounts, next_cursor
                 except Exception as e:
                     logger.error(f"Error fetching {session_type} accounts via client, falling back: {e}")
