@@ -9,8 +9,7 @@
 x-backend-env: &backend-env
   # Required Configuration - Set these in your deployment environment
   INSTANCE_BASE: "${INSTANCE_BASE}"
-  ADMIN_TOKEN: "${ADMIN_TOKEN}"
-  BOT_TOKEN: "${BOT_TOKEN}"
+  MASTODON_ACCESS_TOKEN: "${MASTODON_ACCESS_TOKEN}"
   DATABASE_URL: "${DATABASE_URL}"
   REDIS_URL: "${REDIS_URL}"
   API_KEY: "${API_KEY}"
@@ -25,9 +24,9 @@ x-backend-env: &backend-env
   CORS_ORIGINS: '${CORS_ORIGINS:-["https://your-domain.com"]}'
   UI_ORIGIN: "${UI_ORIGIN}"
   
-  # Optional OAuth Configuration
-  OAUTH_CLIENT_ID: "${OAUTH_CLIENT_ID:-}"
-  OAUTH_CLIENT_SECRET: "${OAUTH_CLIENT_SECRET:-}"
+  # Optional OAuth Configuration (uses MASTODON_CLIENT_KEY/SECRET from above)
+  MASTODON_CLIENT_KEY: "${MASTODON_CLIENT_KEY:-}"
+  MASTODON_CLIENT_SECRET: "${MASTODON_CLIENT_SECRET:-}"
   OAUTH_REDIRECT_URI: "${OAUTH_REDIRECT_URI:-}"
   
   # Performance Tuning

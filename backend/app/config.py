@@ -13,8 +13,7 @@ class Settings(BaseSettings):
 
     VERSION: str = APP_VERSION
     INSTANCE_BASE: AnyUrl
-    BOT_TOKEN: str = Field(..., min_length=1)
-    ADMIN_TOKEN: str = Field(..., min_length=1)
+    MASTODON_ACCESS_TOKEN: str = Field(..., min_length=1)
     DATABASE_URL: str = Field(..., min_length=1)
     REDIS_URL: str = Field(..., min_length=1)
     DRY_RUN: bool = True
@@ -45,9 +44,9 @@ class Settings(BaseSettings):
     # CORS for dashboard if served separately (not required when embedded)
     CORS_ORIGINS: list[str] = []
 
-    # OAuth Configuration for admin login
-    OAUTH_CLIENT_ID: str | None = None
-    OAUTH_CLIENT_SECRET: str | None = None
+    # OAuth Configuration for admin login (uses same Mastodon app credentials)
+    MASTODON_CLIENT_KEY: str | None = None
+    MASTODON_CLIENT_SECRET: str | None = None
     OAUTH_REDIRECT_URI: str | None = None
     OAUTH_SCOPE: str = "read:accounts"
     OAUTH_POPUP_REDIRECT_URI: str | None = None

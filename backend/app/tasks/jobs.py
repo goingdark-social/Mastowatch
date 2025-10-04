@@ -38,14 +38,11 @@ CURSOR_NAME_LOCAL = "admin_accounts_local"
 MAX_HISTORY_STATUSES = 20
 
 
-def _get_admin_client():
-    """Get the admin client from mastodon_service."""
-    return mastodon_service.get_admin_client()
+def _get_client():
+    """Get the authenticated Mastodon client from mastodon_service."""
+    return mastodon_service.get_authenticated_client()
 
 
-def _get_bot_client():
-    """Get the bot client from mastodon_service."""
-    return mastodon_service.get_bot_client()
 
 
 def _should_pause():
@@ -286,7 +283,7 @@ def analyze_and_maybe_report(payload: dict):
         if not acct_id:
             return
 
-        admin_client: Any = _get_admin_client()
+        client: Any = _get_client()
         enforcement_service: EnforcementService = EnforcementService()
 
         cached_result = payload.get("scan_result")
@@ -303,13 +300,13 @@ def analyze_and_maybe_report(payload: dict):
             if statuses is None:
                 # Use admin client helper if it exposes a get_account_statuses method
                 try:
-                    if hasattr(admin_client, "get_account_statuses"):
-                        statuses = admin_client.get_account_statuses(
+                    if hasattr(client, "get_account_statuses"):
+                        statuses = client.get_account_statuses(
                             account_id=acct_id, limit=settings.MAX_STATUSES_TO_FETCH
                         )
                     else:
                         # Fallback to mastodon.py's account_statuses
-                        statuses = admin_client.account_statuses(acct_id, limit=settings.MAX_STATUSES_TO_FETCH)
+                        statuses = client.account_statuses(acct_id, limit=settings.MAX_STATUSES_TO_FETCH)
                 except Exception:
                     # Fall back to mastodon_service sync wrapper which tests may mock
                     statuses = mastodon_service.get_account_statuses_sync(
@@ -470,9 +467,9 @@ def analyze_and_maybe_report(payload: dict):
         category = settings.REPORT_CATEGORY_DEFAULT
         forward = settings.FORWARD_REMOTE_REPORTS if "@" in acct.get("acct", "") else False
 
-        bot: Any = _get_bot_client()
+        report_client: Any = _get_client()
         # Use mastodon.py's report method
-        result = bot.report(
+        result = report_client.report(
             account_id=acct_id,
             comment=comment,
             status_ids=status_ids,
@@ -510,7 +507,7 @@ def process_expired_actions():
     """Processes scheduled actions that have expired and reverses them."""
     logging.info("Running process_expired_actions task...")
 
-    admin_client = _get_admin_client()
+    client = _get_client()
     enforcement_service = EnforcementService()
 
     with SessionLocal() as session:
@@ -559,24 +556,24 @@ def process_new_report(report_payload: dict):
             logging.warning("Report payload missing account ID, skipping processing.")
             return
 
-        admin_client = _get_admin_client()
+        client = _get_client()
         enforcement_service = EnforcementService()
 
         # Fetch full account details if needed (webhook payload might be partial)
         # For now, assume webhook payload has enough info for initial scan
-        # In a real scenario, you might call admin_client.account(account_data['id'])
+        # In a real scenario, you might call client.account(account_data['id'])
 
         # Fetch statuses related to the report
         statuses = []
         for s_id in status_ids:
             try:
-                # This is a simplified approach. Tests mock admin_client.get_account_statuses
-                if hasattr(admin_client, "get_account_statuses"):
-                    account_statuses = admin_client.get_account_statuses(
+                # This is a simplified approach. Tests mock client.get_account_statuses
+                if hasattr(client, "get_account_statuses"):
+                    account_statuses = client.get_account_statuses(
                         account_id=account_data["id"], limit=settings.MAX_STATUSES_TO_FETCH
                     )
                 else:
-                    account_statuses = admin_client.account_statuses(
+                    account_statuses = client.account_statuses(
                         account_data["id"], limit=settings.MAX_STATUSES_TO_FETCH
                     )
                 statuses = [s for s in account_statuses if s.get("id") in status_ids]
@@ -659,14 +656,14 @@ def process_new_status(status_payload: dict):
             logging.warning("Status payload missing account ID, skipping processing.")
             return
 
-        admin_client = _get_admin_client()
+        client = _get_client()
         try:
-            if hasattr(admin_client, "get_account_statuses"):
-                history = admin_client.get_account_statuses(
+            if hasattr(client, "get_account_statuses"):
+                history = client.get_account_statuses(
                     account_id=account_data["id"], limit=MAX_HISTORY_STATUSES, exclude_reblogs=True
                 )
             else:
-                history = admin_client.account_statuses(
+                history = client.account_statuses(
                     account_data["id"],
                     limit=MAX_HISTORY_STATUSES,
                     exclude_reblogs=True,
