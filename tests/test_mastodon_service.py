@@ -44,19 +44,15 @@ class TestMastodonService(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(admin)
         self.assertIsNotNone(bot)
 
-    @patch("app.services.mastodon_service.Mastodon._Mastodon__api_request", new_callable=MagicMock)
-    async def test_exchange_oauth_code(self, mock_api_request):
-        mock_api_request.return_value = {
-            "access_token": "test_access_token",
-            "token_type": "Bearer",
-            "scope": "read write follow",
-            "created_at": 1234567890,
-        }
+    @patch("app.services.mastodon_service.Mastodon.log_in", new_callable=MagicMock)
+    async def test_exchange_oauth_code(self, mock_log_in):
+        """Test OAuth code exchange using the official log_in method."""
+        mock_log_in.return_value = "test_access_token"
 
         result = await self.service.exchange_oauth_code(code="auth_code", redirect_uri="https://example.com/callback")
 
         self.assertEqual(result["access_token"], "test_access_token")
-        self.assertEqual(result["token_type"], "Bearer")
+        mock_log_in.assert_called_once()
 
     @patch("app.services.mastodon_service.Mastodon.account_verify_credentials", new_callable=MagicMock)
     async def test_verify_credentials(self, mock_verify):
