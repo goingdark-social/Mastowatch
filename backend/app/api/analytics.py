@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.db import SessionLocal
 from app.models import Account, Analysis, ContentScan, Report
@@ -18,7 +18,7 @@ def get_analytics_overview(_: User = Depends(require_admin_hybrid)):
     try:
         with SessionLocal() as db:
             # Time ranges
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             last_24h = now - timedelta(hours=24)
             last_7d = now - timedelta(days=7)
             last_30d = now - timedelta(days=30)
@@ -86,7 +86,7 @@ def get_analytics_timeline(days: int = 7, _: User = Depends(require_admin_hybrid
             )
 
         with SessionLocal() as db:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
             start_date = end_date - timedelta(days=days)
 
             # Daily analysis counts

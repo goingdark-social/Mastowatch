@@ -7,6 +7,14 @@ This module provides shared pytest fixtures for all tests, including:
 """
 
 import os
+import sys
+
+# Ensure backend is on sys.path so imports like `import app.models` work
+# regardless of the current working directory or pytest --rootdir used by VS Code.
+ROOT = os.path.dirname(os.path.dirname(__file__))
+BACKEND_PATH = os.path.join(ROOT, "backend")
+if BACKEND_PATH not in sys.path:
+    sys.path.insert(0, BACKEND_PATH)
 import tempfile
 from unittest.mock import MagicMock
 
