@@ -1,10 +1,11 @@
 """Account scanning utilities."""
+
 from __future__ import annotations
 
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -71,7 +72,7 @@ class EnhancedScanningSystem:
             scan_session = session.query(ScanSession).filter(ScanSession.id == session_id).first()
             if scan_session:
                 scan_session.status = status
-                scan_session.completed_at = datetime.utcnow()
+                scan_session.completed_at = datetime.now(UTC)
                 session.commit()
                 logger.info(f"Scan session {session_id} marked as {status}")
 
@@ -103,7 +104,7 @@ class EnhancedScanningSystem:
                     and_(
                         ContentScan.mastodon_account_id == account_id,
                         ContentScan.content_hash == content_hash,
-                        ContentScan.last_scanned_at > datetime.utcnow() - timedelta(hours=24),
+                        ContentScan.last_scanned_at > datetime.now(UTC) - timedelta(hours=24),
                         ContentScan.rules_version == ruleset_sha,
                     )
                 )
@@ -181,7 +182,7 @@ class EnhancedScanningSystem:
                 "score": score,
                 "hits": len(hits),
                 "rule_hits": [{"rule": h[0], "weight": h[1], "evidence": h[2]} for h in hits],
-                "scanned_at": datetime.utcnow().isoformat(),
+                "scanned_at": datetime.now(UTC).isoformat(),
                 "status_count": len(statuses),
             }
 
@@ -218,7 +219,7 @@ class EnhancedScanningSystem:
                 account_record = db_session.query(Account).filter(Account.mastodon_account_id == account_id).first()
                 if account_record:
                     account_record.content_hash = content_hash
-                    account_record.last_full_scan_at = datetime.utcnow()
+                    account_record.last_full_scan_at = datetime.now(UTC)
 
                 db_session.commit()
 
@@ -352,7 +353,7 @@ class EnhancedScanningSystem:
                 if domain_alert.violation_count >= domain_alert.defederation_threshold:
                     # Mark for defederation (actual defederation would be a separate process)
                     domain_alert.is_defederated = True
-                    domain_alert.defederated_at = datetime.utcnow()
+                    domain_alert.defederated_at = datetime.now(UTC)
                     domain_alert.defederated_by = "automated_system"
                     domain_alert.notes = f"Automatic defederation after {domain_alert.violation_count} violations"
 
@@ -399,7 +400,7 @@ class EnhancedScanningSystem:
             domains = (
                 session.query(Account.domain)
                 .filter(
-                    and_(Account.domain != "local", Account.last_checked_at > datetime.utcnow() - timedelta(days=30))
+                    and_(Account.domain != "local", Account.last_checked_at > datetime.now(UTC) - timedelta(days=30))
                 )
                 .distinct()
                 .limit(50)
@@ -435,7 +436,7 @@ class EnhancedScanningSystem:
                 session.query(ContentScan).update({"needs_rescan": True})
             else:
                 # Mark old scans as needing rescan
-                cutoff = datetime.utcnow() - timedelta(days=7)
+                cutoff = datetime.now(UTC) - timedelta(days=7)
                 session.query(ContentScan).filter(ContentScan.last_scanned_at < cutoff).update({"needs_rescan": True})
 
             session.commit()

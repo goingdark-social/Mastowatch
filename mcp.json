@@ -1,0 +1,53 @@
+{
+  "name": "Mastowatch MCP configuration",
+  "version": "1.0",
+  "serena": {
+    "project": "Mastowatch",
+    "onboarding_command": "serena onboarding",
+    "check_onboarding_command": "serena check_onboarding_performed",
+    "recommended_tools": [
+      "activate_project",
+      "check_onboarding_performed",
+      "get_symbols_overview",
+      "find_symbol",
+      "find_referencing_symbols",
+      "insert_before_symbol",
+      "insert_after_symbol",
+      "replace_symbol_body",
+      "read_file",
+      "read_memory",
+      "write_memory",
+      "list_memories",
+      "search_for_pattern",
+      "find_file",
+      "list_dir"
+    ],
+    "memory_files": [
+      "project_overview.md",
+      "suggested_commands.md",
+      "style_and_conventions.md",
+      "mastodon_py_summary.md",
+      "onboarding_done.md"
+    ]
+  },
+  "context7": {
+    "preferred_library_ids": ["/halcy/mastodon.py"],
+    "resolve_command_example": "context7 resolve mastodon.py",
+    "get_docs_example": "context7 get-library-docs /halcy/mastodon.py --topic authentication,rate-limiting,examples"
+  },
+  "vscodeTasks": [
+    {
+      "label": "MCP: Activate Serena project",
+      "type": "shell",
+      "command": "serena activate_project --project \"${workspaceFolder}\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "MCP: Run Serena onboarding",
+      "type": "shell",
+      "command": "serena onboarding --project \"${workspaceFolder}\"",
+      "problemMatcher": []
+    }
+  ],
+  "notes": "This file provides example MCP/Serena+Context7 settings and example VS Code tasks. Edit the commands to match your local CLIs or tooling. Serena and Context7 commands shown are examples and may need to be adapted to your environment."
+}

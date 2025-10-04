@@ -305,3 +305,63 @@ npm ci && npm run build    # ~21 seconds total, timeout: 2+ minutes
 ```bash
 make lint format-check typecheck    # All complete in <6 seconds
 ```
+
+# MCP servers
+
+Always use Serena (via the MCP servers: Serena + Context7) as the primary code-aware toolchain for symbol searches, edits, and up-to-date library documentation — it's faster and more efficient than standard file-based searches when available.
+
+Mandatory usage rules:
+- Use Serena's symbol and search tools for code navigation and edits (symbols overview, find_symbol, find_referencing_symbols, insert/replace symbol bodies).
+- Use Serena memories: read relevant memory files before making edits and write concise memories after gathering new, high-value project info (for example: API behaviors, integration notes, or recurring troubleshooting steps).
+- Use Context7 (resolve library id, then fetch docs) for authoritative library documentation and code snippets (e.g., `/halcy/mastodon.py`).
+
+Quick how-to:
+- Activate the Serena project for this workspace (project config lives at `.serena/project.yml`).
+- Perform the one-time Serena onboarding step to enable project memories and helpers.
+- Inspect files with the symbols overview, then fetch specific symbol bodies or references before editing.
+- Read relevant memories before edits and write short memories after acquiring new, reusable knowledge.
+- For external library docs, resolve the Context7-compatible library id and request focused documentation from Context7.
+
+Prefer Serena+Context7 over traditional searches and web lookups for code-aware work and authoritative library examples. To get up to date information on development workflows, always refer to this document first.
+
+## Serena — use all Serena tools (MANDATORY)
+
+Serena is the authoritative, code-aware toolchain for this repository. Always use Serena for symbol navigation, code edits, and project knowledge management before falling back to plain file searches.
+
+Mandatory Serena tools and their purpose:
+- `activate_project`: activate or switch the Serena project for this workspace.
+- `check_onboarding_performed` / `onboarding`: verify and run the one-time onboarding flow to enable memories and helpers.
+- `get_symbols_overview`: quickly inspect top-level symbols in a file.
+- `find_symbol`: locate a symbol and its definition (optionally include body).
+- `find_referencing_symbols`: find all call sites/usages of a symbol before changing it.
+- `insert_before_symbol` / `insert_after_symbol`: insert new definitions or imports in a safe location.
+- `replace_symbol_body` / `replace_regex`: make targeted edits to an existing symbol or file.
+- `read_file` / `read_memory`: fetch file contents and existing Seren­a memories before editing.
+- `write_memory` / `delete_memory` / `list_memories`: persist and manage small, reusable knowledge items (always write short memories after discovering project-relevant facts).
+- `search_for_pattern` / `find_file` / `list_dir`: broader search helpers when symbol tools are not sufficient.
+- `think_about_task_adherence` / `think_about_collected_information` / `think_about_whether_you_are_done`: use these to validate completeness before edits.
+
+Recommended Serena-first workflow (safe edit):
+1. `check_onboarding_performed` (run `onboarding` if needed).
+2. `get_symbols_overview` on the file you intend to change.
+3. `find_symbol` (include_body=True) for the symbol to edit.
+4. `find_referencing_symbols` to find callers and update them as needed.
+5. Apply the edit with `replace_symbol_body` or `insert_after_symbol`.
+6. `write_memory` describing the change or new knowledge (1-3 lines).
+7. Run the targeted tests.
+
+## Context7 — authoritative library docs (MANDATORY)
+
+Use Context7 for up-to-date library documentation and code examples. Always resolve a Context7-compatible library id before requesting documentation.
+
+Context7 workflow:
+1. Resolve a library id (for example, `mastodon.py` → `/halcy/mastodon.py`).
+2. Request focused docs for the topic you need (authentication, rate-limiting, streaming, examples).
+3. Summarize the findings into a short Serena memory via `write_memory` and, if helpful, add a small doc in `docs/` using `create_text_file` or `insert_before_symbol`.
+
+Notes and policy:
+- Read relevant Serena memories before edits; write concise memories after edits. Memories are the project’s canonical short-term knowledge base.
+- Prefer Serena symbol edits to wide, regex-based file edits unless you have to refactor many unrelated symbols.
+- For Mastodon API work, resolve `/halcy/mastodon.py` in Context7 to retrieve authoritative examples and edge-case behavior.
+
+Use Serena+Context7 by default for any non-trivial code navigation, edits, or when consulting external library behavior.

@@ -32,8 +32,15 @@ def get_current_user_hybrid(request=None):
 
 # Make require_admin_hybrid available for test patching
 require_admin_hybrid = require_admin_hybrid
+import app.tasks.jobs as _jobs
 from app.startup_validation import run_all_startup_validations
 from app.tasks.jobs import process_new_report, process_new_status
+
+# Expose tasks at module level for test patching
+scan_federated_content = _jobs.scan_federated_content
+check_domain_violations = _jobs.check_domain_violations
+poll_admin_accounts = _jobs.poll_admin_accounts
+poll_admin_accounts_local = _jobs.poll_admin_accounts_local
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse

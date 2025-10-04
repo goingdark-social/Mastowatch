@@ -30,7 +30,7 @@ format-check: ## Check code formatting
 	black --check backend/app tests
 
 lint: ## Lint code with ruff
-	ruff check backend/app/ tests/
+	ruff check backend/app/ tests/ --fix
 
 typecheck: ## Type check with mypy
 	mypy backend/app/
