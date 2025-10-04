@@ -63,8 +63,8 @@ make help          # See all available commands
 
 ### Required Production Settings
    - `INSTANCE_BASE`: Your Mastodon instance URL
-   - `ADMIN_TOKEN`: Admin access token from your instance
-   - `BOT_TOKEN`: Bot access token from your instance
+   - `MASTODON_CLIENT_SECRET`: Admin access token from your instance
+   - `MASTODON_CLIENT_SECRET`: Bot access token from your instance
    - `API_KEY`: Random string for API authentication (production security)
    - `WEBHOOK_SECRET`: Random string for webhook validation (production security)
 
@@ -156,14 +156,14 @@ This application requires **two access tokens** from your Mastodon instance:
 3. Set **Application name**: `MastoWatch Admin`
 4. **Important**: Set scopes to `admin:read` and `admin:write`
 5. Click **"Submit"**
-6. Copy **"Your access token"** and paste as `ADMIN_TOKEN` in `.env`
+6. Copy **"Your access token"** and paste as `MASTODON_CLIENT_SECRET` in `.env`
 
 #### Creating Bot Token  
 1. Create another new application in the same place
 2. Set **Application name**: `MastoWatch Bot`
 3. **Important**: Set scopes to `read` and `write:reports`
 4. Click **"Submit"**
-5. Copy **"Your access token"** and paste as `BOT_TOKEN` in `.env`
+5. Copy **"Your access token"** and paste as `MASTODON_CLIENT_SECRET` in `.env`
 
 **Note**: This app uses direct access tokens, not OAuth2 client credentials. You only need the "Your access token" value from each application, not the client key/secret.
 

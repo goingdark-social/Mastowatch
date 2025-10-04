@@ -118,8 +118,8 @@ No special configuration is needed. The service reads from the existing settings
 INSTANCE_BASE = "https://mastodon.social"
 OAUTH_CLIENT_ID = "your_client_id"
 OAUTH_CLIENT_SECRET = "your_client_secret"
-ADMIN_TOKEN = "admin_access_token"
-BOT_TOKEN = "bot_access_token"
+MASTODON_CLIENT_SECRET = "admin_access_token"
+MASTODON_CLIENT_SECRET = "bot_access_token"
 USER_AGENT = "MastoWatch/1.0"
 HTTP_TIMEOUT = 30.0
 ```

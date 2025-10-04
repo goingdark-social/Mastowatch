@@ -41,7 +41,7 @@ MAX_HISTORY_STATUSES = 20
 def _get_client():
     """Get the bot Mastodon client from mastodon_service.
 
-    Uses BOT_TOKEN for general authenticated operations like fetching statuses.
+    Uses MASTODON_CLIENT_SECRET for general authenticated operations like fetching statuses.
     For admin operations, use _get_client() instead.
     """
     return mastodon_service.get_bot_client()
@@ -50,7 +50,7 @@ def _get_client():
 def _get_client():
     """Get the admin Mastodon client from mastodon_service.
 
-    Uses ADMIN_TOKEN for admin-level operations.
+    Uses MASTODON_CLIENT_SECRET for admin-level operations.
     Tests patch this symbol in `app.tasks.jobs`, so keep a thin wrapper.
     """
     return mastodon_service.get_admin_client()

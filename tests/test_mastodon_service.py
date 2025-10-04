@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 os.environ.update(
     {
         "INSTANCE_BASE": "https://test.mastodon.social",
-        "ADMIN_TOKEN": "test_admin_token_123456789",
-        "BOT_TOKEN": "test_bot_token_123456789",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123456789",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123456789",
         "OAUTH_CLIENT_ID": "test_client_id",
         "OAUTH_CLIENT_SECRET": "test_client_secret",
     }

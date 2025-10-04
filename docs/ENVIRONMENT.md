@@ -11,8 +11,8 @@ These variables must be set for MastoWatch to function properly:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `INSTANCE_BASE` | Base URL of your Mastodon instance | `https://mastodon.social` |
-| `BOT_TOKEN` | Mastodon bot token with required API permissions | `your_bot_token_here` |
-| `ADMIN_TOKEN` | Mastodon admin token for accessing admin endpoints | `your_admin_token_here` |
+| `MASTODON_CLIENT_SECRET` | Mastodon bot token with required API permissions | `your_MASTODON_CLIENT_SECRET_here` |
+| `MASTODON_CLIENT_SECRET` | Mastodon admin token for accessing admin endpoints | `your_MASTODON_CLIENT_SECRET_here` |
 
 ### Database Configuration
 
@@ -93,8 +93,8 @@ For production, set these variables through your deployment platform (Kubernetes
 ```bash
 # Required - Replace with actual values
 INSTANCE_BASE=https://your-mastodon-instance.com
-BOT_TOKEN=your_actual_bot_token
-ADMIN_TOKEN=your_actual_admin_token
+MASTODON_CLIENT_SECRET=your_actual_MASTODON_CLIENT_SECRET
+MASTODON_CLIENT_SECRET=your_actual_MASTODON_CLIENT_SECRET
 DATABASE_URL=postgresql+psycopg://user:password@db-host:5432/mastowatch
 REDIS_URL=redis://redis-host:6379/0
 API_KEY=your_secure_api_key_32_chars_minimum
@@ -117,8 +117,8 @@ The `docker-compose.override.yml` provides safe defaults for development:
 ```bash
 # Optional - Override defaults if needed
 INSTANCE_BASE=https://your-test-instance.example.com
-BOT_TOKEN=your_dev_bot_token
-ADMIN_TOKEN=your_dev_admin_token
+MASTODON_CLIENT_SECRET=your_dev_MASTODON_CLIENT_SECRET
+MASTODON_CLIENT_SECRET=your_dev_MASTODON_CLIENT_SECRET
 API_KEY=dev_api_key_change_in_production
 WEBHOOK_SECRET=dev_webhook_secret_change_in_production
 
@@ -172,7 +172,7 @@ SKIP_STARTUP_VALIDATION=true
 
 ### Common Configuration Issues
 
-1. **"BOT_TOKEN is missing"**: Ensure the token is set and not a placeholder value
+1. **"MASTODON_CLIENT_SECRET is missing"**: Ensure the token is set and not a placeholder value
 2. **"Database connection failed"**: Verify DATABASE_URL format and credentials
 3. **"Redis connection failed"**: Verify REDIS_URL and Redis server availability
 4. **"Invalid CORS origins"**: Ensure CORS_ORIGINS is valid JSON array format

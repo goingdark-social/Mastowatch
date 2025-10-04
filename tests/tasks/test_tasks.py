@@ -208,8 +208,8 @@ class TestCeleryTasks(unittest.TestCase):
         # Setup mocks for non-dry run mode
         mock_settings.DRY_RUN = False
         mock_settings.PANIC_STOP = False
-        mock_settings.ADMIN_TOKEN = "test_admin_token"
-        mock_settings.BOT_TOKEN = "test_bot_token"
+        mock_settings.MASTODON_CLIENT_SECRET = "test_MASTODON_CLIENT_SECRET"
+        mock_settings.MASTODON_CLIENT_SECRET = "test_MASTODON_CLIENT_SECRET"
         mock_settings.REPORT_CATEGORY_DEFAULT = "spam"
         mock_settings.FORWARD_REMOTE_REPORTS = False
         mock_settings.POLICY_VERSION = "1.0"

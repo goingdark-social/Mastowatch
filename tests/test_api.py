@@ -15,8 +15,8 @@ os.environ.update(
     {
         "SKIP_STARTUP_VALIDATION": "1",
         "INSTANCE_BASE": "https://test.mastodon.social",
-        "ADMIN_TOKEN": "test_admin_token_123",
-        "BOT_TOKEN": "test_bot_token_123",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123",
         "DATABASE_URL": "sqlite:///test_api.db",
         "REDIS_URL": "redis://localhost:6380/1",
         "API_KEY": "test_api_key_123",
@@ -225,8 +225,8 @@ class TestAPIEndpoints(unittest.TestCase):
         response = self.client.get("/config", headers=headers)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertNotIn("ADMIN_TOKEN", data)
-        self.assertNotIn("BOT_TOKEN", data)
+        self.assertNotIn("MASTODON_CLIENT_SECRET", data)
+        self.assertNotIn("MASTODON_CLIENT_SECRET", data)
         self.assertIn("DRY_RUN", data)
         self.assertEqual(data["PANIC_STOP"], True)
         self.assertEqual(data["REPORT_THRESHOLD"], 2.5)
