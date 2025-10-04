@@ -7,7 +7,7 @@ from typing import Any
 from app.db import get_db
 from app.models import Analysis, Rule
 from app.oauth import User, require_admin_hybrid
-from app.scanning import EnhancedScanningSystem
+from app.scanning import ScanningSystem
 from app.services.rule_service import rule_service
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc
@@ -394,8 +394,8 @@ def toggle_rule(rule_id: int, user: User = Depends(require_admin_hybrid), sessio
             raise HTTPException(status_code=404, detail="Rule not found")
 
         # Invalidate content scans due to rule changes
-        enhanced_scanner = EnhancedScanningSystem()
-        enhanced_scanner.invalidate_content_scans(rule_changes=True)
+        scanner = ScanningSystem()
+        scanner.invalidate_content_scans(rule_changes=True)
 
         return {
             "id": toggled_rule.id,
@@ -424,8 +424,8 @@ def bulk_toggle_rules(
         updated_rules = rule_service.bulk_toggle_rules(rule_ids, enabled)
 
         # Invalidate content scans due to rule changes
-        enhanced_scanner = EnhancedScanningSystem()
-        enhanced_scanner.invalidate_content_scans(rule_changes=True)
+        scanner = ScanningSystem()
+        scanner.invalidate_content_scans(rule_changes=True)
 
         return {
             "updated_rules": [r.name for r in updated_rules],

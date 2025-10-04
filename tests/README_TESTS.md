@@ -42,7 +42,7 @@ Integration tests for the complete scanning flow from Celery Beat → Polling �
 - `test_poll_scan_detect_flow` - End-to-end flow with violation detection
 - `test_analyze_and_report_flow` - Analysis and reporting logic
 - `test_session_lifecycle` - Scan session creation, update, completion
-- `test_admin_accounts_v2_structure` - Validates fixtures match actual Mastodon API
+- `test_admin_accounts_structure` - Validates fixtures match actual Mastodon API
 - `test_cursor_saved_between_polls` - Pagination cursor persistence
 - `test_behavioral_rule_uses_admin_fields` - Rule evaluation with admin metadata
 
@@ -148,14 +148,14 @@ The following tests **WILL FAIL** until the bugs are fixed:
 Full admin account structure matching Mastodon API v2. **Use this for all admin API tests**.
 
 #### `sample_admin_accounts_list`
-List of admin accounts (what `admin_accounts_v2()` returns).
+List of admin accounts (what `admin_accounts()` returns).
 
 #### `sample_account_data`
 Regular public account data (what `account()` returns). **NOT for admin API tests**.
 
 #### `mock_mastodon_client`
 Now properly mocks:
-- `admin_accounts_v2()` → Returns admin account list
+- `admin_accounts()` → Returns admin account list
 - `get_pagination_info()` → Returns pagination cursors
 
 ## Writing New Tests

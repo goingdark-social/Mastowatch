@@ -3,13 +3,13 @@
 Tests the end-to-end flow from Celery Beat → Account Polling → Scanning → Reporting
 """
 
+from datetime import UTC, datetime
+from unittest.mock import patch
+
 import pytest
-from datetime import datetime, UTC
-from unittest.mock import MagicMock, patch, call
-from app.tasks.jobs import poll_admin_accounts, poll_admin_accounts_local, analyze_and_maybe_report
-from app.scanning import EnhancedScanningSystem
-from app.models import Account, ScanSession, Analysis, Report, Rule
-from app.services.rule_service import rule_service
+from app.models import Account, Rule, ScanSession
+from app.scanning import ScanningSystem
+from app.tasks.jobs import analyze_and_maybe_report, poll_admin_accounts
 from sqlalchemy import text
 
 
@@ -36,8 +36,8 @@ def admin_account_with_violations():
             "statuses_count": 50,  # High post count for new account
             "followers_count": 0,
             "following_count": 1000,  # Suspicious ratio
-            "created_at": datetime.now(UTC).isoformat()
-        }
+            "created_at": datetime.now(UTC).isoformat(),
+        },
     }
 
 
@@ -52,7 +52,7 @@ def spam_detection_rules(test_db_session):
             weight=0.8,
             enabled=True,
             action_type="report",
-            trigger_threshold=1.0
+            trigger_threshold=1.0,
         ),
         Rule(
             name="new_unconfirmed_account",
@@ -61,7 +61,7 @@ def spam_detection_rules(test_db_session):
             weight=0.5,
             enabled=True,
             action_type="silence",
-            trigger_threshold=1.0
+            trigger_threshold=1.0,
         ),
         Rule(
             name="suspicious_follower_ratio",
@@ -70,8 +70,8 @@ def spam_detection_rules(test_db_session):
             weight=0.6,
             enabled=True,
             action_type="report",
-            trigger_threshold=1.0
-        )
+            trigger_threshold=1.0,
+        ),
     ]
 
     for rule in rules:
@@ -84,22 +84,22 @@ def spam_detection_rules(test_db_session):
 class TestCompleteScanningFlow:
     """Test complete flow from polling to reporting."""
 
-    @patch('app.tasks.jobs.analyze_and_maybe_report.delay')
-    @patch('app.tasks.jobs.mastodon_service')
+    @patch("app.tasks.jobs.analyze_and_maybe_report.delay")
+    @patch("app.tasks.jobs.mastodon_service")
     def test_poll_scan_detect_flow(
         self,
         mock_mastodon_service,
         mock_analyze_task,
         test_db_session,
         admin_account_with_violations,
-        spam_detection_rules
+        spam_detection_rules,
     ):
         """Test: Poll accounts → Scan → Detect violations → Queue reporting."""
 
         # Mock Mastodon API to return malicious account
         mock_mastodon_service.get_admin_accounts_sync.return_value = (
             [admin_account_with_violations],
-            None  # No next page
+            None,  # No next page
         )
 
         # Mock status fetching
@@ -107,14 +107,13 @@ class TestCompleteScanningFlow:
             {
                 "id": "status123",
                 "content": "Get free Bitcoin now! Click here!",
-                "created_at": datetime.now(UTC).isoformat()
+                "created_at": datetime.now(UTC).isoformat(),
             }
         ]
 
         # Initialize cursor with NULL position (now allowed!)
         test_db_session.execute(
-            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"),
-            {"n": "admin_accounts_remote", "p": None}
+            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"), {"n": "admin_accounts_remote", "p": None}
         )
         test_db_session.commit()
 
@@ -122,9 +121,7 @@ class TestCompleteScanningFlow:
         poll_admin_accounts()
 
         # Verify account was persisted
-        account = test_db_session.query(Account).filter_by(
-            mastodon_account_id="malicious123"
-        ).first()
+        account = test_db_session.query(Account).filter_by(mastodon_account_id="malicious123").first()
         assert account is not None
 
         # Verify reporting task was queued if violations found
@@ -133,13 +130,9 @@ class TestCompleteScanningFlow:
             assert "account" in call_args
             assert "scan_result" in call_args
 
-    @patch('app.services.enforcement_service.EnforcementService.create_report')
+    @patch("app.services.enforcement_service.EnforcementService.create_report")
     def test_analyze_and_report_flow(
-        self,
-        mock_create_report,
-        test_db_session,
-        admin_account_with_violations,
-        spam_detection_rules
+        self, mock_create_report, test_db_session, admin_account_with_violations, spam_detection_rules
     ):
         """Test analysis and reporting based on scan results."""
 
@@ -147,18 +140,15 @@ class TestCompleteScanningFlow:
             "score": 1.4,  # Above threshold
             "violations": [
                 {"rule": "crypto_keywords", "score": 0.8, "evidence": "Found: bitcoin, free"},
-                {"rule": "new_unconfirmed_account", "score": 0.6, "evidence": "Account unconfirmed, < 24h old"}
-            ]
+                {"rule": "new_unconfirmed_account", "score": 0.6, "evidence": "Account unconfirmed, < 24h old"},
+            ],
         }
 
         # Mock create_report to track calls
         mock_create_report.return_value = {"id": "report123"}
 
         # Call reporting task
-        analyze_and_maybe_report({
-            "account": admin_account_with_violations,
-            "scan_result": scan_result
-        })
+        analyze_and_maybe_report({"account": admin_account_with_violations, "scan_result": scan_result})
 
         # Verify report was created
         # (actual implementation may vary)
@@ -166,7 +156,7 @@ class TestCompleteScanningFlow:
 
     def test_session_lifecycle(self, test_db_session):
         """Test scan session creation, update, and completion."""
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
 
         # Start session
         session_id = scanner.start_scan_session("remote")
@@ -187,7 +177,7 @@ class TestCompleteScanningFlow:
 class TestMastodonAPICompliance:
     """Test compliance with actual Mastodon API responses."""
 
-    def test_admin_accounts_v2_structure(self):
+    def test_admin_accounts_structure(self):
         """Verify test fixtures match actual Mastodon API v2 response structure.
 
         Based on: https://docs.joinmastodon.org/methods/admin/accounts/#v2
@@ -206,7 +196,7 @@ class TestMastodonAPICompliance:
             "silenced": bool,
             "disabled": bool,
             "approved": bool,
-            "account": dict  # Nested account object
+            "account": dict,  # Nested account object
         }
 
         sample = {
@@ -222,22 +212,16 @@ class TestMastodonAPICompliance:
             "silenced": False,
             "disabled": False,
             "approved": True,
-            "account": {
-                "id": "108267695853695427",
-                "username": "testuser",
-                "acct": "testuser"
-            }
+            "account": {"id": "108267695853695427", "username": "testuser", "acct": "testuser"},
         }
 
         # Verify all expected fields are present
         for field, expected_type in expected_structure.items():
             assert field in sample, f"Missing required field: {field}"
             if isinstance(expected_type, tuple):
-                assert isinstance(sample[field], expected_type), \
-                    f"Field {field} has wrong type: {type(sample[field])}"
+                assert isinstance(sample[field], expected_type), f"Field {field} has wrong type: {type(sample[field])}"
             else:
-                assert isinstance(sample[field], expected_type), \
-                    f"Field {field} has wrong type: {type(sample[field])}"
+                assert isinstance(sample[field], expected_type), f"Field {field} has wrong type: {type(sample[field])}"
 
     def test_pagination_info_structure(self):
         """Test pagination info matches Mastodon.py get_pagination_info() response.
@@ -245,11 +229,7 @@ class TestMastodonAPICompliance:
         Mastodon.py returns: {"max_id": str, "since_id": str, "min_id": str}
         """
         # Mock what get_pagination_info() returns
-        pagination_info = {
-            "max_id": "109573612584350057",
-            "since_id": "109573612584350001",
-            "min_id": None
-        }
+        pagination_info = {"max_id": "109573612584350057", "since_id": "109573612584350001", "min_id": None}
 
         assert "max_id" in pagination_info
         assert isinstance(pagination_info["max_id"], (str, type(None)))
@@ -259,11 +239,7 @@ class TestMastodonAPICompliance:
         status = {
             "id": "109382576886209876",
             "created_at": "2022-11-19T19:48:13.078Z",
-            "account": {
-                "id": "108267695853695427",
-                "username": "testuser",
-                "acct": "testuser"
-            },
+            "account": {"id": "108267695853695427", "username": "testuser", "acct": "testuser"},
             "content": "<p>Test post</p>",
             "visibility": "public",
             "sensitive": False,
@@ -275,7 +251,7 @@ class TestMastodonAPICompliance:
             "emojis": [],
             "reblogs_count": 0,
             "favourites_count": 0,
-            "replies_count": 0
+            "replies_count": 0,
         }
 
         # Required fields per Mastodon API
@@ -287,35 +263,30 @@ class TestMastodonAPICompliance:
 class TestCursorPersistence:
     """Test pagination cursor persistence across polling cycles."""
 
-    @patch('app.tasks.jobs.mastodon_service')
-    def test_cursor_saved_between_polls(
-        self,
-        mock_mastodon_service,
-        test_db_session
-    ):
+    @patch("app.tasks.jobs.mastodon_service")
+    def test_cursor_saved_between_polls(self, mock_mastodon_service, test_db_session):
         """Test that cursor is saved and used in next poll."""
 
         # First poll returns cursor
         mock_mastodon_service.get_admin_accounts_sync.return_value = (
             [{"id": "1", "username": "user1", "account": {"id": "1", "username": "user1", "acct": "user1"}}],
-            "cursor_123"
+            "cursor_123",
         )
 
         # Initialize cursor with NULL position (allowed now!)
         test_db_session.execute(
-            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"),
-            {"n": "test_cursor", "p": None}
+            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"), {"n": "test_cursor", "p": None}
         )
         test_db_session.commit()
 
         # First poll
         from app.tasks.jobs import _poll_accounts
+
         _poll_accounts("remote", "test_cursor")
 
         # Verify cursor was saved
         cursor = test_db_session.execute(
-            text("SELECT position FROM cursors WHERE name = :n"),
-            {"n": "test_cursor"}
+            text("SELECT position FROM cursors WHERE name = :n"), {"n": "test_cursor"}
         ).scalar()
 
         assert cursor == "cursor_123"
@@ -323,15 +294,14 @@ class TestCursorPersistence:
         # Second poll should use saved cursor
         mock_mastodon_service.get_admin_accounts_sync.return_value = (
             [{"id": "2", "username": "user2", "account": {"id": "2", "username": "user2", "acct": "user2"}}],
-            None  # Last page
+            None,  # Last page
         )
 
         _poll_accounts("remote", "test_cursor")
 
         # Cursor should be updated to None (end of pagination)
         cursor = test_db_session.execute(
-            text("SELECT position FROM cursors WHERE name = :n"),
-            {"n": "test_cursor"}
+            text("SELECT position FROM cursors WHERE name = :n"), {"n": "test_cursor"}
         ).scalar()
 
         assert cursor is None
@@ -340,12 +310,8 @@ class TestCursorPersistence:
 class TestErrorHandling:
     """Test error handling in scanning flow."""
 
-    @patch('app.tasks.jobs.mastodon_service')
-    def test_api_error_handling(
-        self,
-        mock_mastodon_service,
-        test_db_session
-    ):
+    @patch("app.tasks.jobs.mastodon_service")
+    def test_api_error_handling(self, mock_mastodon_service, test_db_session):
         """Test graceful handling of Mastodon API errors."""
         from mastodon import MastodonAPIError
 
@@ -354,13 +320,13 @@ class TestErrorHandling:
 
         # Initialize cursor with NULL position (allowed!)
         test_db_session.execute(
-            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"),
-            {"n": "error_cursor", "p": None}
+            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"), {"n": "error_cursor", "p": None}
         )
         test_db_session.commit()
 
         # Should not crash
         from app.tasks.jobs import _poll_accounts
+
         try:
             _poll_accounts("remote", "error_cursor")
         except Exception as e:
@@ -379,7 +345,7 @@ class TestErrorHandling:
         # Should not crash, should skip or log error
         try:
             _persist_account(invalid_account)
-        except Exception as e:
+        except Exception:
             # Expected to fail gracefully or skip
             pass
 
@@ -387,11 +353,7 @@ class TestErrorHandling:
 class TestRuleEvaluation:
     """Test rule evaluation with admin account fields."""
 
-    def test_behavioral_rule_uses_admin_fields(
-        self,
-        test_db_session,
-        admin_account_with_violations
-    ):
+    def test_behavioral_rule_uses_admin_fields(self, test_db_session, admin_account_with_violations):
         """Test that behavioral rules can access admin fields."""
 
         # Create rule that checks admin fields
@@ -402,7 +364,7 @@ class TestRuleEvaluation:
             weight=1.0,
             enabled=True,
             action_type="report",
-            trigger_threshold=1.0
+            trigger_threshold=1.0,
         )
         test_db_session.add(rule)
         test_db_session.commit()
@@ -413,7 +375,7 @@ class TestRuleEvaluation:
         # - admin_account_with_violations["email"] == suspicious
 
         # The scanner should receive the full admin object
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
 
         # Verify admin fields are accessible
         assert admin_account_with_violations.get("confirmed") is False

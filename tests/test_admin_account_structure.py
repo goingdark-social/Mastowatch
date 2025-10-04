@@ -21,12 +21,12 @@ which have the structure:
 NOT wrapped as {"account": {...}}
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from datetime import datetime, UTC
-from unittest.mock import MagicMock, patch, ANY
-from app.tasks.jobs import _poll_accounts, _persist_account
-from app.scanning import EnhancedScanningSystem
 from app.models import Account, ScanSession
+from app.scanning import ScanningSystem
+from app.tasks.jobs import _persist_account, _poll_accounts
 from sqlalchemy import text
 
 
@@ -43,11 +43,7 @@ def sample_admin_account():
         "domain": None,
         "created_at": "2022-05-08T18:18:53.221Z",
         "email": "testuser@mastodon.local",
-        "ip": {
-            "user_id": 1,
-            "ip": "192.168.42.1",
-            "used_at": "2022-09-08T16:10:38.621Z"
-        },
+        "ip": {"user_id": 1, "ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"},
         "role": {
             "id": 3,
             "name": "User",
@@ -56,7 +52,7 @@ def sample_admin_account():
             "permissions": 1,
             "highlighted": True,
             "created_at": "2022-09-08T22:48:07.983Z",
-            "updated_at": "2022-09-08T22:48:07.983Z"
+            "updated_at": "2022-09-08T22:48:07.983Z",
         },
         "confirmed": True,
         "suspended": False,
@@ -65,12 +61,7 @@ def sample_admin_account():
         "approved": True,
         "locale": None,
         "invite_request": None,
-        "ips": [
-            {
-                "ip": "192.168.42.1",
-                "used_at": "2022-09-08T16:10:38.621Z"
-            }
-        ],
+        "ips": [{"ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"}],
         "account": {
             "id": "108267695853695427",
             "username": "testuser",
@@ -92,14 +83,14 @@ def sample_admin_account():
             "statuses_count": 5,
             "last_status_at": "2022-09-08",
             "emojis": [],
-            "fields": []
-        }
+            "fields": [],
+        },
     }
 
 
 @pytest.fixture
 def sample_admin_accounts_list(sample_admin_account):
-    """Sample response from admin_accounts_v2() - list of admin accounts."""
+    """Sample response from admin_accounts() - list of admin accounts."""
     return [sample_admin_account]
 
 
@@ -111,9 +102,7 @@ class TestAdminAccountDataStructure:
         _persist_account(sample_admin_account)
 
         # Verify account was persisted with correct data
-        account = test_db_session.query(Account).filter_by(
-            mastodon_account_id=sample_admin_account["id"]
-        ).first()
+        account = test_db_session.query(Account).filter_by(mastodon_account_id=sample_admin_account["id"]).first()
 
         assert account is not None
         assert account.username == sample_admin_account["username"]
@@ -123,9 +112,9 @@ class TestAdminAccountDataStructure:
 
     def test_scanner_receives_full_admin_object(self, sample_admin_account):
         """Test that scanner receives full admin object, not just nested account."""
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
 
-        with patch.object(scanner, 'scan_account_efficiently') as mock_scan:
+        with patch.object(scanner, "scan_account_efficiently") as mock_scan:
             mock_scan.return_value = {"score": 0.5, "violations": []}
 
             # Simulate what _poll_accounts should do
@@ -139,25 +128,25 @@ class TestAdminAccountDataStructure:
 
     def test_scanner_can_access_admin_fields(self, sample_admin_account):
         """Test that scanner can access admin-specific fields for rule evaluation."""
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
 
         # Scanner should be able to access admin fields
         admin_fields = {
-            'email': sample_admin_account.get('email'),
-            'ip': sample_admin_account.get('ip', {}).get('ip'),
-            'created_at': sample_admin_account.get('created_at'),
-            'confirmed': sample_admin_account.get('confirmed'),
-            'suspended': sample_admin_account.get('suspended'),
-            'role': sample_admin_account.get('role', {}).get('name'),
+            "email": sample_admin_account.get("email"),
+            "ip": sample_admin_account.get("ip", {}).get("ip"),
+            "created_at": sample_admin_account.get("created_at"),
+            "confirmed": sample_admin_account.get("confirmed"),
+            "suspended": sample_admin_account.get("suspended"),
+            "role": sample_admin_account.get("role", {}).get("name"),
         }
 
         # All admin fields should be present
-        assert admin_fields['email'] == "testuser@mastodon.local"
-        assert admin_fields['ip'] == "192.168.42.1"
-        assert admin_fields['created_at'] == "2022-05-08T18:18:53.221Z"
-        assert admin_fields['confirmed'] is True
-        assert admin_fields['suspended'] is False
-        assert admin_fields['role'] == "User"
+        assert admin_fields["email"] == "testuser@mastodon.local"
+        assert admin_fields["ip"] == "192.168.42.1"
+        assert admin_fields["created_at"] == "2022-05-08T18:18:53.221Z"
+        assert admin_fields["confirmed"] is True
+        assert admin_fields["suspended"] is False
+        assert admin_fields["role"] == "User"
 
     def test_nested_account_structure(self, sample_admin_account):
         """Test that nested account field is correctly structured."""
@@ -169,14 +158,10 @@ class TestAdminAccountDataStructure:
         assert "acct" in nested_account
         assert "display_name" in nested_account
 
-    @patch('app.tasks.jobs.mastodon_service')
-    @patch('app.tasks.jobs.EnhancedScanningSystem')
+    @patch("app.tasks.jobs.mastodon_service")
+    @patch("app.tasks.jobs.ScanningSystem")
     def test_poll_accounts_passes_full_admin_object(
-        self,
-        mock_scanner_class,
-        mock_mastodon_service,
-        test_db_session,
-        sample_admin_accounts_list
+        self, mock_scanner_class, mock_mastodon_service, test_db_session, sample_admin_accounts_list
     ):
         """Test that _poll_accounts passes full admin object to scanner.
 
@@ -189,17 +174,16 @@ class TestAdminAccountDataStructure:
         mock_scanner.start_scan_session.return_value = "test-session-id"
         mock_scanner.get_next_accounts_to_scan.return_value = (
             sample_admin_accounts_list,
-            None  # No next cursor
+            None,  # No next cursor
         )
         mock_scanner.scan_account_efficiently.return_value = {
             "score": 0.8,
-            "violations": [{"rule": "test", "score": 0.8}]
+            "violations": [{"rule": "test", "score": 0.8}],
         }
 
         # Initialize cursor
         test_db_session.execute(
-            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"),
-            {"n": "admin_accounts_remote", "p": None}
+            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"), {"n": "admin_accounts_remote", "p": None}
         )
         test_db_session.commit()
 
@@ -224,21 +208,16 @@ class TestAdminAccountDataStructure:
 class TestAdminAccountPagination:
     """Test pagination cursor handling for admin accounts."""
 
-    @patch('app.tasks.jobs.mastodon_service')
-    def test_pagination_cursor_preserved(
-        self,
-        mock_mastodon_service,
-        test_db_session,
-        sample_admin_accounts_list
-    ):
+    @patch("app.tasks.jobs.mastodon_service")
+    def test_pagination_cursor_preserved(self, mock_mastodon_service, test_db_session, sample_admin_accounts_list):
         """Test that pagination cursor is correctly extracted and stored."""
         # Setup mock to return cursor
         mock_mastodon_service.get_admin_accounts_sync.return_value = (
             sample_admin_accounts_list,
-            "999999"  # Next cursor
+            "999999",  # Next cursor
         )
 
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
         accounts, next_cursor = scanner.get_next_accounts_to_scan("remote", limit=50)
 
         assert next_cursor == "999999"
@@ -250,11 +229,7 @@ class TestAdminAccountPagination:
         # which should return: {"max_id": "123", "since_id": "456", "min_id": "789"}
 
         # Mock the pagination info structure
-        pagination_info = {
-            "max_id": "999999",
-            "since_id": "000001",
-            "min_id": None
-        }
+        pagination_info = {"max_id": "999999", "since_id": "000001", "min_id": None}
 
         assert "max_id" in pagination_info
         assert pagination_info["max_id"] is not None
@@ -265,7 +240,7 @@ class TestScanSessionProgress:
 
     def test_scan_session_created_with_type(self, test_db_session):
         """Test that scan session is created with correct type."""
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
         session_id = scanner.start_scan_session("remote")
 
         session = test_db_session.query(ScanSession).filter_by(id=session_id).first()
@@ -275,53 +250,41 @@ class TestScanSessionProgress:
 
     def test_session_progress_updated(self, test_db_session):
         """Test that session progress fields are updated during scanning."""
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
         session_id = scanner.start_scan_session("remote")
 
         # Verify session has progress fields
         session = test_db_session.query(ScanSession).filter_by(id=session_id).first()
-        assert hasattr(session, 'accounts_processed')
-        assert hasattr(session, 'total_accounts')
-        assert hasattr(session, 'current_cursor')
+        assert hasattr(session, "accounts_processed")
+        assert hasattr(session, "total_accounts")
+        assert hasattr(session, "current_cursor")
 
         # Initially should be zeros/nulls
         assert session.accounts_processed == 0
 
-    @patch('app.tasks.jobs.EnhancedScanningSystem')
-    @patch('app.tasks.jobs.mastodon_service')
+    @patch("app.tasks.jobs.ScanningSystem")
+    @patch("app.tasks.jobs.mastodon_service")
     def test_accounts_processed_increments(
-        self,
-        mock_mastodon_service,
-        mock_scanner_class,
-        test_db_session,
-        sample_admin_accounts_list
+        self, mock_mastodon_service, mock_scanner_class, test_db_session, sample_admin_accounts_list
     ):
         """Test that accounts_processed increments during scanning."""
         # Setup mocks
         mock_scanner = MagicMock()
         mock_scanner_class.return_value = mock_scanner
         mock_scanner.start_scan_session.return_value = "test-session"
-        mock_scanner.get_next_accounts_to_scan.return_value = (
-            sample_admin_accounts_list,
-            None
-        )
+        mock_scanner.get_next_accounts_to_scan.return_value = (sample_admin_accounts_list, None)
         mock_scanner.scan_account_efficiently.return_value = {"score": 0.5}
 
         # Initialize cursor
         test_db_session.execute(
-            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"),
-            {"n": "test_cursor", "p": None}
+            text("INSERT INTO cursors (name, position) VALUES (:n, :p)"), {"n": "test_cursor", "p": None}
         )
         test_db_session.commit()
 
         # Create session manually to track
         from app.models import ScanSession
-        session = ScanSession(
-            id="test-session",
-            session_type="remote",
-            status="active",
-            accounts_processed=0
-        )
+
+        session = ScanSession(id="test-session", session_type="remote", status="active", accounts_processed=0)
         test_db_session.add(session)
         test_db_session.commit()
 
@@ -348,7 +311,7 @@ class TestWebhookDataStructure:
                 "id": "108267695853695427",
                 "username": "testuser",
                 "acct": "testuser",
-                "display_name": "Test User"
+                "display_name": "Test User",
             },
             "content": "<p>Test status</p>",
             "visibility": "public",
@@ -357,7 +320,7 @@ class TestWebhookDataStructure:
             "media_attachments": [],
             "mentions": [],
             "tags": [],
-            "emojis": []
+            "emojis": [],
         }
 
         assert "account" in webhook_payload
@@ -369,15 +332,9 @@ class TestWebhookDataStructure:
             "id": "123",
             "action_taken": False,
             "comment": "Spam report",
-            "account": {
-                "id": "108267695853695427",
-                "username": "testuser"
-            },
-            "target_account": {
-                "id": "999",
-                "username": "spammer"
-            },
-            "statuses": []
+            "account": {"id": "108267695853695427", "username": "testuser"},
+            "target_account": {"id": "999", "username": "spammer"},
+            "statuses": [],
         }
 
         assert "account" in webhook_payload

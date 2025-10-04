@@ -123,12 +123,8 @@ def mock_mastodon_client(sample_admin_account_data):
     mock_client.submit_report.return_value = {"id": "report_123"}
 
     # Mock admin API responses (critical for testing!)
-    mock_client.admin_accounts_v2.return_value = [sample_admin_account_data]
-    mock_client.get_pagination_info.return_value = {
-        "max_id": "999999",
-        "since_id": "000001",
-        "min_id": None
-    }
+    mock_client.admin_accounts.return_value = [sample_admin_account_data]
+    mock_client.get_pagination_info.return_value = {"max_id": "999999", "since_id": "000001", "min_id": None}
 
     return mock_client
 
@@ -163,7 +159,7 @@ def sample_account_data():
 
 @pytest.fixture
 def sample_admin_account_data():
-    """Sample ADMIN account data for testing (from admin_accounts_v2 API).
+    """Sample ADMIN account data for testing (from admin_accounts API).
 
     Structure matches Mastodon API v2:
     https://docs.joinmastodon.org/methods/admin/accounts/#v2
@@ -174,11 +170,7 @@ def sample_admin_account_data():
         "domain": None,
         "created_at": "2022-05-08T18:18:53.221Z",
         "email": "testuser@mastodon.local",
-        "ip": {
-            "user_id": 1,
-            "ip": "192.168.42.1",
-            "used_at": "2022-09-08T16:10:38.621Z"
-        },
+        "ip": {"user_id": 1, "ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"},
         "role": {
             "id": 3,
             "name": "User",
@@ -187,7 +179,7 @@ def sample_admin_account_data():
             "permissions": 1,
             "highlighted": True,
             "created_at": "2022-09-08T22:48:07.983Z",
-            "updated_at": "2022-09-08T22:48:07.983Z"
+            "updated_at": "2022-09-08T22:48:07.983Z",
         },
         "confirmed": True,
         "suspended": False,
@@ -196,12 +188,7 @@ def sample_admin_account_data():
         "approved": True,
         "locale": None,
         "invite_request": None,
-        "ips": [
-            {
-                "ip": "192.168.42.1",
-                "used_at": "2022-09-08T16:10:38.621Z"
-            }
-        ],
+        "ips": [{"ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"}],
         "account": {
             "id": "108267695853695427",
             "username": "testuser",
@@ -223,14 +210,14 @@ def sample_admin_account_data():
             "statuses_count": 25,
             "last_status_at": "2022-09-08",
             "emojis": [],
-            "fields": []
-        }
+            "fields": [],
+        },
     }
 
 
 @pytest.fixture
 def sample_admin_accounts_list(sample_admin_account_data):
-    """Sample list response from admin_accounts_v2() API."""
+    """Sample list response from admin_accounts() API."""
     return [sample_admin_account_data]
 
 

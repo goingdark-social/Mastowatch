@@ -190,7 +190,7 @@ def get_report_details(limit: int = 50, offset: int = 0, _: User = Depends(requi
 
 @router.get("/analytics/analyses/{account_id}", tags=["analytics"])
 def get_account_analyses(account_id: str, limit: int = 50, offset: int = 0, _: User = Depends(require_admin_hybrid)):
-    """Get detailed analysis information for a specific account including enhanced scan data"""
+    """Get detailed analysis information for a specific account including scan data"""
     with SessionLocal() as db:
         # Get traditional analyses
         analyses = (
@@ -202,7 +202,7 @@ def get_account_analyses(account_id: str, limit: int = 50, offset: int = 0, _: U
             .all()
         )
 
-        # Get enhanced content scans
+        # Get content scans
         content_scans = (
             db.query(ContentScan)
             .filter(ContentScan.mastodon_account_id == account_id)
@@ -225,8 +225,8 @@ def get_account_analyses(account_id: str, limit: int = 50, offset: int = 0, _: U
             for analysis in analyses
         ]
 
-        # Convert enhanced content scans
-        enhanced_scans = [
+        # Convert content scans
+        scans = [
             {
                 "id": scan.id,
                 "status_id": scan.status_id,
@@ -236,7 +236,7 @@ def get_account_analyses(account_id: str, limit: int = 50, offset: int = 0, _: U
                 "rules_version": scan.rules_version,
                 "last_scanned_at": scan.last_scanned_at.isoformat() if scan.last_scanned_at else None,
                 "needs_rescan": scan.needs_rescan,
-                "rule_key": "enhanced_scan",
+                "rule_key": "scan",
                 "score": scan.scan_result.get("total_score", 0.0) if scan.scan_result else 0.0,
                 "evidence": scan.scan_result,
                 "created_at": scan.last_scanned_at.isoformat() if scan.last_scanned_at else None,
@@ -245,7 +245,7 @@ def get_account_analyses(account_id: str, limit: int = 50, offset: int = 0, _: U
         ]
 
         # Combine and sort by date
-        all_analyses = traditional_analyses + enhanced_scans
+        all_analyses = traditional_analyses + scans
         all_analyses.sort(key=lambda x: x["created_at"] or "", reverse=True)
 
         return {"analyses": all_analyses[:limit]}
@@ -258,9 +258,9 @@ def get_scanning_analytics(_: User = Depends(require_admin_hybrid)):
         import redis
         from app.config import get_settings
         from app.models import ScanSession
-        from app.scanning import EnhancedScanningSystem
+        from app.scanning import ScanningSystem
 
-        enhanced_scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
         settings = get_settings()
 
         # Get active jobs from Redis/Celery

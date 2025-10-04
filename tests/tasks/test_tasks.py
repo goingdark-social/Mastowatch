@@ -343,7 +343,7 @@ class TestCeleryTasks(unittest.TestCase):
     @patch("app.tasks.jobs._persist_account")
     @patch("app.tasks.jobs.cursor_lag_pages")
     @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.EnhancedScanningSystem")
+    @patch("app.tasks.jobs.ScanningSystem")
     def test_poll_accounts_metrics(self, mock_scanner, mock_session, mock_metric, mock_persist, mock_analyze):
         """Record metrics during polling."""
         jobs.settings.MAX_PAGES_PER_POLL = 1

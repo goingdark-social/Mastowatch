@@ -82,8 +82,8 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         self.mock_domain_task.id = "domain_task_123"
         self.mock_domain_check.delay.return_value = self.mock_domain_task
 
-        # Mock enhanced scanning system
-        self.scanning_patcher = patch("app.scanning.EnhancedScanningSystem")
+        # Mock scanning system
+        self.scanning_patcher = patch("app.scanning.ScanningSystem")
         self.mock_scanning_system = self.scanning_patcher.start()
         self.mock_scanning_instance = MagicMock()
         self.mock_scanning_system.return_value = self.mock_scanning_instance
@@ -606,10 +606,10 @@ class TestDomainValidationMonitoring(unittest.TestCase):
             # Test API error handling
             mock_client_instance.timeline_public.side_effect = MastodonAPIError("Unprocessable Content")
 
-            from app.scanning import EnhancedScanningSystem
+            from app.scanning import ScanningSystem
 
             with patch("app.scanning.SessionLocal"):
-                scanner = EnhancedScanningSystem()
+                scanner = ScanningSystem()
 
                 # Should handle errors gracefully
                 try:
@@ -637,10 +637,10 @@ class TestDomainValidationMonitoring(unittest.TestCase):
             ]
 
             # Verify admin endpoint usage
-            from app.scanning import EnhancedScanningSystem
+            from app.scanning import ScanningSystem
 
             with patch("app.scanning.SessionLocal"):
-                scanner = EnhancedScanningSystem()
+                scanner = ScanningSystem()
                 accounts, cursor = scanner.get_next_accounts_to_scan("local", limit=10)
 
                 # Should use admin API endpoint

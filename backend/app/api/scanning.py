@@ -6,7 +6,7 @@ from app.auth import require_api_key
 from app.db import get_db
 from app.models import ContentScan
 from app.oauth import User, require_admin_hybrid
-from app.scanning import EnhancedScanningSystem
+from app.scanning import ScanningSystem
 from app.schemas import AccountsPage
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -20,7 +20,7 @@ async def start_scan_session(session_type: str, user: User = Depends(require_adm
     """Start a new scan session."""
     if session_type not in ["remote", "local", "federated"]:
         raise HTTPException(status_code=400, detail="Invalid session type")
-    scanner = EnhancedScanningSystem()
+    scanner = ScanningSystem()
     session_id = scanner.start_scan_session(session_type)
     return {"session_id": session_id, "session_type": session_type, "status": "started"}
 
@@ -28,7 +28,7 @@ async def start_scan_session(session_type: str, user: User = Depends(require_adm
 @router.post("/scan/{session_id}/complete")
 async def complete_scan_session(session_id: str, user: User = Depends(require_api_key)):
     """Complete a scan session."""
-    scanner = EnhancedScanningSystem()
+    scanner = ScanningSystem()
     scanner.complete_scan_session(session_id)
     return {"message": f"Session {session_id} completed"}
 
@@ -38,7 +38,7 @@ async def get_next_accounts_to_scan(
     session_type: str, limit: int = 50, cursor: str | None = None, user: User = Depends(require_api_key)
 ):
     """Get the next batch of accounts to scan."""
-    scanner = EnhancedScanningSystem()
+    scanner = ScanningSystem()
     accounts, next_cursor = scanner.get_next_accounts_to_scan(session_type, limit, cursor)
     return {"accounts": accounts, "next_cursor": next_cursor}
 
@@ -48,7 +48,7 @@ async def scan_account_efficiently(
     account_data: dict[str, Any], session_id: str, user: User = Depends(require_api_key)
 ):
     """Scan a single account efficiently."""
-    scanner = EnhancedScanningSystem()
+    scanner = ScanningSystem()
     result = scanner.scan_account_efficiently(account_data, session_id)
     return result
 
@@ -56,7 +56,7 @@ async def scan_account_efficiently(
 @router.get("/scan/federated", response_model=list[dict[str, Any]])
 async def scan_federated_content(target_domains: list[str] | None = None, user: User = Depends(require_api_key)):
     """Scan federated content."""
-    scanner = EnhancedScanningSystem()
+    scanner = ScanningSystem()
     results = scanner.scan_federated_content(target_domains)
     return results
 
@@ -64,7 +64,7 @@ async def scan_federated_content(target_domains: list[str] | None = None, user: 
 @router.get("/domains/alerts")
 async def get_domain_alerts(limit: int = 100, user: User = Depends(require_api_key)):
     """Get domain alerts."""
-    scanner = EnhancedScanningSystem()
+    scanner = ScanningSystem()
     alerts = scanner.get_domain_alerts(limit)
     return alerts
 
@@ -101,7 +101,7 @@ def trigger_domain_check(user: User = Depends(require_admin_hybrid)):
 def invalidate_content_cache(rule_changes: bool = False, user: User = Depends(require_admin_hybrid)):
     """Invalidate content scan cache."""
     try:
-        scanner = EnhancedScanningSystem()
+        scanner = ScanningSystem()
 
         # Invalidate cache based on parameters
         scanner.invalidate_content_scans(rule_changes=rule_changes)

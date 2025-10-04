@@ -32,7 +32,7 @@ class Account(Base):
     domain = Column(Text, nullable=False)
     last_checked_at = Column(TIMESTAMP(timezone=True))
     last_status_seen_id = Column(Text)
-    # Enhanced fields for better scanning management
+    # fields for better scanning management
     scan_cursor_position = Column(Text)  # Tracks position in status scanning
     last_full_scan_at = Column(TIMESTAMP(timezone=True))  # When we last did a complete scan
     content_hash = Column(Text)  # Hash of account metadata to detect changes
@@ -107,7 +107,7 @@ class Rule(Base):
     action_warning_text = Column(Text, nullable=True)
     warning_preset_id = Column(Text, nullable=True)
     trigger_threshold = Column(Numeric, nullable=False, default=1.0)
-    # Enhanced metadata fields
+    # metadata fields
     trigger_count = Column(Integer, nullable=False, default=0)  # Number of times rule has been triggered
     last_triggered_at = Column(TIMESTAMP(timezone=True))  # When rule was last triggered
     last_triggered_content = Column(JSON)  # Content that last triggered the rule

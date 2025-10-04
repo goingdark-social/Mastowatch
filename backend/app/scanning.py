@@ -31,8 +31,8 @@ class ScanProgress:
     estimated_completion: datetime | None = None
 
 
-class EnhancedScanningSystem:
-    """Enhanced scanning system with improved efficiency and federated tracking"""
+class ScanningSystem:
+    """scanning system with improved efficiency and federated tracking"""
 
     def __init__(self):
         # Use the centralized rule service instead of loading from files
@@ -131,7 +131,11 @@ class EnhancedScanningSystem:
         try:
             # Prefer calling the authenticated client methods directly so tests can
             # inject mocks with either get_account_statuses or account_statuses
-            client = mastodon_service.get_authenticated_client() if hasattr(mastodon_service, "get_authenticated_client") else None
+            client = (
+                mastodon_service.get_authenticated_client()
+                if hasattr(mastodon_service, "get_authenticated_client")
+                else None
+            )
             if client is None:
                 # Fallback to service sync wrapper
                 statuses = mastodon_service.get_account_statuses_sync(
@@ -241,7 +245,11 @@ class EnhancedScanningSystem:
         """Get next batch of accounts to scan with cursor-based pagination"""
         try:
             # Prefer client.get_admin_accounts/get_admin_accounts_sync if available
-            client = mastodon_service.get_authenticated_client() if hasattr(mastodon_service, "get_authenticated_client") else None
+            client = (
+                mastodon_service.get_authenticated_client()
+                if hasattr(mastodon_service, "get_authenticated_client")
+                else None
+            )
             if client is not None:
                 try:
                     if hasattr(client, "get_admin_accounts"):
@@ -249,8 +257,10 @@ class EnhancedScanningSystem:
                             origin=session_type, status="active", limit=limit, max_id=cursor
                         )
                     else:
-                        # Use admin_accounts_v2 and extract pagination cursor
-                        accounts = client.admin_accounts_v2(origin=session_type, status="active", limit=limit, max_id=cursor)
+                        # Use admin_accounts and extract pagination cursor
+                        accounts = client.admin_accounts(
+                            origin=session_type, status="active", limit=limit, max_id=cursor
+                        )
                         pagination_info = client.get_pagination_info(accounts)
                         next_cursor = pagination_info.get("max_id") if pagination_info else None
                     return accounts, next_cursor

@@ -372,7 +372,7 @@ class TestAPIEndpoints(unittest.TestCase):
 
         self.app.dependency_overrides[require_api_key] = lambda: True
 
-        with patch("app.api.scanning.EnhancedScanningSystem") as mock_scanner:
+        with patch("app.api.scanning.ScanningSystem") as mock_scanner:
             instance = mock_scanner.return_value
             instance.get_next_accounts_to_scan.return_value = ([{"id": "1"}], "next123")
             response = self.client.get("/scan/accounts?session_type=remote&limit=1")

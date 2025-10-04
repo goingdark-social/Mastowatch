@@ -18,7 +18,7 @@ from app.metrics import (
     reports_submitted,
 )
 from app.models import Analysis, ScheduledAction
-from app.scanning import EnhancedScanningSystem
+from app.scanning import ScanningSystem
 from app.services.enforcement_service import EnforcementService
 from app.services.mastodon_service import mastodon_service
 from app.services.rule_service import rule_service
@@ -95,8 +95,8 @@ def _poll_accounts(origin: str, cursor_name: str):
         logging.warning(f"PANIC_STOP enabled; skipping {origin} account poll")
         return
 
-    enhanced_scanner = EnhancedScanningSystem()
-    session_id = enhanced_scanner.start_scan_session(origin)
+    scanner = ScanningSystem()
+    session_id = scanner.start_scan_session(origin)
 
     try:
         with SessionLocal() as db:
@@ -107,7 +107,7 @@ def _poll_accounts(origin: str, cursor_name: str):
         accounts_processed = 0
 
         while pages < settings.MAX_PAGES_PER_POLL:
-            accounts, new_next = enhanced_scanner.get_next_accounts_to_scan(
+            accounts, new_next = scanner.get_next_accounts_to_scan(
                 origin, limit=settings.BATCH_SIZE, cursor=next_max
             )
 
@@ -121,7 +121,7 @@ def _poll_accounts(origin: str, cursor_name: str):
                 with SessionLocal() as db:
                     db.execute(
                         text("UPDATE scan_sessions SET total_accounts = :total WHERE id = :sid"),
-                        {"total": len(accounts) * settings.MAX_PAGES_PER_POLL, "sid": session_id}
+                        {"total": nts) * settings.MAX_PAGES_PER_POLL, "sid": session_id}
                     )
                     db.commit()
 
@@ -130,7 +130,7 @@ def _poll_accounts(origin: str, cursor_name: str):
                     _persist_account(account_data)
 
                     # Pass full admin object to scanner (includes admin fields + nested account)
-                    scan_result = enhanced_scanner.scan_account_efficiently(account_data, session_id)
+                    scan_result = _scanner.scan_account_efficiently(account_data, session_id)
 
                     if scan_result:
                         accounts_processed += 1
@@ -174,14 +174,14 @@ def _poll_accounts(origin: str, cursor_name: str):
 
             pages += 1
 
-        enhanced_scanner.complete_scan_session(session_id)
+        _scanner.complete_scan_session(session_id)
         logging.info(
             f"{origin.capitalize()} account poll completed: {accounts_processed} accounts processed, {pages} pages"
         )
 
     except Exception as e:
         logging.error(f"Error in {origin} account poll: {e}")
-        enhanced_scanner.complete_scan_session(session_id, "failed")
+        _scanner.complete_scan_session(session_id, "failed")
 
 
 @shared_task(
@@ -221,7 +221,7 @@ def record_queue_stats():
 
 
 @shared_task(
-    name="app.tasks.jobs.scan_federated_content",
+    name="app.taskan_federated_content",
     autoretry_for=(Exception,),
     retry_backoff=5,
     retry_backoff_max=300,
@@ -233,10 +233,10 @@ def scan_federated_content(target_domains=None):
         logging.warning("PANIC_STOP enabled; skipping federated content scan")
         return
 
-    enhanced_scanner = EnhancedScanningSystem()
+    _scanner = ScanningSystem()
 
     try:
-        results = enhanced_scanner.scan_federated_content(target_domains)
+        results = _scanner.scan_federated_content(target_domains)
         logging.info(f"Federated scan completed: {results}")
         return results
     except Exception as e:
@@ -245,7 +245,7 @@ def scan_federated_content(target_domains=None):
 
 
 @shared_task(
-    name="app.tasks.jobs.check_domain_violations",
+    name="app.tasks.jobsmain_violations",
     autoretry_for=(Exception,),
     retry_backoff=2,
     retry_backoff_max=60,
@@ -257,10 +257,10 @@ def check_domain_violations():
         logging.warning("PANIC_STOP enabled; skipping domain violation check")
         return
 
-    enhanced_scanner = EnhancedScanningSystem()
+    _scanner = ScanningSystem()
 
     try:
-        domain_alerts = enhanced_scanner.get_domain_alerts(100)
+        domain_alerts = _scanner.get_domain_alerts(100)
         defederated_count = sum(1 for alert in domain_alerts if alert["is_defederated"])
 
         logging.info(
@@ -416,8 +416,8 @@ def analyze_and_maybe_report(payload: dict):
                 if "suspend" not in performed:
                     enforcement_service.suspend_account(
                         acct_id,
-                        text=rule.action_warning_text,
-                        warning_preset_id=rule.warning_preset_id,
+               text=rule.action_warning_text,
+               warning_preset_id=rule.warning_preset_id,
                         rule_id=rule.id,
                         evidence=evidence,
                     )
@@ -431,8 +431,8 @@ def analyze_and_maybe_report(payload: dict):
         # Track domain violation
         domain = acct.get("acct", "").split("@")[-1] if "@" in acct.get("acct", "") else "local"
         if domain != "local":
-            enhanced_scanner = EnhancedScanningSystem()
-            enhanced_scanner.track_domain_violation(domain)
+            _scanner = ScanningSystem()
+            _scanner.track_domain_violation(domain)
 
         # Prepare report
         status_ids = [h[2].get("status_id") for h in hits if h[2].get("status_id")]

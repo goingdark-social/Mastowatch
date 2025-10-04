@@ -117,7 +117,7 @@ make api-client-status       # Show current client version
 1. **Automated Scanning (Celery Beat)**:
    - `poll-admin-accounts` task runs every 30s for remote accounts
    - `poll-admin-accounts-local` task runs every 30s for local accounts
-   - Tasks call `MastodonService.admin_accounts_v2()` to fetch admin account data
+   - Tasks call `MastodonService.admin_accounts()` to fetch admin account data
    - **Critical**: Admin API returns objects with nested `account` field, NOT plain account objects
    - Scanner in `scanning.py` evaluates accounts against rules
    - Violations trigger report creation via `EnforcementService`

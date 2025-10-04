@@ -1,4 +1,4 @@
-"""Enhanced scanning system
+"""scanning system
 
 Revision ID: 006_scanning_system
 Revises: 005_add_rule_model

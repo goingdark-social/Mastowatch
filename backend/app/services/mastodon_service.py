@@ -306,9 +306,9 @@ class MastodonService:
         client = self.get_authenticated_client()
 
         try:
-            # Use admin_accounts_v2 which returns paginated results
+            # Use admin_accounts which returns paginated results
             accounts = await asyncio.to_thread(
-                client.admin_accounts_v2,
+                client.admin_accounts,
                 origin=origin,
                 status=status,
                 max_id=max_id,
@@ -483,8 +483,8 @@ class MastodonService:
         client = self.get_authenticated_client()
 
         try:
-            # Use admin_accounts_v2 which returns paginated results
-            accounts = client.admin_accounts_v2(
+            # Use admin_accounts which returns paginated results
+            accounts = client.admin_accounts(
                 origin=origin,
                 status=status,
                 max_id=max_id,

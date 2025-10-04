@@ -5,7 +5,7 @@ This Dockerfile creates a much smaller image (~50MB target) using Google's distr
 ## Benefits
 - Smaller attack surface (no shell, package managers, etc.)
 - Smaller image size (removes OS packages)
-- Enhanced security (runs as nonroot by default)
+- security (runs as nonroot by default)
 
 ## Trade-offs  
 - No shell access for debugging (use `docker exec` won't work)
@@ -20,5 +20,5 @@ For production Kubernetes, update healthchecks to use HTTP probes instead of exe
 For docker-compose, you can replace the healthcheck with:
 ```yaml
 healthcheck:
-  test: ["CMD", "/usr/bin/python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/livez').getcode()==200 else 1)"]
+test: ["CMD", "/usr/bin/python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/livez').getcode()==200 else 1)"]
 ```

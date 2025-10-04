@@ -30,7 +30,7 @@ app.dependency_overrides[require_api_key] = lambda: True
 
 @unittest.skip("Test is flaky - OAuth configuration state varies depending on test execution order")
 def test_invalidate_scan_cache_and_status():
-    with patch("app.api.scanning.EnhancedScanningSystem") as MockScanner:
+    with patch("app.api.scanning.ScanningSystem") as MockScanner:
         scanner_instance = MockScanner.return_value
 
         # Mock the database session via dependency injection
