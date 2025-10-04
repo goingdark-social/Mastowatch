@@ -85,6 +85,41 @@ PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_admin_account_str
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_scanning_integration.py -v
 ```
 
+## Database Schema Changes
+
+### Cursor Table - NULL Position Allowed
+
+**Change**: The `cursors.position` column now allows NULL values (previously NOT NULL).
+
+**Why**: NULL position indicates "start from beginning" - this is the natural initial state for cursors. The previous NOT NULL constraint required tests to provide a dummy value, which was incorrect.
+
+**Migration**: `009_allow_null_cursor_position.py`
+
+```sql
+-- Before:
+CREATE TABLE cursors (
+    name TEXT PRIMARY KEY,
+    position TEXT NOT NULL,  -- ❌ Forced dummy values
+    updated_at TIMESTAMP
+);
+
+-- After:
+CREATE TABLE cursors (
+    name TEXT PRIMARY KEY,
+    position TEXT NULL,       -- ✅ NULL = start from beginning
+    updated_at TIMESTAMP
+);
+```
+
+**Test Impact**: Tests can now properly initialize cursors:
+```python
+# Correct initialization
+test_db_session.execute(
+    text("INSERT INTO cursors (name, position) VALUES (:n, :p)"),
+    {"n": "admin_accounts_remote", "p": None}  # ✅ NULL is valid!
+)
+```
+
 ## Expected Failures (Before Fixes)
 
 The following tests **WILL FAIL** until the bugs are fixed:
