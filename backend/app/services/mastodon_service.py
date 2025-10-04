@@ -1,5 +1,8 @@
 """Service wrapper around mastodon.py library.
 
+This is the ONLY interface for interacting with the Mastodon API.
+All operations go through mastodon.py - no custom HTTP clients or OpenAPI clients.
+
 This provides a centralized interface to the official Mastodon.py library,
 handling client initialization, credential management, and providing async
 wrappers for the synchronous mastodon.py API.
@@ -16,13 +19,17 @@ logger = logging.getLogger(__name__)
 
 
 class MastodonService:
-    """Service wrapper for mastodon.py library.
+    """Complete service wrapper for mastodon.py library.
+
+    This is the SINGLE source for all Mastodon API operations.
 
     Provides:
     - Centralized client management with caching
     - Async wrappers for sync mastodon.py methods
     - Error handling and logging
     - Admin client access
+    - Built-in rate limiting via mastodon.py
+    - Type hints throughout
     """
 
     def __init__(self):
@@ -332,6 +339,277 @@ class MastodonService:
 
         except (MastodonAPIError, MastodonNetworkError) as e:
             logger.error(f"Failed to fetch admin accounts: {e}")
+            raise
+
+    async def get_instance_info(self) -> dict[str, Any]:
+        """Get instance information.
+
+        Returns:
+            Instance information dict
+        """
+        client = self.get_admin_client()
+
+        try:
+            instance = await asyncio.to_thread(client.instance)
+            return instance
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to fetch instance info: {e}")
+            raise
+
+    async def get_instance_rules(self) -> list[dict[str, Any]]:
+        """Get instance rules.
+
+        Returns:
+            List of instance rules
+        """
+        client = self.get_admin_client()
+
+        try:
+            rules = await asyncio.to_thread(client.instance_rules)
+            return rules if rules else []
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to fetch instance rules: {e}")
+            raise
+
+    # Synchronous methods for backward compatibility
+    # These are used in places that aren't async (like Celery tasks)
+
+    def get_account_sync(self, account_id: str, use_admin: bool = False) -> dict[str, Any]:
+        """Get account information (synchronous).
+
+        Args:
+            account_id: Account ID to fetch
+            use_admin: Whether to use admin client
+
+        Returns:
+            Account information dict
+        """
+        client = self.get_admin_client() if use_admin else self.get_bot_client()
+
+        try:
+            account = client.account(account_id)
+            return account
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to fetch account {account_id}: {e}")
+            raise
+
+    def get_account_statuses_sync(
+        self,
+        account_id: str,
+        limit: int = 20,
+        max_id: str | None = None,
+        exclude_reblogs: bool = False,
+        exclude_replies: bool = False,
+        only_media: bool = False,
+        use_admin: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Get statuses for an account (synchronous).
+
+        Args:
+            account_id: Account ID
+            limit: Maximum number of statuses to return
+            max_id: Return statuses older than this ID
+            exclude_reblogs: Exclude boosts
+            exclude_replies: Exclude replies
+            only_media: Only return statuses with media
+            use_admin: Whether to use admin client
+
+        Returns:
+            List of status dicts
+        """
+        client = self.get_admin_client() if use_admin else self.get_bot_client()
+
+        try:
+            statuses = client.account_statuses(
+                account_id,
+                limit=limit,
+                max_id=max_id,
+                exclude_reblogs=exclude_reblogs,
+                exclude_replies=exclude_replies,
+                only_media=only_media,
+            )
+            return statuses
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to fetch statuses for account {account_id}: {e}")
+            raise
+
+    def create_report_sync(
+        self,
+        account_id: str,
+        status_ids: list[str] | None = None,
+        comment: str = "",
+        forward: bool = False,
+        category: str = "other",
+        rule_ids: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Create a moderation report (synchronous).
+
+        Args:
+            account_id: ID of account to report
+            status_ids: IDs of statuses to include in report
+            comment: Report comment
+            forward: Whether to forward to remote instance
+            category: Report category
+            rule_ids: IDs of rules violated
+
+        Returns:
+            Report information dict
+        """
+        client = self.get_bot_client()
+
+        try:
+            report = client.report(
+                account_id=account_id,
+                status_ids=status_ids or [],
+                comment=comment,
+                forward=forward,
+                category=category,
+                rule_ids=rule_ids or [],
+            )
+            return report
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to create report for account {account_id}: {e}")
+            raise
+
+    def get_admin_accounts_sync(
+        self,
+        origin: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        max_id: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Get admin account list (synchronous).
+
+        Args:
+            origin: Filter by origin ('local' or 'remote')
+            status: Filter by status
+            limit: Maximum accounts to return
+            max_id: Pagination cursor
+
+        Returns:
+            Tuple of (accounts list, next cursor)
+        """
+        client = self.get_admin_client()
+
+        try:
+            # Use admin_accounts_v2 which returns paginated results
+            accounts = client.admin_accounts_v2(
+                origin=origin,
+                status=status,
+                max_id=max_id,
+                limit=limit,
+            )
+
+            # mastodon.py handles pagination internally
+            # Extract next cursor from the response if available
+            next_cursor = None
+            if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
+                # Try to extract max_id from pagination info
+                next_params = accounts._pagination_next
+                if "max_id" in next_params:
+                    next_cursor = next_params["max_id"]
+
+            return accounts, next_cursor
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to fetch admin accounts: {e}")
+            raise
+
+    def get_instance_info_sync(self) -> dict[str, Any]:
+        """Get instance information (synchronous).
+
+        Returns:
+            Instance information dict
+        """
+        client = self.get_admin_client()
+
+        try:
+            instance = client.instance()
+            return instance
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to fetch instance info: {e}")
+            raise
+
+    def get_instance_rules_sync(self) -> list[dict[str, Any]]:
+        """Get instance rules (synchronous).
+
+        Returns:
+            List of instance rules
+        """
+        client = self.get_admin_client()
+
+        try:
+            rules = client.instance_rules()
+            return rules if rules else []
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to fetch instance rules: {e}")
+            raise
+
+    def admin_account_action_sync(self, account_id: str, action_type: str, **kwargs) -> dict[str, Any]:
+        """Perform an admin action on an account (synchronous).
+
+        Args:
+            account_id: Account ID to act on
+            action_type: Type of action ('none', 'silence', 'suspend', etc.)
+            **kwargs: Additional parameters (text, warning_preset_id, etc.)
+
+        Returns:
+            API response dict
+        """
+        client = self.get_admin_client()
+
+        try:
+            # mastodon.py provides admin_account_moderate method
+            result = client.admin_account_moderate(account_id, action=action_type, **kwargs)
+            return result
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to perform admin action {action_type} on account {account_id}: {e}")
+            raise
+
+    def admin_unsilence_account_sync(self, account_id: str) -> dict[str, Any]:
+        """Unsilence an account (synchronous).
+
+        Args:
+            account_id: Account ID to unsilence
+
+        Returns:
+            API response dict
+        """
+        client = self.get_admin_client()
+
+        try:
+            result = client.admin_account_unsilence(account_id)
+            return result
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to unsilence account {account_id}: {e}")
+            raise
+
+    def admin_unsuspend_account_sync(self, account_id: str) -> dict[str, Any]:
+        """Unsuspend an account (synchronous).
+
+        Args:
+            account_id: Account ID to unsuspend
+
+        Returns:
+            API response dict
+        """
+        client = self.get_admin_client()
+
+        try:
+            result = client.admin_account_unsuspend(account_id)
+            return result
+
+        except (MastodonAPIError, MastodonNetworkError) as e:
+            logger.error(f"Failed to unsuspend account {account_id}: {e}")
             raise
 
 

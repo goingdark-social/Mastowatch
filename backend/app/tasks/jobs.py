@@ -6,7 +6,6 @@ from typing import Any
 import redis
 from app.config import get_settings
 from app.db import SessionLocal
-from app.mastodon_client import MastoClient
 from app.metrics import (
     accounts_scanned,
     analyses_flagged,
@@ -19,6 +18,7 @@ from app.metrics import (
 from app.models import Account, Analysis, Cursor, Report, ScheduledAction
 from app.scanning import EnhancedScanningSystem
 from app.services.enforcement_service import EnforcementService
+from app.services.mastodon_service import mastodon_service
 from app.services.rule_service import rule_service
 from app.util import make_dedupe_key
 from celery import shared_task
@@ -30,9 +30,6 @@ settings = get_settings()
 # Visibility types that we analyze (public and unlisted content)
 ANALYZABLE_VISIBILITY_TYPES = {"public", "unlisted"}
 
-# Don't create global client instances to avoid HTTPX reuse issues in Celery
-# Instead, create fresh instances in each task
-
 CURSOR_NAME = "admin_accounts"
 CURSOR_NAME_LOCAL = "admin_accounts_local"
 
@@ -40,13 +37,13 @@ MAX_HISTORY_STATUSES = 20
 
 
 def _get_admin_client():
-    """Get a fresh admin client instance."""
-    return MastoClient(settings.ADMIN_TOKEN)
+    """Get the admin client from mastodon_service."""
+    return mastodon_service.get_admin_client()
 
 
 def _get_bot_client():
-    """Get a fresh bot client instance."""
-    return MastoClient(settings.BOT_TOKEN)
+    """Get the bot client from mastodon_service."""
+    return mastodon_service.get_bot_client()
 
 
 def _should_pause():
@@ -74,19 +71,22 @@ def _persist_account(a: dict):
         # Database-agnostic account upsert
         account_id = acct_obj.get("id")
         existing = db.execute(
-            text("SELECT id FROM accounts WHERE mastodon_account_id=:aid"), 
-            {"aid": account_id}
+            text("SELECT id FROM accounts WHERE mastodon_account_id=:aid"), {"aid": account_id}
         ).first()
-        
+
         if existing:
             db.execute(
-                text("UPDATE accounts SET acct=:acct, domain=:domain, last_checked_at=CURRENT_TIMESTAMP WHERE mastodon_account_id=:aid"),
-                {"acct": acct, "domain": domain, "aid": account_id}
+                text(
+                    "UPDATE accounts SET acct=:acct, domain=:domain, last_checked_at=CURRENT_TIMESTAMP WHERE mastodon_account_id=:aid"
+                ),
+                {"acct": acct, "domain": domain, "aid": account_id},
             )
         else:
             db.execute(
-                text("INSERT INTO accounts (mastodon_account_id, acct, domain, last_checked_at) VALUES (:aid, :acct, :domain, CURRENT_TIMESTAMP)"),
-                {"aid": account_id, "acct": acct, "domain": domain}
+                text(
+                    "INSERT INTO accounts (mastodon_account_id, acct, domain, last_checked_at) VALUES (:aid, :acct, :domain, CURRENT_TIMESTAMP)"
+                ),
+                {"aid": account_id, "acct": acct, "domain": domain},
             )
         db.commit()
 
@@ -143,12 +143,12 @@ def _poll_accounts(origin: str, cursor_name: str):
                 if cursor:
                     db.execute(
                         text("UPDATE cursors SET position=:pos, updated_at=CURRENT_TIMESTAMP WHERE name=:n"),
-                        {"pos": new_next, "n": cursor_name}
+                        {"pos": new_next, "n": cursor_name},
                     )
                 else:
                     db.execute(
                         text("INSERT INTO cursors (name, position, updated_at) VALUES (:n, :pos, CURRENT_TIMESTAMP)"),
-                        {"n": cursor_name, "pos": new_next}
+                        {"n": cursor_name, "pos": new_next},
                     )
                 db.commit()
 
@@ -284,7 +284,7 @@ def analyze_and_maybe_report(payload: dict):
             return
 
         admin_client = _get_admin_client()
-        enforcement_service = EnforcementService(mastodon_client=admin_client)
+        enforcement_service = EnforcementService()
 
         cached_result = payload.get("scan_result")
         violated_rule_names: set[str] = set()
@@ -295,7 +295,8 @@ def analyze_and_maybe_report(payload: dict):
                 name = rk.split("/", 1)[1] if "/" in rk else rk
                 violated_rule_names.add(name)
         else:
-            statuses = admin_client.get_account_statuses(account_id=acct_id, limit=settings.MAX_STATUSES_TO_FETCH)
+            # Use mastodon.py's account_statuses method directly
+            statuses = admin_client.account_statuses(acct_id, limit=settings.MAX_STATUSES_TO_FETCH)
             violations = rule_service.evaluate_account(acct, statuses)
             score = sum(v.score for v in violations)
             hits = [(f"{v.rule_type}/{v.rule_name}", v.score, v.evidence or {}) for v in violations]
@@ -414,30 +415,26 @@ def analyze_and_maybe_report(payload: dict):
 
         with SessionLocal() as db:
             # Database-agnostic report insert with deduplication
-            existing = db.execute(
-                text("SELECT id FROM reports WHERE dedupe_key=:dk"), 
-                {"dk": dedupe}
-            ).first()
-            
+            existing = db.execute(text("SELECT id FROM reports WHERE dedupe_key=:dk"), {"dk": dedupe}).first()
+
             if existing:
                 inserted_id = None  # Already exists, do nothing
             else:
                 # Insert and get the ID - SQLite compatible approach
                 db.execute(
-                    text("INSERT INTO reports (mastodon_account_id, status_id, mastodon_report_id, dedupe_key, comment, created_at) VALUES (:aid, :sid, :rid, :dk, :comment, CURRENT_TIMESTAMP)"),
+                    text(
+                        "INSERT INTO reports (mastodon_account_id, status_id, mastodon_report_id, dedupe_key, comment, created_at) VALUES (:aid, :sid, :rid, :dk, :comment, CURRENT_TIMESTAMP)"
+                    ),
                     {
                         "aid": acct_id,
                         "sid": status_ids[0] if status_ids else None,
                         "rid": None,
                         "dk": dedupe,
-                        "comment": comment
-                    }
+                        "comment": comment,
+                    },
                 )
                 # Get the ID of the inserted record
-                inserted_id = db.execute(
-                    text("SELECT id FROM reports WHERE dedupe_key=:dk"), 
-                    {"dk": dedupe}
-                ).scalar()
+                inserted_id = db.execute(text("SELECT id FROM reports WHERE dedupe_key=:dk"), {"dk": dedupe}).scalar()
             db.commit()
             if inserted_id is None:
                 return
@@ -455,7 +452,8 @@ def analyze_and_maybe_report(payload: dict):
         forward = settings.FORWARD_REMOTE_REPORTS if "@" in acct.get("acct", "") else False
 
         bot = _get_bot_client()
-        result = bot.create_report(
+        # Use mastodon.py's report method
+        result = bot.report(
             account_id=acct_id,
             comment=comment,
             status_ids=status_ids,
@@ -474,7 +472,7 @@ def analyze_and_maybe_report(payload: dict):
 
         reports_submitted.labels(domain=domain).inc()
         report_latency.observe(max(0.0, time.time() - started))
-        
+
         return result
 
     except Exception as e:
@@ -494,7 +492,7 @@ def process_expired_actions():
     logging.info("Running process_expired_actions task...")
 
     admin_client = _get_admin_client()
-    enforcement_service = EnforcementService(mastodon_client=admin_client)
+    enforcement_service = EnforcementService()
 
     with SessionLocal() as session:
         now = func.now()
@@ -543,11 +541,11 @@ def process_new_report(report_payload: dict):
             return
 
         admin_client = _get_admin_client()
-        enforcement_service = EnforcementService(mastodon_client=admin_client)
+        enforcement_service = EnforcementService()
 
         # Fetch full account details if needed (webhook payload might be partial)
         # For now, assume webhook payload has enough info for initial scan
-        # In a real scenario, you might call admin_client.get_account(account_data['id'])
+        # In a real scenario, you might call admin_client.account(account_data['id'])
 
         # Fetch statuses related to the report
         statuses = []
@@ -556,8 +554,8 @@ def process_new_report(report_payload: dict):
                 # This is a simplified approach. In a real scenario, you might fetch
                 # individual statuses or rely on the webhook to provide full status objects.
                 # For now, we'll just get account statuses and filter.
-                account_statuses = admin_client.get_account_statuses(
-                    account_id=account_data["id"], limit=settings.MAX_STATUSES_TO_FETCH
+                account_statuses = admin_client.account_statuses(
+                    account_data["id"], limit=settings.MAX_STATUSES_TO_FETCH
                 )
                 statuses = [s for s in account_statuses if s.get("id") in status_ids]
                 break  # Assuming we only need to fetch once
@@ -640,8 +638,8 @@ def process_new_status(status_payload: dict):
             return
 
         admin_client = _get_admin_client()
-        history = admin_client.get_account_statuses(
-            account_id=account_data["id"],
+        history = admin_client.account_statuses(
+            account_data["id"],
             limit=MAX_HISTORY_STATUSES,
             exclude_reblogs=True,
         )
@@ -655,7 +653,7 @@ def process_new_status(status_payload: dict):
                 seen.add(s_id)
         public_only = [s for s in combined if s.get("visibility") == "public"]
 
-        enforcement_service = EnforcementService(mastodon_client=admin_client)
+        enforcement_service = EnforcementService()
         violations = rule_service.evaluate_account(
             {**account_data, "recent_public_statuses": public_only},
             combined,
