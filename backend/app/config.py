@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     POLL_ADMIN_ACCOUNTS_INTERVAL: int = 30
     POLL_ADMIN_ACCOUNTS_LOCAL_INTERVAL: int = 30
     QUEUE_STATS_INTERVAL: int = 15
+    CONTENT_CACHE_TTL: int = 24  # Hours to cache content scans
 
     # Compatibility aliases
     @property

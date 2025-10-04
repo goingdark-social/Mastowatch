@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, NamedTuple
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -12,6 +12,15 @@ from app.services.rule_service import rule_service
 from mastodon import MastodonNetworkError
 
 logger = logging.getLogger(__name__)
+
+
+class ScanProgress(NamedTuple):
+    """Progress information for a scan session."""
+
+    session_id: int
+    session_type: str
+    accounts_processed: int
+    total_accounts: int
 
 
 class ScanningSystem:
@@ -174,7 +183,9 @@ class ScanningSystem:
             logger.warning(f"Network timeout fetching {session_type} accounts, retrying: {e}")
             try:
                 # brief sleep to mimic retry behaviour
-                asyncio.sleep(1)
+                import time
+
+                time.sleep(1)
                 client = mastodon_service.get_admin_client()
                 if hasattr(client, "get_admin_accounts"):
                     accounts, next_cursor = client.get_admin_accounts(
@@ -283,7 +294,8 @@ class ScanningSystem:
         """Scan content from a specific domain."""
         # Placeholder implementation - would need domain-specific scanning logic
         return {
-            "domain": domain,
+            "accounts": [],
+            "violations": [],
             "accounts_scanned": 0,
             "violations_found": 0,
             "session_id": session_id,
@@ -317,16 +329,17 @@ class ScanningSystem:
             domains = target_domains or self._get_active_domains()
             total_scanned = 0
             total_violations = 0
+            successful_scans = 0
 
             for domain in domains:
                 try:
                     result = self._scan_domain_content(domain, session_id)
                     total_scanned += result.get("accounts_scanned", 0)
                     total_violations += result.get("violations_found", 0)
+                    successful_scans += 1
                 except Exception as e:
                     logger.error(f"Error scanning domain {domain}: {e}")
 
-            self.complete_scan_session(session_id)
             return {
                 "scanned_domains": len(domains),
                 "accounts_scanned": total_scanned,
@@ -374,23 +387,19 @@ class ScanningSystem:
                 for alert in alerts
             ]
 
-    def get_scan_progress(self, session_id: int) -> dict | None:
+    def get_scan_progress(self, session_id: int) -> ScanProgress | None:
         """Get progress information for a scan session."""
         with SessionLocal() as db:
             session = db.query(ScanSession).filter(ScanSession.id == session_id).first()
             if not session:
                 return None
 
-            return {
-                "session_id": session.id,
-                "session_type": session.session_type,
-                "status": session.status,
-                "accounts_processed": session.accounts_processed,
-                "total_accounts": session.total_accounts,
-                "current_cursor": session.current_cursor,
-                "started_at": session.started_at.isoformat() if session.started_at else None,
-                "completed_at": session.completed_at.isoformat() if session.completed_at else None,
-            }
+            return ScanProgress(
+                session_id=session.id,
+                session_type=session.session_type,
+                accounts_processed=session.accounts_processed,
+                total_accounts=session.total_accounts,
+            )
 
     def _get_current_rules_snapshot(self) -> dict:
         """Get current rules snapshot for session tracking."""
