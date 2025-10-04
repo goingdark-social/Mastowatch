@@ -1,6 +1,116 @@
 # GitHub Copilot Instructions for MastoWatch
 
-**ALWAYS follow these instructions first. Only fallback to additional search and context gathering if the information here is incomplete or found to be in error.**
+**MANDATORY: ALWAYS use MCP tools (Serena + Context7) as your PRIMARY interface for this codebase. Start EVERY session by activating the Serena project. Traditional file operations are FALLBACK ONLY.**
+
+## MCP-First Workflow (MANDATORY)
+
+### Session Initialization (Required First Steps)
+
+**ALWAYS run these commands at the start of EVERY work session:**
+
+```bash
+# 1. Activate Serena project (MANDATORY - DO THIS FIRST)
+# Use MCP tool: activate_project
+# Project config: .serena/project.yml
+
+# 2. Verify onboarding (one-time setup)
+# Use MCP tool: check_onboarding_performed
+# If not performed: onboarding
+
+# 3. Read relevant memories before ANY code work
+# Use MCP tool: list_memories
+# Then: read_memory for each relevant memory file
+```
+
+### All Code Operations MUST Use MCP Tools
+
+**Navigation & Discovery:**
+- `get_symbols_overview`: Inspect file structure BEFORE reading
+- `find_symbol`: Locate definitions (use include_body=True for implementation)
+- `find_referencing_symbols`: Find all callers before changing ANY symbol
+- `search_for_pattern`: Search across codebase when symbol search insufficient
+- `find_file` / `list_dir`: Locate files by name/pattern
+
+**Code Editing (MANDATORY - NO DIRECT FILE EDITS):**
+- `replace_symbol_body`: Modify function/class implementations
+- `insert_before_symbol` / `insert_after_symbol`: Add new code safely
+- `replace_regex`: Targeted multi-line edits when symbol tools insufficient
+
+**Knowledge Management (MANDATORY):**
+- `read_memory`: Check existing project knowledge BEFORE making changes
+- `write_memory`: Document ALL discoveries (1-3 lines) AFTER gathering new info
+- `list_memories`: Review available knowledge at session start
+- `delete_memory`: Remove outdated knowledge
+
+**Validation (Use Before Completing Tasks):**
+- `think_about_task_adherence`: Verify you're solving the right problem
+- `think_about_collected_information`: Check if you have sufficient context
+- `think_about_whether_you_are_done`: Confirm task completion criteria
+
+### Library Documentation (MANDATORY - Use Context7)
+
+**For ANY external library questions:**
+
+```bash
+# 1. Resolve library ID first
+# Use Context7 tool: resolve-library-id
+# Example: "mastodon.py" → "/halcy/mastodon.py"
+
+# 2. Fetch focused documentation
+# Use Context7 tool: get-library-docs
+# Specify: context7CompatibleLibraryID, topic (optional), tokens (optional)
+
+# 3. Document findings
+# Use Serena tool: write_memory
+# Save key insights for future reference
+```
+
+**Common library IDs for this project:**
+- Mastodon API: `/halcy/mastodon.py`
+- FastAPI: Resolve as needed
+- Celery: Resolve as needed
+- SQLAlchemy: Resolve as needed
+
+### Standard MCP-First Edit Workflow (MANDATORY)
+
+**Follow this sequence for EVERY code change:**
+
+```bash
+# 1. Check memories for relevant context
+list_memories
+read_memory <relevant_memory_file>
+
+# 2. Get file overview
+get_symbols_overview <file_path>
+
+# 3. Locate target symbol with implementation
+find_symbol <symbol_name> --include_body=True
+
+# 4. Find all callers (CRITICAL before changes)
+find_referencing_symbols <symbol_name>
+
+# 5. Make the edit
+replace_symbol_body <symbol_name> <new_implementation>
+# OR
+insert_after_symbol <anchor_symbol> <new_code>
+
+# 6. Document the change
+write_memory <memory_name> "<1-3 line summary of change/discovery>"
+
+# 7. Validate with tests
+PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest <test_file> --no-header --tb=short
+```
+
+### When to Use Traditional File Operations (RARE)
+
+**ONLY use traditional bash_tool/view/str_replace when:**
+- Serena project fails to activate (technical issue)
+- Working with non-code files (configs, docs, requirements.txt)
+- Initial repository bootstrap (dependency installation)
+- Running tests and builds
+- MCP tools explicitly unavailable
+
+**Even then, return to MCP tools as soon as possible.**
 
 ## Project Overview
 
@@ -9,26 +119,39 @@ MastoWatch is a **Mastodon moderation sidecar** that analyzes accounts/statuses 
 ## Architecture & Key Components
 
 ### Core Services Stack
-- **API** (`app/api/`): FastAPI web server with routers for analytics, auth, config, rules, and scanning. `app/main.py` is the entrypoint.
-- **Worker** (`app/tasks/jobs.py`): Celery workers for background account analysis and webhook event processing.
-- **Beat**: Celery scheduler for periodic polling (every 30s).
-- **Database**: PostgreSQL with Alembic for migrations.
-- **Redis**: Celery broker and caching for deduplication and rate limiting.
+- **API** (`app/api/`): FastAPI web server with routers for analytics, auth, config, rules, and scanning
+  - Use Serena: `get_symbols_overview app/api/` to explore
+  - Entry point: `app/main.py`
+- **Worker** (`app/tasks/jobs.py`): Celery workers for background account analysis and webhook event processing
+  - Use Serena: `find_symbol analyze_and_maybe_report --include_body=True`
+- **Beat**: Celery scheduler for periodic polling (every 30s)
+- **Database**: PostgreSQL with Alembic for migrations
+- **Redis**: Celery broker and caching for deduplication and rate limiting
 
 ### Rule Engine & Analysis
-- **Rules**: **Database-driven exclusively** via the `RuleService` (`app/services/rule_service.py`). The old `rules.yml` is deprecated and no longer used.
-- **Scanning**: An enhanced scanning system (`app/enhanced_scanning.py`) handles efficient, deduplicated account scanning.
-- **Enforcement**: Optional automated actions are managed by the `EnforcementService` (`app/services/enforcement_service.py`).
-- **Detectors**: Pluggable detection modules (`app/services/detectors/`) implement specific logic (regex, keyword, behavioral) for the rule engine.
+- **Rules**: **Database-driven exclusively** via the `RuleService` 
+  - Use Serena: `find_symbol RuleService` in `app/services/rule_service.py`
+  - The old `rules.yml` is deprecated and no longer used
+- **Scanning**: Enhanced scanning system
+  - Use Serena: `get_symbols_overview app/enhanced_scanning.py`
+- **Enforcement**: Optional automated actions
+  - Use Serena: `find_symbol EnforcementService` in `app/services/enforcement_service.py`
+- **Detectors**: Pluggable detection modules
+  - Use Serena: `list_dir app/services/detectors/`
+  - Then: `get_symbols_overview` on specific detector files
 
 ### Mastodon API Client Wrapper
-- **Primary Interface**: All application logic **must** interact with the Mastodon API through the `MastodonService` wrapper class in `app/services/mastodon_service.py`. This class handles rate-limiting, provides async wrappers, and uses the official mastodon.py library.
-- **Official Library**: The `MastodonService` uses the official **mastodon.py library** which provides a complete, well-tested interface to the Mastodon API with built-in rate limiting and error handling.
+- **Primary Interface**: All application logic **must** interact through `MastodonService`
+  - Use Serena: `find_symbol MastodonService` in `app/services/mastodon_service.py`
+  - Use Context7: `resolve-library-id "mastodon.py"` → `get-library-docs /halcy/mastodon.py`
+- **Official Library**: Uses **mastodon.py library** with built-in rate limiting
+  - Use Context7 for authoritative documentation and examples
 
-## Working Effectively
+## Working Effectively with MCP
 
 ### Bootstrap and Validate the Repository
-**ALWAYS run these commands first to set up your development environment:**
+
+**ALWAYS run these commands first (uses traditional tools for setup):**
 
 ```bash
 # Install Python dependencies for quality checks and testing
@@ -37,7 +160,20 @@ python -m pip install --upgrade pip
 pip install -r backend/requirements.txt -r tests/requirements-test.txt
 ```
 
-**Initial validation**: Run this quick test to verify setup works:
+**After bootstrap, IMMEDIATELY switch to MCP:**
+
+```bash
+# Activate Serena project
+# Use MCP tool: activate_project
+
+# Verify onboarding
+# Use MCP tool: check_onboarding_performed
+
+# List available memories
+# Use MCP tool: list_memories
+```
+
+**Initial validation (traditional testing):**
 ```bash
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_startup_validation.py::test_validate_mastodon_version_ok --no-header --tb=short
 ```
@@ -48,14 +184,14 @@ PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_startup_validatio
 - **Backend Dependencies**: FastAPI, Celery, SQLAlchemy, PostgreSQL, Redis
 - **Frontend Dependencies**: React 19, Vite, Mantine UI, TypeScript
 
-### Test Suite
+### Test Suite (Traditional - No MCP)
 ```bash
 # Run tests - VALIDATED: 147 tests complete in ~26 seconds
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short
 # Timeout: Set 2+ minutes. NEVER CANCEL - tests are comprehensive.
 ```
 
-### Frontend Development
+### Frontend Development (Traditional - No MCP)
 ```bash
 # Frontend setup and build - VALIDATED timing
 cd frontend
@@ -63,7 +199,7 @@ npm ci                    # Takes ~13 seconds. NEVER CANCEL.
 npm run build            # Takes ~8 seconds. NEVER CANCEL.
 ```
 
-### Quality Checks
+### Quality Checks (Traditional - No MCP)
 **Note: Current codebase has many quality issues but tools run quickly:**
 ```bash
 make lint                # ~0.05 seconds - 160 ERRORS PRESENT
@@ -79,8 +215,8 @@ make typecheck          # ~0.6 seconds - MODULE CONFLICTS PRESENT
 
 ## Development Workflows
 
-### Make Commands (Preferred)
-**ALWAYS use `make` commands when working with this project.** The project includes a comprehensive Makefile that provides convenient shortcuts for all common development tasks.
+### Make Commands (Preferred for Infrastructure)
+**Use `make` commands for infrastructure, but MCP tools for code work.**
 
 ```bash
 # Development with hot reload
@@ -108,24 +244,27 @@ make logs-worker       # Worker only
 make logs-frontend     # Frontend only
 ```
 
-### Testing Strategy
-- **Restructured Test Suite**: Tests are organized by feature area, mirroring the application structure (`tests/api`, `tests/services`, `tests/tasks`).
-- **Isolation**: Tests use an in-memory SQLite database and a separate Redis instance to ensure isolation and prevent side effects.
-- **Mocking External APIs**: All outbound calls to the Mastodon API are mocked using `unittest.mock.patch` to prevent real network requests during tests.
-- **Run tests**: `PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest` 
+### Testing Strategy (MCP-Enhanced)
+- **Test Discovery**: Use Serena `find_file "test_*.py"` or `list_dir tests/`
+- **Test Inspection**: Use Serena `get_symbols_overview tests/<test_file>.py`
+- **Restructured Test Suite**: Tests organized by feature area (`tests/api`, `tests/services`, `tests/tasks`)
+- **Isolation**: Tests use in-memory SQLite and separate Redis instance
+- **Mocking External APIs**: All Mastodon API calls mocked using `unittest.mock.patch`
+- **Run tests (traditional)**: `PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest` 
 - **TIMING**: 147 tests complete in ~26 seconds. Set timeout to 2+ minutes. NEVER CANCEL.
-- **Current Status**: Many tests fail (77/147) due to codebase inconsistencies, but test infrastructure works correctly.
+- **Current Status**: 77/147 tests fail due to codebase inconsistencies
 
-### Code Quality Tools
-- **Formatting**: Black with a **120-character** line length (`make format`).
-- **Format checking**: `make format-check` to verify formatting without making changes. **WARNING**: 36 files currently need reformatting.
-- **Linting**: Ruff with custom rules in `pyproject.toml` to ban direct use of `requests` and `httpx` (`make lint`). **WARNING**: 160 errors currently present.
-- **Type checking**: MyPy with selective strictness (`make typecheck`). **WARNING**: Module naming conflicts present.
-- **All quality checks**: `make check` runs lint, format-check, typecheck, and test in sequence. **EXPECT FAILURES** in current codebase.
-- **HTTP Library Policy**: Only the `MastodonService` wrapper is permitted to interact with the Mastodon API. The service uses mastodon.py internally. Direct use of `requests` or `httpx` for Mastodon API calls elsewhere is a linting error.
-- **TIMING**: Quality checks complete very quickly - lint ~0.05s, format-check ~5s, typecheck ~0.6s. Set timeout to 2+ minutes. NEVER CANCEL.
+### Code Quality Tools (Traditional Infrastructure)
+- **Formatting**: Black with **120-character** line length (`make format`)
+- **Format checking**: `make format-check` (36 files currently need reformatting)
+- **Linting**: Ruff with custom rules in `pyproject.toml` (`make lint`) (160 errors present)
+- **Type checking**: MyPy with selective strictness (`make typecheck`) (module conflicts present)
+- **All quality checks**: `make check` runs lint, format-check, typecheck, and test (EXPECT FAILURES)
+- **HTTP Library Policy**: Only `MastodonService` wrapper permitted for Mastodon API
+  - Use Serena: `find_referencing_symbols MastodonService` to verify compliance
+- **TIMING**: Quality checks very quick - lint ~0.05s, format-check ~5s, typecheck ~0.6s
 
-### Database Operations
+### Database Operations (Traditional Infrastructure)
 ```bash
 # Run migrations (automatic during startup)
 make migration name="your_migration_description"
@@ -134,7 +273,7 @@ make migration name="your_migration_description"
 make shell-db
 ```
 
-### Service Management
+### Service Management (Traditional Infrastructure)
 ```bash
 # Restart specific services
 make restart-api
@@ -145,19 +284,27 @@ make restart-frontend
 make shell-api       # API container shell
 ```
 
-### Mastodon Client Management
+### Mastodon Client Management (MCP-Enhanced)
 ```bash
-# Update OpenAPI spec from submodule
+# Update OpenAPI spec from submodule (traditional)
 make update-api-spec
 
-# Regenerate typed client from current spec  
+# Regenerate typed client from current spec (traditional)
 make regenerate-client
 
-# Full update: submodule + spec + client
+# Full update: submodule + spec + client (traditional)
 make update-mastodon-client
 
-# Show current API client status
+# Show current API client status (traditional)
 make api-client-status
+
+# Explore MastodonService implementation (MCP)
+# Use Serena: get_symbols_overview app/services/mastodon_service.py
+# Use Serena: find_symbol MastodonService --include_body=True
+
+# Get mastodon.py library documentation (MCP)
+# Use Context7: resolve-library-id "mastodon.py"
+# Use Context7: get-library-docs /halcy/mastodon.py --topic "rate limiting"
 ```
 
 ## Critical Configuration Patterns
@@ -168,79 +315,133 @@ make api-client-status
 - **Safety controls**: `DRY_RUN=true`, `PANIC_STOP=false`, `SKIP_STARTUP_VALIDATION=false`
 - **Database URL format**: `postgresql+psycopg://user:pass@host:port/db`
 
+**To explore configuration handling (MCP):**
+```bash
+# Use Serena: find_symbol Settings --include_body=True
+# Use Serena: search_for_pattern "INSTANCE_BASE"
+```
+
 ### API Authentication Patterns
-- **Webhook Validation**: Inbound webhooks are validated using an HMAC SHA256 signature in the `X-Hub-Signature-256` header.
-- **Admin UI Auth**: An OAuth2 flow provides a secure, HttpOnly session cookie for all moderator interactions with the frontend.
-- **Programmatic API Auth**: A static API key is required in the `X-API-Key` header for server-to-server calls or scripts.
-- **Rate Limiting**: Handled automatically by mastodon.py's built-in rate limiting (`ratelimit_method="wait"`), accessed through the `MastodonService` wrapper.
+- **Webhook Validation**: HMAC SHA256 signature in `X-Hub-Signature-256` header
+- **Admin UI Auth**: OAuth2 flow with HttpOnly session cookie
+- **Programmatic API Auth**: Static API key in `X-API-Key` header
+- **Rate Limiting**: Handled by mastodon.py via `MastodonService` wrapper
+
+**To explore authentication implementation (MCP):**
+```bash
+# Use Serena: get_symbols_overview app/api/auth.py
+# Use Serena: find_symbol validate_webhook --include_body=True
+# Use Context7: get-library-docs /halcy/mastodon.py --topic "authentication"
+```
 
 ### Task Queue Architecture
-- **Polling Tasks**: `poll_admin_accounts` (remote) and `poll_admin_accounts_local` for discovering accounts.
-- **Event Processing**: `process_new_report` and `process_new_status` are triggered by `report.created` and `status.created` webhook events, respectively.
-- **Analysis Pipeline**: The `analyze_and_maybe_report` task evaluates accounts against the database rules and triggers enforcement actions.
-- **Cursor Management**: PostgreSQL-based cursors are used for paginating through accounts during polling tasks.
+- **Polling Tasks**: `poll_admin_accounts` (remote) and `poll_admin_accounts_local`
+- **Event Processing**: `process_new_report` and `process_new_status` (webhook-triggered)
+- **Analysis Pipeline**: `analyze_and_maybe_report` evaluates accounts against rules
+- **Cursor Management**: PostgreSQL-based cursors for pagination
+
+**To explore task implementation (MCP):**
+```bash
+# Use Serena: get_symbols_overview app/tasks/jobs.py
+# Use Serena: find_symbol analyze_and_maybe_report --include_body=True
+# Use Serena: find_referencing_symbols process_new_status
+```
 
 ## Project-Specific Conventions
 
-### Data Flow Patterns
-1.  **Account Discovery**: Celery Beat → `poll_admin_accounts` → Account persistence in PostgreSQL.
-2.  **Rule Evaluation**: An account and its statuses are passed to the `RuleService`, which uses various detectors to find violations.
-3.  **Report Generation/Enforcement**: If a violation's score exceeds the rule's `trigger_threshold`, the `EnforcementService` is called to perform an action (e.g., file a report) via the `MastodonService`.
-4.  **Webhook Processing**: A real-time event from Mastodon (e.g., `status.created`) hits the webhook endpoint, which enqueues a specific Celery task (`process_new_status`) for immediate analysis.
+### Data Flow Patterns (Explore with MCP)
+1.  **Account Discovery**: Celery Beat → `poll_admin_accounts` → Account persistence
+2.  **Rule Evaluation**: Account + statuses → `RuleService` → detectors → violations
+3.  **Report Generation/Enforcement**: Violation score > threshold → `EnforcementService` → `MastodonService`
+4.  **Webhook Processing**: Real-time event → webhook endpoint → Celery task → analysis
+
+**To trace data flow (MCP):**
+```bash
+# Use Serena: find_symbol poll_admin_accounts --include_body=True
+# Use Serena: find_referencing_symbols RuleService
+# Use Serena: find_referencing_symbols EnforcementService
+```
 
 ### Error Handling Standards
-- **Structured Logging**: JSON format with request IDs for easy tracing in production.
-- **Health Checks**: The `/healthz` endpoint returns a `503` status if the database or Redis is unavailable.
-- **Graceful Degradation**: `PANIC_STOP` halts all background processing. `DRY_RUN` logs intended actions without executing them.
-- **Retry Strategies**: Celery tasks use exponential backoff with jitter for retrying on failure.
+- **Structured Logging**: JSON format with request IDs
+- **Health Checks**: `/healthz` endpoint (503 on DB/Redis failure)
+- **Graceful Degradation**: `PANIC_STOP` halts processing, `DRY_RUN` logs without executing
+- **Retry Strategies**: Celery exponential backoff with jitter
+
+**To explore error handling (MCP):**
+```bash
+# Use Serena: search_for_pattern "logger.error"
+# Use Serena: find_symbol healthz --include_body=True
+# Use Serena: search_for_pattern "retry"
+```
 
 ### Database Schema Patterns
-- **Foreign Keys**: Enforce referential integrity across all tables.
-- **UPSERT Patterns**: Use PostgreSQL's `ON CONFLICT DO UPDATE` for idempotent operations, such as updating account data.
-- **Deduplication**: `dedupe_key` fields prevent the system from filing duplicate reports for the same underlying issue.
-- **Timestamps**: All tables include `created_at` and `updated_at` with timezone information.
+- **Foreign Keys**: Enforce referential integrity
+- **UPSERT Patterns**: PostgreSQL `ON CONFLICT DO UPDATE`
+- **Deduplication**: `dedupe_key` fields prevent duplicate reports
+- **Timestamps**: All tables include `created_at` and `updated_at` with timezone
+
+**To explore database models (MCP):**
+```bash
+# Use Serena: list_dir app/models/
+# Use Serena: get_symbols_overview app/models/<model_file>.py
+# Use Serena: find_symbol Account --include_body=True
+```
 
 ### Frontend Integration
-- **Static Assets**: Mounted at `/dashboard` (built separately).
-- **OAuth Popup Flow**: Admin login uses a popup window that communicates success or failure to the parent window via `postMessage`.
-- **CORS Configuration**: Controlled by the `CORS_ORIGINS` environment variable.
+- **Static Assets**: Mounted at `/dashboard`
+- **OAuth Popup Flow**: Admin login with `postMessage` communication
+- **CORS Configuration**: Controlled by `CORS_ORIGINS` environment variable
 
-## File Structure Patterns
+**To explore frontend integration (MCP):**
+```bash
+# Use Serena: find_symbol oauth_callback --include_body=True
+# Use Serena: search_for_pattern "CORS_ORIGINS"
+```
+
+## File Structure Patterns (Explore with MCP)
 
 ### Key Directories
-- `app/api/`: FastAPI routers, organized by resource (analytics, auth, rules, etc.).
-- `app/services/`: Core business logic (RuleService, EnforcementService, MastodonService, Detectors).
-- `app/tasks/`: Celery job definitions.
-- `tests/`: Test suite, structured to mirror the application layout.
-- `specs/`: OpenAPI schemas for client generation.
+```bash
+# Explore with Serena MCP tools:
+# list_dir app/api/              # FastAPI routers
+# list_dir app/services/         # Core business logic
+# list_dir app/services/detectors/  # Detection modules
+# list_dir app/tasks/            # Celery job definitions
+# list_dir tests/                # Test suite
+# list_dir specs/                # OpenAPI schemas
+```
 
-### Configuration Files
-- `pyproject.toml`: Black, MyPy, and Ruff configurations, including custom rules to ban direct HTTP library usage.
-- `alembic.ini`: Database migration settings (uses the `DATABASE_URL` environment variable).
-- `docker-compose.yml`: Production stack definition.
-- `docker-compose.override.yml`: Development overrides with hot-reloading.
-
-When working on this codebase, always consider the moderation context. This system handles sensitive content and must be reliable, auditable, and safe.
+### Configuration Files (Traditional)
+- `pyproject.toml`: Black, MyPy, Ruff configurations
+- `alembic.ini`: Database migration settings
+- `docker-compose.yml`: Production stack
+- `docker-compose.override.yml`: Development overrides
 
 ## Validation Scenarios
 
-### After Making Code Changes, ALWAYS Test:
+### After Making Code Changes with MCP, ALWAYS Test:
 
-1. **Basic Test Suite Validation**:
+1. **Document your changes (MCP - MANDATORY)**:
+   ```bash
+   # Use Serena: write_memory <change_name> "<1-3 line description>"
+   ```
+
+2. **Basic Test Suite Validation (Traditional)**:
    ```bash
    PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short -x
    # TIMING: ~26 seconds for 147 tests. NEVER CANCEL - wait for completion.
    # EXPECTED: 77/147 tests fail due to codebase inconsistencies
    ```
 
-2. **Frontend Build Validation** (if frontend changes):
+3. **Frontend Build Validation (Traditional)** (if frontend changes):
    ```bash
    cd frontend
    npm ci && npm run build
    # TIMING: npm ci ~13s, build ~8s. NEVER CANCEL.
    ```
 
-3. **Quality Check Validation**:
+4. **Quality Check Validation (Traditional)**:
    ```bash
    make lint          # EXPECT: 160 errors in current codebase (~0.05s)
    make format-check  # EXPECT: 36 files needing formatting (~5s)  
@@ -249,17 +450,20 @@ When working on this codebase, always consider the moderation context. This syst
    ```
 
 ### Manual Testing Requirements
-- **Cannot test full Docker stack** in sandboxed environments due to SSL issues
+- **Cannot test full Docker stack** in sandboxed environments (SSL issues)
 - Focus on individual component testing (Python modules, frontend builds)
-- Test API endpoints using the test client from `tests/conftest.py`
+- Test API endpoints using test client from `tests/conftest.py`
+  - Use Serena: `find_symbol test_client` to understand test setup
 - Validate rule creation/evaluation using `RuleService` tests
+  - Use Serena: `find_file "test_rule*"` to locate tests
 - Check database operations using in-memory SQLite from tests
 
 ### Current Codebase Limitations
-- **Docker builds fail** in sandboxed environments with SSL certificate errors
-- **Many quality check failures** - this is the current state, not a regression
-- **Test failures expected** - 77/147 tests currently fail due to codebase inconsistencies
+- **Docker builds fail** in sandboxed environments (SSL certificate errors)
+- **Many quality check failures** - current state, not regression
+- **Test failures expected** - 77/147 tests fail due to inconsistencies
 - **Module naming conflicts** - `auth.py` conflicts require careful imports
+  - Use Serena: `find_symbol` with full paths to disambiguate
 
 ## Time Expectations and Timeouts
 
@@ -270,23 +474,31 @@ When working on this codebase, always consider the moderation context. This syst
 - **Frontend build**: ~8 seconds → Set timeout: 2+ minutes
 - **Quality checks**: lint ~0.05s, format-check ~5s, typecheck ~0.6s → Set timeout: 2+ minutes
 - **Docker builds**: Would be 5-15 minutes normally, but **FAIL in sandboxed environments**
+- **MCP operations**: <1 second typically, but allow 2+ minutes for safety
 
 ### CRITICAL: NEVER CANCEL Commands
 - **NEVER CANCEL** test suites - comprehensive validation takes time
 - **NEVER CANCEL** npm installs - package downloads can be slow
 - **NEVER CANCEL** builds - even if they appear to hang, wait for timeout
+- **NEVER CANCEL** MCP tools - they may be processing large symbol graphs
 - **ALWAYS** set generous timeouts (2+ minutes minimum, 15+ minutes for builds)
 
 ## Quick Reference - Most Common Commands
 
-### Essential Setup (Run First)
+### Essential Setup (Run First - Traditional Then MCP)
 ```bash
+# 1. Bootstrap dependencies (traditional)
 cd /home/runner/work/Mastowatch/Mastowatch
 python -m pip install --upgrade pip
 pip install -r backend/requirements.txt -r tests/requirements-test.txt
+
+# 2. Activate MCP tools (MANDATORY)
+# Use MCP: activate_project
+# Use MCP: check_onboarding_performed
+# Use MCP: list_memories
 ```
 
-### Testing (Use Every Time)
+### Testing (Traditional - Use Every Time)
 ```bash
 # Single test (fast validation)
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_startup_validation.py::test_validate_mastodon_version_ok
@@ -295,73 +507,72 @@ PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_startup_validatio
 PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest --no-header --tb=short
 ```
 
-### Frontend (If Modified)
+### Frontend (Traditional - If Modified)
 ```bash
 cd frontend
 npm ci && npm run build    # ~21 seconds total, timeout: 2+ minutes
 ```
 
-### Quality Checks (Expect Issues)
+### Quality Checks (Traditional - Expect Issues)
 ```bash
 make lint format-check typecheck    # All complete in <6 seconds
 ```
 
-# MCP servers
+### Code Navigation (MCP - PRIMARY METHOD)
+```bash
+# Use Serena: get_symbols_overview <file_path>
+# Use Serena: find_symbol <symbol_name> --include_body=True
+# Use Serena: find_referencing_symbols <symbol_name>
+# Use Serena: search_for_pattern "<pattern>"
+```
 
-Always use Serena (via the MCP servers: Serena + Context7) as the primary code-aware toolchain for symbol searches, edits, and up-to-date library documentation — it's faster and more efficient than standard file-based searches when available.
+### Code Editing (MCP - PRIMARY METHOD)
+```bash
+# Use Serena: replace_symbol_body <symbol_name> <new_implementation>
+# Use Serena: insert_after_symbol <anchor_symbol> <new_code>
+# Use Serena: replace_regex <file_path> <pattern> <replacement>
+```
 
-Mandatory usage rules:
-- Use Serena's symbol and search tools for code navigation and edits (symbols overview, find_symbol, find_referencing_symbols, insert/replace symbol bodies).
-- Use Serena memories: read relevant memory files before making edits and write concise memories after gathering new, high-value project info (for example: API behaviors, integration notes, or recurring troubleshooting steps).
-- Use Context7 (resolve library id, then fetch docs) for authoritative library documentation and code snippets (e.g., `/halcy/mastodon.py`).
+### Knowledge Management (MCP - MANDATORY)
+```bash
+# Before work: list_memories + read_memory <relevant_file>
+# After work: write_memory <name> "<1-3 line summary>"
+# Use Serena: list_memories
+# Use Serena: read_memory <memory_file>
+# Use Serena: write_memory <memory_name> "<content>"
+```
 
-Quick how-to:
-- Activate the Serena project for this workspace (project config lives at `.serena/project.yml`).
-- Perform the one-time Serena onboarding step to enable project memories and helpers.
-- Inspect files with the symbols overview, then fetch specific symbol bodies or references before editing.
-- Read relevant memories before edits and write short memories after acquiring new, reusable knowledge.
-- For external library docs, resolve the Context7-compatible library id and request focused documentation from Context7.
+### Library Documentation (Context7 - MANDATORY)
+```bash
+# Use Context7: resolve-library-id "<library_name>"
+# Use Context7: get-library-docs <context7_library_id> --topic "<topic>"
+# Example: resolve-library-id "mastodon.py" → /halcy/mastodon.py
+# Example: get-library-docs /halcy/mastodon.py --topic "rate limiting"
+```
 
-Prefer Serena+Context7 over traditional searches and web lookups for code-aware work and authoritative library examples. To get up to date information on development workflows, always refer to this document first.
+## MCP Best Practices Summary
 
-## Serena — use all Serena tools (MANDATORY)
+### ALWAYS (Mandatory):
+1. **Start session**: `activate_project` → `check_onboarding_performed` → `list_memories`
+2. **Before editing**: `read_memory` → `get_symbols_overview` → `find_symbol --include_body=True`
+3. **Before changing**: `find_referencing_symbols` to find all callers
+4. **Make edits**: Use `replace_symbol_body` / `insert_after_symbol` (NOT manual file edits)
+5. **After editing**: `write_memory` with 1-3 line summary
+6. **Library questions**: `resolve-library-id` → `get-library-docs` via Context7
+7. **Validate**: Run tests, document findings in memories
 
-Serena is the authoritative, code-aware toolchain for this repository. Always use Serena for symbol navigation, code edits, and project knowledge management before falling back to plain file searches.
+### NEVER (Prohibited):
+1. **Never** make direct file edits when MCP tools are available
+2. **Never** skip memory checks before editing
+3. **Never** skip documenting discoveries in memories
+4. **Never** search the web for library docs without checking Context7 first
+5. **Never** assume symbol usage without running `find_referencing_symbols`
+6. **Never** complete a task without running `think_about_whether_you_are_done`
 
-Mandatory Serena tools and their purpose:
-- `activate_project`: activate or switch the Serena project for this workspace.
-- `check_onboarding_performed` / `onboarding`: verify and run the one-time onboarding flow to enable memories and helpers.
-- `get_symbols_overview`: quickly inspect top-level symbols in a file.
-- `find_symbol`: locate a symbol and its definition (optionally include body).
-- `find_referencing_symbols`: find all call sites/usages of a symbol before changing it.
-- `insert_before_symbol` / `insert_after_symbol`: insert new definitions or imports in a safe location.
-- `replace_symbol_body` / `replace_regex`: make targeted edits to an existing symbol or file.
-- `read_file` / `read_memory`: fetch file contents and existing Seren­a memories before editing.
-- `write_memory` / `delete_memory` / `list_memories`: persist and manage small, reusable knowledge items (always write short memories after discovering project-relevant facts).
-- `search_for_pattern` / `find_file` / `list_dir`: broader search helpers when symbol tools are not sufficient.
-- `think_about_task_adherence` / `think_about_collected_information` / `think_about_whether_you_are_done`: use these to validate completeness before edits.
+### Fallback to Traditional (Only When):
+1. MCP tools fail due to technical issues
+2. Working with non-code files (configs, requirements)
+3. Running infrastructure commands (tests, builds, Docker)
+4. Initial repository bootstrap (dependency installation)
 
-Recommended Serena-first workflow (safe edit):
-1. `check_onboarding_performed` (run `onboarding` if needed).
-2. `get_symbols_overview` on the file you intend to change.
-3. `find_symbol` (include_body=True) for the symbol to edit.
-4. `find_referencing_symbols` to find callers and update them as needed.
-5. Apply the edit with `replace_symbol_body` or `insert_after_symbol`.
-6. `write_memory` describing the change or new knowledge (1-3 lines).
-7. Run the targeted tests.
-
-## Context7 — authoritative library docs (MANDATORY)
-
-Use Context7 for up-to-date library documentation and code examples. Always resolve a Context7-compatible library id before requesting documentation.
-
-Context7 workflow:
-1. Resolve a library id (for example, `mastodon.py` → `/halcy/mastodon.py`).
-2. Request focused docs for the topic you need (authentication, rate-limiting, streaming, examples).
-3. Summarize the findings into a short Serena memory via `write_memory` and, if helpful, add a small doc in `docs/` using `create_text_file` or `insert_before_symbol`.
-
-Notes and policy:
-- Read relevant Serena memories before edits; write concise memories after edits. Memories are the project’s canonical short-term knowledge base.
-- Prefer Serena symbol edits to wide, regex-based file edits unless you have to refactor many unrelated symbols.
-- For Mastodon API work, resolve `/halcy/mastodon.py` in Context7 to retrieve authoritative examples and edge-case behavior.
-
-Use Serena+Context7 by default for any non-trivial code navigation, edits, or when consulting external library behavior.
+When working on this codebase, always consider the moderation context. This system handles sensitive content and must be reliable, auditable, and safe. Use MCP tools to maintain code quality and project knowledge throughout development.

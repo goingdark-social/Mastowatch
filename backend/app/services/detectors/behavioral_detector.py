@@ -1,7 +1,7 @@
 """Behavioral detector for account behavior analysis."""
 
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
 
@@ -26,7 +26,7 @@ class BehavioralDetector(BaseDetector):
         with Session(engine) as session:
             behavior_type = rule.pattern.lower().strip()
             if behavior_type == "rapid_posting":
-                one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+                one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
                 posts_last_1h = (
                     session.query(InteractionHistory)
                     .filter(
@@ -73,7 +73,7 @@ class BehavioralDetector(BaseDetector):
                         )
                     )
             elif behavior_type == "daily_posting":
-                twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+                twenty_four_hours_ago = datetime.now(UTC) - timedelta(hours=24)
                 posts_last_24h = (
                     session.query(InteractionHistory)
                     .filter(
@@ -98,8 +98,8 @@ class BehavioralDetector(BaseDetector):
                 violations.extend(self._check_automation(rule, account_data, statuses))
             elif behavior_type == "link_spam":
                 violations.extend(self._check_link_spam(rule, statuses))
-            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-            twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+            one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
+            twenty_four_hours_ago = datetime.now(UTC) - timedelta(hours=24)
             posts_last_1h = (
                 session.query(InteractionHistory)
                 .filter(
@@ -126,21 +126,28 @@ class BehavioralDetector(BaseDetector):
                     mastodon_account_id=mastodon_account_id,
                     posts_last_1h=posts_last_1h,
                     posts_last_24h=posts_last_24h,
-                    last_calculated_at=datetime.utcnow(),
+                    last_calculated_at=datetime.now(UTC),
                 )
                 session.add(metrics)
             else:
                 metrics.posts_last_1h = posts_last_1h
                 metrics.posts_last_24h = posts_last_24h
-                metrics.last_calculated_at = datetime.utcnow()
+                metrics.last_calculated_at = datetime.now(UTC)
             session.commit()
         return violations
 
     @staticmethod
     def _parse_time(value: Any) -> datetime:
+        """Parse a datetime-like value and return an aware UTC datetime."""
         if isinstance(value, datetime):
-            return value
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            # Normalize naive datetimes to UTC and return aware datetime
+            if value.tzinfo is None:
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
 
     def _check_automation(
         self, rule: Rule, account_data: dict[str, Any], statuses: list[dict[str, Any]]
@@ -174,7 +181,7 @@ class BehavioralDetector(BaseDetector):
                 )
             )
         if account_data.get("bot"):
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             public_items = [s for s in items if s.get("visibility") not in ("unlisted", "private", "direct")]
             posts_last_hour = sum(
                 1 for s in public_items if self._parse_time(s["created_at"]) >= now - timedelta(hours=1)

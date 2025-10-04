@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import redis
@@ -351,7 +351,7 @@ def analyze_and_maybe_report(payload: dict):
         rule_map = {r.name: r for r in rules}
 
         def schedule(action: str, duration: int) -> None:
-            expires = datetime.utcnow() + timedelta(seconds=duration)
+            expires = datetime.now(UTC) + timedelta(seconds=duration)
             with SessionLocal() as db:
                 existing = (
                     db.query(ScheduledAction)
