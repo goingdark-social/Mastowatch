@@ -71,7 +71,7 @@ class Config(Base):
 class Cursor(Base):
     __tablename__ = "cursors"
     name = Column(Text, primary_key=True)
-    position = Column(Text, nullable=False)
+    position = Column(Text, nullable=True)  # NULL position means start from beginning
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

@@ -5,14 +5,15 @@
             "name": "Python: Pytest (current file)",
             "type": "debugpy",
             "request": "launch",
-            "program": "-m",
             "module": "pytest",
             "args": [
-                "${file}"
+                "${file}",
+                "-v"
             ],
             "console": "integratedTerminal",
             "justMyCode": true,
-            "envFile": "${workspaceFolder}/.env"
+            "envFile": "${workspaceFolder}/.env",
+            "cwd": "${workspaceFolder}/backend"
         }
     ]
 }
