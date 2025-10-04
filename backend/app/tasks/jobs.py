@@ -116,11 +116,21 @@ def _poll_accounts(origin: str, cursor_name: str):
             if not accounts:
                 break
 
+            # On first page, estimate total accounts for progress tracking
+            if pages == 0 and accounts:
+                with SessionLocal() as db:
+                    db.execute(
+                        text("UPDATE scan_sessions SET total_accounts = :total WHERE id = :sid"),
+                        {"total": len(accounts) * settings.MAX_PAGES_PER_POLL, "sid": session_id}
+                    )
+                    db.commit()
+
             for account_data in accounts:
                 try:
                     _persist_account(account_data)
 
-                    scan_result = enhanced_scanner.scan_account_efficiently(account_data.get("account", {}), session_id)
+                    # Pass full admin object to scanner (includes admin fields + nested account)
+                    scan_result = enhanced_scanner.scan_account_efficiently(account_data, session_id)
 
                     if scan_result:
                         accounts_processed += 1
@@ -149,6 +159,12 @@ def _poll_accounts(origin: str, cursor_name: str):
                         text("INSERT INTO cursors (name, position, updated_at) VALUES (:n, :pos, CURRENT_TIMESTAMP)"),
                         {"n": cursor_name, "pos": new_next},
                     )
+
+                # Update scan session cursor position for progress tracking
+                db.execute(
+                    text("UPDATE scan_sessions SET current_cursor = :cursor WHERE id = :sid"),
+                    {"cursor": new_next, "sid": session_id}
+                )
                 db.commit()
 
             cursor_lag_pages.labels(cursor=cursor_name).set(1.0 if new_next else 0.0)

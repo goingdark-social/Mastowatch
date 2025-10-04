@@ -297,6 +297,17 @@ export default function App() {
     }
   }, [currentUser, authLoading]);
 
+  // Poll scanning analytics every 5 seconds for real-time updates
+  useEffect(() => {
+    if (!currentUser || authLoading) return;
+
+    const interval = setInterval(() => {
+      loadScanningAnalytics();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentUser, authLoading]);
+
   useEffect(() => {
     loadTimeline();
   }, [timeRange]);

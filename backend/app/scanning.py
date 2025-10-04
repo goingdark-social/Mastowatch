@@ -249,10 +249,10 @@ class EnhancedScanningSystem:
                             origin=session_type, status="active", limit=limit, max_id=cursor
                         )
                     else:
-                        accounts, next_cursor = (
-                            client.admin_accounts_v2(origin=session_type, status="active", limit=limit, max_id=cursor),
-                            None,
-                        )
+                        # Use admin_accounts_v2 and extract pagination cursor
+                        accounts = client.admin_accounts_v2(origin=session_type, status="active", limit=limit, max_id=cursor)
+                        pagination_info = client.get_pagination_info(accounts)
+                        next_cursor = pagination_info.get("max_id") if pagination_info else None
                     return accounts, next_cursor
                 except Exception as e:
                     logger.error(f"Error fetching {session_type} accounts via client, falling back: {e}")
