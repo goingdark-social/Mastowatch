@@ -576,40 +576,35 @@ class TestDomainValidationMonitoring(unittest.TestCase):
 
         self.setup_admin_auth()
 
-        # Verify federated scan uses generated client
-        with patch("app.scanning.MastoClient") as mock_client:
+        # Verify federated scan uses mastodon_service
+        with patch("app.scanning.mastodon_service") as mock_service:
             mock_client_instance = MagicMock()
-            mock_client.return_value = mock_client_instance
+            mock_service.get_admin_client.return_value = mock_client_instance
 
-            # Mock response from generated client
-            mock_response = MagicMock()
-            mock_response.json.return_value = []
-            mock_response.headers = {}
-            mock_client_instance.get.return_value = mock_response
+            # Mock response from mastodon.py client
+            mock_client_instance.timeline_public.return_value = []
 
             # Trigger federated scan
             response = self.client.post("/scanning/federated", headers={"X-API-Key": "test_api_key"})
             self.assertEqual(response.status_code, 200)
 
     def test_generated_client_error_handling(self):
-        """Test error handling with auto-generated client"""
+        """Test error handling with mastodon_service"""
         # Test various client errors that might occur
-        with patch("app.scanning.MastoClient") as mock_client:
+        with patch("app.scanning.mastodon_service") as mock_service:
+            from mastodon import MastodonAPIError
             mock_client_instance = MagicMock()
-            mock_client.return_value = mock_client_instance
+            mock_service.get_admin_client.return_value = mock_client_instance
 
-            # Test 422 error handling
-            mock_response = MagicMock()
-            mock_response.status_code = 422
-            mock_response.json.return_value = {"error": "Unprocessable Content"}
-            mock_client_instance.get.return_value = mock_response
+            # Test API error handling
+            mock_client_instance.timeline_public.side_effect = MastodonAPIError("Unprocessable Content")
 
             from app.scanning import EnhancedScanningSystem
 
             with patch("app.scanning.SessionLocal"):
                 scanner = EnhancedScanningSystem()
 
-                # Should handle 422 gracefully
+                # Should handle errors gracefully
                 try:
                     result = scanner._scan_domain_content("test.example", 1)
                     self.assertIsInstance(result, dict)
@@ -619,20 +614,20 @@ class TestDomainValidationMonitoring(unittest.TestCase):
 
     @unittest.skip("Test expects tuple return value but gets value error - mock not integrated properly")
     def test_api_client_admin_endpoints_usage(self):
-        """Test usage of admin endpoints through generated client"""
+        """Test usage of admin endpoints through mastodon_service"""
 
         self.setup_admin_auth()
 
-        # Test that admin account fetching uses generated client
-        with patch("app.scanning.MastoClient") as mock_admin_client:
+        # Test that admin account fetching uses mastodon_service
+        with patch("app.scanning.mastodon_service") as mock_service:
             mock_admin_instance = MagicMock()
-            mock_admin_client.return_value = mock_admin_instance
+            mock_service.get_admin_client.return_value = mock_admin_instance
 
             # Mock admin accounts response
-            mock_response = MagicMock()
-            mock_response.json.return_value = [{"id": "1", "username": "admin1"}, {"id": "2", "username": "admin2"}]
-            mock_response.headers = {"link": ""}
-            mock_admin_instance.get.return_value = mock_response
+            mock_admin_instance.admin_accounts.return_value = [
+                {"id": "1", "username": "admin1"},
+                {"id": "2", "username": "admin2"}
+            ]
 
             # Verify admin endpoint usage
             from app.scanning import EnhancedScanningSystem

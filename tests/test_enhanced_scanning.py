@@ -49,12 +49,12 @@ class TestEnhancedScanningSystem(unittest.TestCase):
         self.mock_session.query.return_value.order_by.return_value.limit.return_value.all.return_value = []
         self.mock_session.commit.return_value = None
 
-        # Mock MastoClient
-        self.client_patcher = patch("app.scanning.MastoClient")
-        self.mock_masto_client = self.client_patcher.start()
+        # Mock mastodon_service
+        self.service_patcher = patch("app.scanning.mastodon_service")
+        self.mock_masto_service = self.service_patcher.start()
         self.mock_client_instance = MagicMock()
-        self.mock_masto_client.return_value = self.mock_client_instance
-        self.mock_client_instance.get_account_statuses.return_value = []
+        self.mock_masto_service.get_admin_client.return_value = self.mock_client_instance
+        self.mock_client_instance.account_statuses.return_value = []
 
         self.rule_service_patcher = patch("app.scanning.rule_service")
         self.mock_rule_service = self.rule_service_patcher.start()
@@ -68,7 +68,7 @@ class TestEnhancedScanningSystem(unittest.TestCase):
     def tearDown(self):
         """Stop patches."""
         self.db_patcher.stop()
-        self.client_patcher.stop()
+        self.service_patcher.stop()
         self.rule_service_patcher.stop()
 
     def test_content_hash_calculation(self):
