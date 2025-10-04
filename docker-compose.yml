@@ -17,7 +17,7 @@ x-backend-env: &backend-env
   WEBHOOK_SECRET: "${WEBHOOK_SECRET}"
   
   # Safety Controls
-  DRY_RUN: "${DRY_RUN:-false}"  # Production default: disabled
+  DRY_RUN: "${DRY_RUN:-true}"  # SAFETY: Default to dry-run mode, set to false ONLY when ready for live enforcement
   PANIC_STOP: "${PANIC_STOP:-false}"
   SKIP_STARTUP_VALIDATION: "${SKIP_STARTUP_VALIDATION:-false}"
   

@@ -49,25 +49,16 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         Base.metadata.create_all(bind=engine)
         self.test_engine = engine
 
-        # Mock OAuth config before app import - needs to be patched in multiple places
-        self.oauth_patcher = patch("app.oauth.get_oauth_config")
-        self.oauth_patcher2 = patch("app.api.auth.get_oauth_config")
-        self.mock_oauth_config = self.oauth_patcher.start()
-        self.mock_oauth_config2 = self.oauth_patcher2.start()
-        self.mock_oauth_instance = MagicMock()
-        self.mock_oauth_instance.configured = True
-        self.mock_oauth_config.return_value = self.mock_oauth_instance
-        self.mock_oauth_config2.return_value = self.mock_oauth_instance
-
         # Mock external dependencies during app import
         with patch("redis.from_url") as mock_redis:
             mock_redis_instance = MagicMock()
             mock_redis.return_value = mock_redis_instance
             mock_redis_instance.ping.return_value = True
 
-            from app.main import app
+            from app.main import app, get_current_user_hybrid
 
             self.app = app
+            self.get_current_user_hybrid = get_current_user_hybrid
             self.client = TestClient(app)
 
         # Mock Redis for test execution
@@ -81,8 +72,6 @@ class TestAuthenticationAuthorization(unittest.TestCase):
 
     def tearDown(self):
         self.redis_patcher.stop()
-        self.oauth_patcher.stop()
-        self.oauth_patcher2.stop()
         self.app.dependency_overrides.clear()
 
         # Drop all tables after test
@@ -186,10 +175,18 @@ class TestAuthenticationAuthorization(unittest.TestCase):
     @unittest.skip("SessionMiddleware not properly configured in test environment - OAuth integration incomplete")
     @patch("app.services.mastodon_service.mastodon_service.exchange_oauth_code", new_callable=AsyncMock)
     def test_oauth_token_exchange(self, mock_exchange):
+        # Create test admin user
         admin_user = self.create_test_admin_user()
-        self.mock_oauth_instance.fetch_user_info = AsyncMock(return_value=admin_user)
-        self.mock_redis_instance.get.return_value = "valid"
+        
+        # Override the authentication dependency using documented FastAPI pattern
+        def override_get_current_user():
+            return admin_user
+        
+        self.app.dependency_overrides[self.get_current_user_hybrid] = override_get_current_user
+        
+        # Mock the OAuth exchange
         mock_exchange.return_value = {"access_token": "test_access_token"}
+        self.mock_redis_instance.get.return_value = "valid"
 
         # First, initiate login to produce a valid oauth_state and auth_url
         with self.client as client:
@@ -219,8 +216,15 @@ class TestAuthenticationAuthorization(unittest.TestCase):
     @unittest.skip("OAuth non-admin rejection returns 500 instead of 403 - feature incomplete")
     def test_oauth_non_admin_user_rejection(self):
         """Test rejection of non-admin users during OAuth"""
+        # Create test regular user (non-admin)
         regular_user = self.create_test_regular_user()
-        self.mock_oauth_instance.fetch_user_info.return_value = regular_user
+        
+        # Override the authentication dependency using documented FastAPI pattern
+        def override_get_current_user():
+            return regular_user
+        
+        self.app.dependency_overrides[self.get_current_user_hybrid] = override_get_current_user
+        
         with patch(
             "app.services.mastodon_service.mastodon_service.exchange_oauth_code",
             AsyncMock(return_value={"access_token": "test_access_token"}),
