@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       db:
-        image: postgres:17
+        image: postgres:18
         ports:
           - 5432:5432
         env:
