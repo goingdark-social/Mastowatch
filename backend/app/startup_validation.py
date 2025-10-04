@@ -20,11 +20,11 @@ def validate_startup_configuration() -> None:
         settings = get_settings()
 
         # Critical API tokens
-        if not settings.BOT_TOKEN or settings.BOT_TOKEN == "REPLACE_WITH_BOT_ACCESS_TOKEN":
-            errors.append("BOT_TOKEN is missing or contains placeholder value")
+        if not settings.MASTODON_CLIENT_SECRET or settings.MASTODON_CLIENT_SECRET == "REPLACE_WITH_BOT_ACCESS_TOKEN":
+            errors.append("MASTODON_CLIENT_SECRET is missing or contains placeholder value")
 
-        if not settings.ADMIN_TOKEN or settings.ADMIN_TOKEN == "REPLACE_WITH_ADMIN_ACCESS_TOKEN":
-            errors.append("ADMIN_TOKEN is missing or contains placeholder value")
+        if not settings.MASTODON_CLIENT_SECRET or settings.MASTODON_CLIENT_SECRET == "REPLACE_WITH_ADMIN_ACCESS_TOKEN":
+            errors.append("MASTODON_CLIENT_SECRET is missing or contains placeholder value")
 
         # Database and Redis connectivity
         if not settings.DATABASE_URL:

@@ -19,8 +19,8 @@ os.environ.update(
     {
         "SKIP_STARTUP_VALIDATION": "1",
         "INSTANCE_BASE": "https://test.mastodon.social",
-        "ADMIN_TOKEN": "test_admin_token_123456789",
-        "BOT_TOKEN": "test_bot_token_123456789",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123456789",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123456789",
         "DATABASE_URL": "postgresql+psycopg://test:test@localhost:5433/mastowatch_test",
         "REDIS_URL": "redis://localhost:6380/1",
         "API_KEY": "test_api_key",
@@ -419,12 +419,6 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         self.setup_admin_auth()
 
         # Mock overview data with job tracking
-        mock_overview = {
-            "totals": {"accounts": 1000, "reports": 50},
-            "recent_24h": {"new_accounts": 25, "new_reports": 3},
-            "active_jobs": {"federated_scans": 1, "domain_checks": 0, "total_active": 1},
-            "system_status": "healthy",
-        }
 
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 200)
@@ -643,9 +637,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
                 scanner = ScanningSystem()
                 accounts, cursor = scanner.get_next_accounts_to_scan("local", limit=10)
 
-                # Should use admin API endpoint
+                # Should use admin API v2 endpoint
                 mock_admin_instance.get.assert_called_with(
-                    "/api/v1/admin/accounts", params={"origin": "local", "status": "active", "limit": 10}
+                    "/api/v2/admin/accounts", params={"origin": "local", "status": "active", "limit": 10}
                 )
 
     # ========== ERROR RESILIENCE TESTS ==========

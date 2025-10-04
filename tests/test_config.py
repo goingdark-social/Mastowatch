@@ -10,13 +10,12 @@ from app.config import Settings
 
 
 class TestConfig(unittest.TestCase):
-
     def setUp(self):
         """Set up test environment variables"""
         self.test_env = {
             "INSTANCE_BASE": "https://test.mastodon.social",
-            "BOT_TOKEN": "test_bot_token",
-            "ADMIN_TOKEN": "test_admin_token",
+            "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET",
+            "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET",
             "DATABASE_URL": "postgresql://test:test@localhost:5432/test",
             "REDIS_URL": "redis://localhost:6379/1",
             "UI_ORIGIN": "http://localhost:3000",
@@ -44,8 +43,8 @@ class TestConfig(unittest.TestCase):
             str(settings.INSTANCE_BASE).rstrip("/"),
             self.test_env["INSTANCE_BASE"],
         )
-        self.assertEqual(settings.BOT_TOKEN, self.test_env["BOT_TOKEN"])
-        self.assertEqual(settings.ADMIN_TOKEN, self.test_env["ADMIN_TOKEN"])
+        self.assertEqual(settings.MASTODON_CLIENT_SECRET, self.test_env["MASTODON_CLIENT_SECRET"])
+        self.assertEqual(settings.MASTODON_CLIENT_SECRET, self.test_env["MASTODON_CLIENT_SECRET"])
         self.assertEqual(settings.DATABASE_URL, self.test_env["DATABASE_URL"])
         self.assertEqual(settings.REDIS_URL, self.test_env["REDIS_URL"])
 
@@ -96,7 +95,7 @@ class TestConfig(unittest.TestCase):
     def test_missing_required_field(self):
         """Test that missing required fields raise validation errors"""
         # Remove a required field
-        del os.environ["BOT_TOKEN"]
+        del os.environ["MASTODON_CLIENT_SECRET"]
 
         from pydantic import ValidationError
 
@@ -105,7 +104,7 @@ class TestConfig(unittest.TestCase):
             Settings(_env_file=None)
 
         # Restore for tearDown
-        os.environ["BOT_TOKEN"] = self.test_env["BOT_TOKEN"]
+        os.environ["MASTODON_CLIENT_SECRET"] = self.test_env["MASTODON_CLIENT_SECRET"]
 
 
 if __name__ == "__main__":

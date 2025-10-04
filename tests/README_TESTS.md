@@ -10,14 +10,15 @@ This test suite verifies the correct handling of Mastodon admin API responses an
 
 Tests the **critical bug** where the system was incorrectly extracting account data from admin API responses.
 
-**Problem**: Code expected `{"account": {...}}` wrapper, but Mastodon API returns admin objects with a NESTED `account` field:
+**Problem**: Code expected `{"account": {...}}` wrapper, but Mastodon API v2 returns admin objects with a NESTED `account` field:
 
 ```python
 {
     "id": "123",
     "username": "user",
     "email": "user@example.com",      # ← Admin metadata
-    "ip": {"ip": "1.2.3.4", ...},     # ← Admin metadata
+    "ip": "1.2.3.4",                  # ← Admin metadata (STRING in v2, not object)
+    "ips": [{"ip": "1.2.3.4", "used_at": "..."}],  # ← IP history
     "confirmed": true,                 # ← Admin metadata
     "account": {                       # ← Nested PUBLIC account
         "id": "123",

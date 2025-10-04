@@ -27,7 +27,7 @@ class TestCeleryTasks(unittest.TestCase):
     @patch("app.tasks.jobs.SessionLocal")
     @patch("app.tasks.jobs.rule_service")
     @patch("app.tasks.jobs.get_settings")
-    @patch("app.tasks.jobs._get_bot_client")
+    @patch("app.tasks.jobs._get_client")
     def test_analyze_and_maybe_report_dry_run(self, mock_bot_client, mock_settings, mock_rule_service, mock_db):
         """Test analyze_and_maybe_report in dry run mode"""
         # Setup mocks
@@ -105,7 +105,7 @@ class TestCeleryTasks(unittest.TestCase):
     @patch("app.tasks.jobs.SessionLocal")
     @patch("app.tasks.jobs.rule_service")
     @patch("app.tasks.jobs.settings")
-    @patch("app.tasks.jobs._get_admin_client")
+    @patch("app.tasks.jobs._get_client")
     @patch("app.tasks.jobs.analyze_and_maybe_report")
     def test_process_new_report(self, mock_analyze, mock_admin_client, mock_settings, mock_rule_service, mock_db):
         """Test processing of new report webhook"""
@@ -126,15 +126,14 @@ class TestCeleryTasks(unittest.TestCase):
 
         mock_analyze.delay.return_value = MagicMock(id="task_123")
 
-        # Mock report payload - this should match webhook structure
+        # Mastodon API v2: webhook passes object directly (not wrapped in "report" key)
+        # The webhook handler extracts payload["object"] and passes it to the worker
         payload = {
-            "report": {
-                "id": "report_123",
-                "account": {"id": "reporter_123", "acct": "reporter@example.com"},
-                "target_account": {"id": "target_123", "acct": "target@example.com"},
-                "status_ids": ["status_1", "status_2"],
-                "comment": "This is spam",
-            }
+            "id": "report_123",
+            "account": {"id": "reporter_123", "acct": "reporter@example.com"},
+            "target_account": {"id": "target_123", "acct": "target@example.com"},
+            "status_ids": ["status_1", "status_2"],
+            "comment": "This is spam",
         }
 
         # Call the function
@@ -147,33 +146,32 @@ class TestCeleryTasks(unittest.TestCase):
         mock_rule_service.evaluate_account.assert_called_once()
 
     @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs._get_admin_client")
-    def test_process_new_status(self, mock_get_admin_client, mock_rule_service):
+    @patch("app.tasks.jobs._get_client")  # process_new_status uses _get_client, not _get_client
+    def test_process_new_status(self, mock_get_client, mock_rule_service):
         """Test processing of new status webhook"""
         mock_client = MagicMock()
-        mock_client.get_account_statuses.return_value = [
+        mock_client.account_statuses.return_value = [  # Mastodon.py uses account_statuses, not get_account_statuses
             {"id": "old1", "visibility": "public"},
             {"id": "old2", "visibility": "unlisted"},
             {"id": "status_123", "visibility": "public"},
             {"id": "old3", "visibility": "private"},
         ]
-        mock_get_admin_client.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_rule_service.evaluate_account.return_value = []
 
+        # Mastodon API v2: webhook passes status object directly (not wrapped in "status" key)
+        # The webhook handler extracts payload["object"] and passes it to the worker
         payload = {
-            "status": {
-                "id": "status_123",
-                "account": {"id": "account_123", "acct": "user@example.com"},
-                "content": "test",
-                "visibility": "public",
-            }
+            "id": "status_123",
+            "account": {"id": "account_123", "acct": "user@example.com"},
+            "content": "test",
+            "visibility": "public",
         }
 
         process_new_status(payload)
 
-        mock_client.get_account_statuses.assert_called_once_with(
-            account_id="account_123", limit=20, exclude_reblogs=True
-        )
+        # Mastodon.py client uses account_statuses() method
+        mock_client.account_statuses.assert_called_once_with("account_123", limit=20, exclude_reblogs=True)
         statuses_arg = mock_rule_service.evaluate_account.call_args[0][1]
         self.assertEqual({s["id"] for s in statuses_arg}, {"status_123", "old1", "old2"})
         account_arg = mock_rule_service.evaluate_account.call_args[0][0]
@@ -198,8 +196,8 @@ class TestCeleryTasks(unittest.TestCase):
     @patch("app.tasks.jobs.SessionLocal")
     @patch("app.tasks.jobs.rule_service")
     @patch("app.tasks.jobs.settings")
-    @patch("app.tasks.jobs._get_bot_client")
-    @patch("app.tasks.jobs._get_admin_client")
+    @patch("app.tasks.jobs._get_client")
+    @patch("app.tasks.jobs._get_client")
     @unittest.skip(
         "Mock expectations don't align with implementation - test expects create_report to be called but implementation has early returns"
     )
@@ -210,8 +208,8 @@ class TestCeleryTasks(unittest.TestCase):
         # Setup mocks for non-dry run mode
         mock_settings.DRY_RUN = False
         mock_settings.PANIC_STOP = False
-        mock_settings.ADMIN_TOKEN = "test_admin_token"
-        mock_settings.BOT_TOKEN = "test_bot_token"
+        mock_settings.MASTODON_CLIENT_SECRET = "test_MASTODON_CLIENT_SECRET"
+        mock_settings.MASTODON_CLIENT_SECRET = "test_MASTODON_CLIENT_SECRET"
         mock_settings.REPORT_CATEGORY_DEFAULT = "spam"
         mock_settings.FORWARD_REMOTE_REPORTS = False
         mock_settings.POLICY_VERSION = "1.0"
@@ -275,7 +273,7 @@ class TestCeleryTasks(unittest.TestCase):
         }
 
         # Call the function
-        result = analyze_and_maybe_report(payload)
+        analyze_and_maybe_report(payload)
 
         # Should create a report since score (2.5) > threshold (1.0)
         # Note: Function may return None if dry_run is enabled or other conditions

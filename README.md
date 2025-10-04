@@ -45,8 +45,8 @@ For local development use the setup script. It launches a mock Mastodon server u
 ### Minimum Required Settings
 
 * `INSTANCE_BASE`: your Mastodon instance base URL
-* `BOT_TOKEN`: token with `write:reports` scope
-* `ADMIN_TOKEN`: token with admin read scopes
+* `MASTODON_CLIENT_SECRET`: token with `write:reports` scope
+* `MASTODON_CLIENT_SECRET`: token with admin read scopes
 * `API_KEY`: secure random string for API authentication
 * `WEBHOOK_SECRET`: secure random string for webhook signature validation
 * `DATABASE_URL`: PostgreSQL connection string
@@ -75,7 +75,7 @@ This application uses **direct access tokens** rather than OAuth2 client credent
    - **Application name**: `MastoWatch Admin`
    - **Scopes**: Select `admin:read` and `admin:write`
 4. Click **"Submit"**
-5. Copy the **"Your access token"** → use as `ADMIN_TOKEN` in `.env`
+5. Copy the **"Your access token"** → use as `MASTODON_CLIENT_SECRET` in `.env`
 
 #### 2. Bot Token (for reading and reporting)
 1. Create another new application
@@ -83,7 +83,7 @@ This application uses **direct access tokens** rather than OAuth2 client credent
    - **Application name**: `MastoWatch Bot`  
    - **Scopes**: Select `read` and `write:reports`
 3. Click **"Submit"**
-4. Copy the **"Your access token"** → use as `BOT_TOKEN` in `.env`
+4. Copy the **"Your access token"** → use as `MASTODON_CLIENT_SECRET` in `.env`
 
 **Note**: You only need the access tokens, not the client key/secret shown in the application details.
 

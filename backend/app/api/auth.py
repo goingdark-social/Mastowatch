@@ -377,45 +377,69 @@ def evaluate_dryrun(request_data: dict[str, Any]):
 
 @router.post("/webhooks/mastodon_events", tags=["webhooks"])
 async def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
-    """Handle incoming webhooks from Mastodon."""
+    """Handle incoming webhooks from Mastodon.
+
+    Mastodon API v2 webhook structure:
+    {
+        "event": "<event_name>",  // e.g., "report.created", "status.created"
+        "created_at": "...",
+        "object": {...}  // The actual entity (report, status, etc.)
+    }
+
+    Reference: https://mastodonpy.readthedocs.io/en/stable/02_return_values.html
+    """
     settings = get_settings()
 
     # Validate webhook signature if secret is configured
     if settings.WEBHOOK_SECRET:
-        signature_header = request.headers.get(settings.WEBHOOK_SIG_HEADER)
+        # Accept both X-Hub-Signature (v2 standard) and X-Hub-Signature-256 (legacy)
+        signature_header = request.headers.get(settings.WEBHOOK_SIG_HEADER) or request.headers.get(
+            "X-Hub-Signature-256"
+        )
         if not signature_header:
             raise HTTPException(status_code=401, detail="Missing webhook signature")
 
-        # Extract signature from header (format: "sha256=<hexdigest>")
+        # Extract signature from header (format: "sha256=<hexdigest>" or "sha1=<hexdigest>")
         try:
-            algorithm, signature = signature_header.split("=", 1)
-            if algorithm.lower() != "sha256":
-                raise HTTPException(status_code=401, detail="Unsupported signature algorithm")
+            algorithm, signature = signature_header.strip().split("=", 1)
+            algorithm = algorithm.lower()
+
+            # Support both sha256 (standard) and sha1 (legacy WebSub)
+            if algorithm == "sha256":
+                hash_func = hashlib.sha256
+            elif algorithm == "sha1":
+                hash_func = hashlib.sha1
+            else:
+                raise HTTPException(status_code=401, detail=f"Unsupported signature algorithm: {algorithm}")
         except ValueError as e:
             raise HTTPException(status_code=401, detail="Invalid signature format") from e
 
         # Validate signature
         body = await request.body()
-        expected_signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+        expected_signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hash_func).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):
             logger.warning("Invalid webhook signature received")
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     try:
-        event_type = request.headers.get("X-Event-Type", "unknown")
+        # Mastodon v2: event type is in the payload body, not a header
+        event_type = payload.get("event", "unknown")
+        event_object = payload.get("object", {})
 
         if event_type == "report.created":
-            # Process new report
-            task = process_new_report.delay(payload)
+            # Process new report - pass the object, not the whole payload
+            task = process_new_report.delay(event_object)
             return {"message": "Report processing queued", "task_id": task.id}
         elif event_type == "status.created":
-            # Process new status for proactive scanning
-            task = process_new_status.delay(payload)
+            # Process new status for proactive scanning - pass the object, not the whole payload
+            task = process_new_status.delay(event_object)
             return {"message": "Status processing queued", "task_id": task.id}
         else:
             return {"message": f"Ignored event type: {event_type}"}
 
     except Exception as e:
+        # Get event type safely for logging
+        event_type = payload.get("event", "unknown") if "payload" in locals() else "unknown"
         logger.error("Failed to process webhook", extra={"error": str(e), "event_type": event_type})
         raise HTTPException(status_code=500, detail="Failed to process webhook") from e

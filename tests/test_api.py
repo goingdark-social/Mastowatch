@@ -15,8 +15,8 @@ os.environ.update(
     {
         "SKIP_STARTUP_VALIDATION": "1",
         "INSTANCE_BASE": "https://test.mastodon.social",
-        "ADMIN_TOKEN": "test_admin_token_123",
-        "BOT_TOKEN": "test_bot_token_123",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123",
+        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123",
         "DATABASE_URL": "sqlite:///test_api.db",
         "REDIS_URL": "redis://localhost:6380/1",
         "API_KEY": "test_api_key_123",
@@ -225,8 +225,8 @@ class TestAPIEndpoints(unittest.TestCase):
         response = self.client.get("/config", headers=headers)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertNotIn("ADMIN_TOKEN", data)
-        self.assertNotIn("BOT_TOKEN", data)
+        self.assertNotIn("MASTODON_CLIENT_SECRET", data)
+        self.assertNotIn("MASTODON_CLIENT_SECRET", data)
         self.assertIn("DRY_RUN", data)
         self.assertEqual(data["PANIC_STOP"], True)
         self.assertEqual(data["REPORT_THRESHOLD"], 2.5)
@@ -384,23 +384,36 @@ class TestAPIEndpoints(unittest.TestCase):
     @patch("app.api.auth.process_new_report")
     @unittest.skip("Flaky test - passes individually but fails in full suite due to test isolation issues")
     def test_webhook_report_created(self, mock_process_report):
-        """Test webhook handling for report.created events."""
+        """Test webhook handling for report.created events.
+
+        Uses Mastodon API v2 webhook structure:
+        {
+            "event": "<event_name>",
+            "created_at": "...",
+            "object": {...}
+        }
+        """
         mock_process_report.delay.return_value = MagicMock(id="task_123")
+        # Mastodon v2 webhook structure
         payload = {
-            "id": "report_123",
-            "account": {"id": "account_123"},
-            "target_account": {"id": "target_account_123"},
+            "event": "report.created",
+            "created_at": "2023-01-01T12:00:00.000Z",
+            "object": {
+                "id": "report_123",
+                "account": {"id": "account_123"},
+                "target_account": {"id": "target_account_123"},
+            },
         }
         webhook_secret = os.environ["WEBHOOK_SECRET"]
         # Use json.dumps with separators to match FastAPI's JSON encoding
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        # Mastodon v2 uses X-Hub-Signature (not X-Hub-Signature-256)
         signature = "sha256=" + hmac.new(webhook_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         response = self.client.post(
             "/webhooks/mastodon_events",
             content=body,
             headers={
-                "X-Hub-Signature-256": signature,
-                "X-Event-Type": "report.created",
+                "X-Hub-Signature": signature,  # v2: X-Hub-Signature (not -256)
                 "Content-Type": "application/json",
             },
         )
@@ -409,23 +422,36 @@ class TestAPIEndpoints(unittest.TestCase):
     @patch("app.api.auth.process_new_status")
     @unittest.skip("Flaky test - passes individually but fails in full suite due to test isolation issues")
     def test_webhook_status_created(self, mock_process_status):
-        """Test webhook handling for status.created events."""
+        """Test webhook handling for status.created events.
+
+        Uses Mastodon API v2 webhook structure:
+        {
+            "event": "<event_name>",
+            "created_at": "...",
+            "object": {...}
+        }
+        """
         mock_process_status.delay.return_value = MagicMock(id="task_456")
+        # Mastodon v2 webhook structure
         payload = {
-            "id": "status_123",
-            "account": {"id": "account_123"},
-            "content": "test status content",
+            "event": "status.created",
+            "created_at": "2023-01-01T12:00:00.000Z",
+            "object": {
+                "id": "status_123",
+                "account": {"id": "account_123"},
+                "content": "test status content",
+            },
         }
         webhook_secret = os.environ["WEBHOOK_SECRET"]
         # Use json.dumps with separators to match FastAPI's JSON encoding
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        # Mastodon v2 uses X-Hub-Signature (not X-Hub-Signature-256)
         signature = "sha256=" + hmac.new(webhook_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         response = self.client.post(
             "/webhooks/mastodon_events",
             content=body,
             headers={
-                "X-Hub-Signature-256": signature,
-                "X-Event-Type": "status.created",
+                "X-Hub-Signature": signature,  # v2: X-Hub-Signature (not -256)
                 "Content-Type": "application/json",
             },
         )
@@ -461,8 +487,8 @@ class TestAPIEndpoints(unittest.TestCase):
         """Test that webhook rejects requests without proper signature."""
         response = self.client.post(
             "/webhooks/mastodon_events",
-            json={"account": {"id": "123"}, "statuses": []},
-            headers={"X-Hub-Signature-256": "invalid"},
+            json={"event": "report.created", "object": {"id": "123"}},
+            headers={"X-Hub-Signature": "invalid"},  # v2: X-Hub-Signature
         )
         self.assertEqual(response.status_code, 401)
 

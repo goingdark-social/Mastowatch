@@ -39,20 +39,24 @@ MAX_HISTORY_STATUSES = 20
 
 
 def _get_client():
-    """Get the authenticated Mastodon client from mastodon_service."""
-    return mastodon_service.get_authenticated_client()
+    """Get the bot Mastodon client from mastodon_service.
 
-
-def _get_admin_client():
-    """Backwards-compatible helper used in tests to obtain an admin client.
-
-    Tests patch this symbol in `app.tasks.jobs`, so keep a thin wrapper around
-    the service that returns the authenticated client.
+    Uses MASTODON_CLIENT_SECRET for general authenticated operations like fetching statuses.
+    For admin operations, use _get_client() instead.
     """
-    return mastodon_service.get_authenticated_client()
+    return mastodon_service.get_bot_client()
 
 
-def _get_bot_client():
+def _get_client():
+    """Get the admin Mastodon client from mastodon_service.
+
+    Uses MASTODON_CLIENT_SECRET for admin-level operations.
+    Tests patch this symbol in `app.tasks.jobs`, so keep a thin wrapper.
+    """
+    return mastodon_service.get_admin_client()
+
+
+def _get_client():
     """Backwards-compatible helper used in tests to obtain a bot client.
 
     Returns the same authenticated client by default. Tests mock this out as
@@ -329,18 +333,12 @@ def analyze_and_maybe_report(payload: dict):
             # Tests sometimes include recent statuses in the payload to avoid network calls
             statuses: list[dict[str, Any]] | None = payload.get("statuses") or payload.get("recent_statuses")
             if statuses is None:
-                # Use admin client helper if it exposes a get_account_statuses method
+                # Use Mastodon.py client to fetch statuses
                 try:
-                    if hasattr(client, "get_account_statuses"):
-                        statuses = client.get_account_statuses(account_id=acct_id, limit=settings.MAX_STATUSES_TO_FETCH)
-                    else:
-                        # Fallback to mastodon.py's account_statuses
-                        statuses = client.account_statuses(acct_id, limit=settings.MAX_STATUSES_TO_FETCH)
-                except Exception:
-                    # Fall back to mastodon_service sync wrapper which tests may mock
-                    statuses = mastodon_service.get_account_statuses_sync(
-                        account_id=acct_id, limit=settings.MAX_STATUSES_TO_FETCH
-                    )
+                    statuses = client.account_statuses(acct_id, limit=settings.MAX_STATUSES_TO_FETCH)
+                except Exception as e:
+                    logging.warning(f"Could not fetch statuses for account {acct_id}: {e}")
+                    statuses = []
 
             violations: list[Any] = rule_service.evaluate_account(acct, statuses or [])
             score = sum(v.score for v in violations)
@@ -536,7 +534,7 @@ def process_expired_actions():
     """Processes scheduled actions that have expired and reverses them."""
     logging.info("Running process_expired_actions task...")
 
-    client = _get_client()
+    _get_client()
     enforcement_service = EnforcementService()
 
     with SessionLocal() as session:
@@ -570,14 +568,19 @@ def process_expired_actions():
     retry_jitter=True,
 )
 def process_new_report(report_payload: dict):
-    """Processes a new report webhook payload."""
+    """Processes a new report webhook payload.
+
+    Mastodon API v2: receives the report object directly (not wrapped).
+    The webhook handler extracts payload["object"] and passes it here.
+    """
     logging.info(f"Processing new report: {report_payload.get('id')}")
     try:
         if _should_pause():
             logging.warning("PANIC_STOP enabled; skipping new report processing")
             return
 
-        report_data = report_payload.get("report", {})
+        # v2: report_payload is already the report object
+        report_data = report_payload
         account_data = report_data.get("target_account", {})  # Should analyze the target account, not the reporter
         status_ids = report_data.get("status_ids", [])
 
@@ -594,7 +597,7 @@ def process_new_report(report_payload: dict):
 
         # Fetch statuses related to the report
         statuses = []
-        for s_id in status_ids:
+        for _s_id in status_ids:
             try:
                 # This is a simplified approach. Tests mock client.get_account_statuses
                 if hasattr(client, "get_account_statuses"):
@@ -670,14 +673,19 @@ def process_new_report(report_payload: dict):
     retry_jitter=True,
 )
 def process_new_status(status_payload: dict):
-    """Processes a new status webhook payload for high-speed analysis."""
+    """Processes a new status webhook payload for high-speed analysis.
+
+    Mastodon API v2: receives the status object directly (not wrapped).
+    The webhook handler extracts payload["object"] and passes it here.
+    """
     logging.info(f"Processing new status: {status_payload.get('id')}")
     try:
         if _should_pause():
             logging.warning("PANIC_STOP enabled; skipping new status processing")
             return
 
-        status_data = status_payload.get("status", {})
+        # v2: status_payload is already the status object
+        status_data = status_payload
         account_data = status_data.get("account", {})
         if not account_data.get("id"):
             logging.warning("Status payload missing account ID, skipping processing.")
@@ -685,21 +693,15 @@ def process_new_status(status_payload: dict):
 
         client = _get_client()
         try:
-            if hasattr(client, "get_account_statuses"):
-                history = client.get_account_statuses(
-                    account_id=account_data["id"], limit=MAX_HISTORY_STATUSES, exclude_reblogs=True
-                )
-            else:
-                history = client.account_statuses(
-                    account_data["id"],
-                    limit=MAX_HISTORY_STATUSES,
-                    exclude_reblogs=True,
-                )
-        except Exception:
-            # Fallback to mastodon_service sync wrapper
-            history = mastodon_service.get_account_statuses_sync(
-                account_id=account_data.get("id"), limit=MAX_HISTORY_STATUSES, exclude_reblogs=True
+            # Mastodon.py client has account_statuses() method
+            history = client.account_statuses(
+                account_data["id"],
+                limit=MAX_HISTORY_STATUSES,
+                exclude_reblogs=True,
             )
+        except Exception as e:
+            logging.warning(f"Could not fetch account statuses: {e}")
+            history = []
         history = [s for s in history if s.get("visibility") in ANALYZABLE_VISIBILITY_TYPES]
         combined = [status_data]
         seen = {status_data.get("id")}
