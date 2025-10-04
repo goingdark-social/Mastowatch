@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     def OAUTH_CLIENT_SECRET(self) -> str | None:
         """Alias for MASTODON_CLIENT_SECRET (used by auth endpoints)."""
         return self.MASTODON_CLIENT_SECRET
+
     OAUTH_REDIRECT_URI: str | None = None
     OAUTH_SCOPE: str = "read write follow"
     OAUTH_POPUP_REDIRECT_URI: str | None = None

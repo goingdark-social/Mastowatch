@@ -24,7 +24,7 @@ os.environ.update(
         "SESSION_SECRET_KEY": "test_session_secret_key_123456789",
         "OAUTH_REDIRECT_URI": "http://localhost:8080/admin/callback",
         "OAUTH_POPUP_REDIRECT_URI": "http://localhost:8080/admin/popup-callback",
-        "OAUTH_SCOPE": "read:accounts",
+        "OAUTH_SCOPE": "read write follow",
         "WEBHOOK_SECRET": "test_webhook_secret_123",
         "UI_ORIGIN": "http://localhost:3000",
     }
@@ -177,13 +177,13 @@ class TestAuthenticationAuthorization(unittest.TestCase):
     def test_oauth_token_exchange(self, mock_exchange):
         # Create test admin user
         admin_user = self.create_test_admin_user()
-        
+
         # Override the authentication dependency using documented FastAPI pattern
         def override_get_current_user():
             return admin_user
-        
+
         self.app.dependency_overrides[self.get_current_user_hybrid] = override_get_current_user
-        
+
         # Mock the OAuth exchange
         mock_exchange.return_value = {"access_token": "test_access_token"}
         self.mock_redis_instance.get.return_value = "valid"
@@ -193,7 +193,7 @@ class TestAuthenticationAuthorization(unittest.TestCase):
             login_resp = client.get("/admin/login")
             auth_url = None
             state = None
-            
+
             # Check if response is JSON by checking status and trying to parse
             if login_resp.status_code == 200:
                 try:
@@ -201,7 +201,7 @@ class TestAuthenticationAuthorization(unittest.TestCase):
                     auth_url = data.get("auth_url")
                 except Exception:
                     pass
-            
+
             if auth_url:
                 from urllib.parse import parse_qs, urlparse
 
@@ -218,13 +218,13 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         """Test rejection of non-admin users during OAuth"""
         # Create test regular user (non-admin)
         regular_user = self.create_test_regular_user()
-        
+
         # Override the authentication dependency using documented FastAPI pattern
         def override_get_current_user():
             return regular_user
-        
+
         self.app.dependency_overrides[self.get_current_user_hybrid] = override_get_current_user
-        
+
         with patch(
             "app.services.mastodon_service.mastodon_service.exchange_oauth_code",
             AsyncMock(return_value={"access_token": "test_access_token"}),

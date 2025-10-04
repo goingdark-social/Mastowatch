@@ -71,7 +71,6 @@ class MastodonService:
         """
         return self.get_client(self.settings.MASTODON_ACCESS_TOKEN)
 
-
     async def exchange_oauth_code(
         self, code: str, redirect_uri: str, scopes: list[str] | None = None
     ) -> dict[str, Any]:
@@ -492,14 +491,10 @@ class MastodonService:
                 limit=limit,
             )
 
-            # mastodon.py handles pagination internally
-            # Extract next cursor from the response if available
-            next_cursor = None
-            if hasattr(accounts, "_pagination_next") and accounts._pagination_next:
-                # Try to extract max_id from pagination info
-                next_params = accounts._pagination_next
-                if "max_id" in next_params:
-                    next_cursor = next_params["max_id"]
+            # Use mastodon.py's official pagination utility method
+            # instead of accessing internal _pagination_next attribute
+            pagination_info = client.get_pagination_info(accounts)
+            next_cursor = pagination_info.get("max_id") if pagination_info else None
 
             return accounts, next_cursor
 
