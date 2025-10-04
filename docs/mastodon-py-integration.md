@@ -1,0 +1,242 @@
+# Mastodon.py Library Integration
+
+This document describes the integration of the official [mastodon.py](https://github.com/halcy/mastodon.py) library into MastoWatch.
+
+## Overview
+
+MastoWatch uses the official `mastodon.py` library for OAuth authentication and credential verification, providing better reliability and community support while maintaining our existing MastoClient wrapper for backward compatibility.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│         Application Code                     │
+│  (auth.py, oauth.py, scanning.py, etc.)    │
+└──────────────┬──────────────────────────────┘
+               │
+               ├──── OAuth & Auth ──────┐
+               │                        │
+               ▼                        ▼
+┌──────────────────────┐   ┌──────────────────┐
+│  MastodonService     │   │   MastoClient    │
+│  (mastodon.py)       │   │   (OpenAPI)      │
+└──────────┬───────────┘   └────────┬─────────┘
+           │                        │
+           ▼                        ▼
+    ┌──────────────┐       ┌──────────────┐
+    │ mastodon.py  │       │ OpenAPI Gen  │
+    │   Library    │       │   Client     │
+    └──────────────┘       └──────────────┘
+```
+
+## MastodonService Wrapper
+
+The `MastodonService` class in `backend/app/services/mastodon_service.py` provides a centralized interface to mastodon.py with the following features:
+
+### Key Features
+
+- **Client Caching**: Reuses clients with the same access token to avoid unnecessary instantiation
+- **Async Support**: Wraps synchronous mastodon.py methods with `asyncio.to_thread()` for FastAPI compatibility
+- **Rate Limiting**: Uses mastodon.py's built-in rate limiting (`ratelimit_method="wait"`)
+- **Error Handling**: Catches and logs `MastodonAPIError` and `MastodonNetworkError`
+- **Singleton Pattern**: Global `mastodon_service` instance for easy access
+
+### Usage Example
+
+```python
+from app.services.mastodon_service import mastodon_service
+
+# OAuth token exchange
+token_info = await mastodon_service.exchange_oauth_code(
+    code="authorization_code",
+    redirect_uri="https://example.com/callback"
+)
+
+# Verify credentials
+account = await mastodon_service.verify_credentials(access_token)
+
+# Get account information
+account = await mastodon_service.get_account(
+    account_id="12345",
+    use_admin=True
+)
+
+# Create a report
+report = await mastodon_service.create_report(
+    account_id="12345",
+    status_ids=["67890"],
+    comment="Automated moderation report",
+    forward=False
+)
+```
+
+## Available Methods
+
+### Authentication
+
+- `exchange_oauth_code(code, redirect_uri, scopes=None)` - Exchange OAuth code for access token
+- `verify_credentials(access_token)` - Verify and get account info
+
+### Account Operations
+
+- `get_account(account_id, use_admin=False)` - Get account information
+- `get_account_statuses(account_id, limit=20, ...)` - Get account statuses
+- `get_admin_accounts(origin=None, status=None, ...)` - List admin accounts
+
+### Moderation
+
+- `create_report(account_id, status_ids=None, ...)` - Create moderation report
+- `admin_suspend_account(account_id)` - Suspend an account (admin)
+- `admin_create_domain_block(domain, severity="suspend", ...)` - Block a domain (admin)
+
+### Client Access
+
+- `get_client(access_token=None)` - Get a configured Mastodon client
+- `get_admin_client()` - Get client with admin credentials
+- `get_bot_client()` - Get client with bot credentials
+
+## Migration Status
+
+### ✅ Phase 1: OAuth Flow (Complete)
+
+- [x] OAuth token exchange
+- [x] Credential verification
+- [x] User authentication
+
+### 🔄 Phase 2: Additional Endpoints (Optional)
+
+The following areas could be migrated to use mastodon.py if desired:
+
+- [ ] Account fetching in `scanning.py`
+- [ ] Report creation in `enforcement_service.py`
+- [ ] Admin operations in `tasks/jobs.py`
+- [ ] Additional moderation actions
+
+### Why Not Migrate Everything?
+
+MastoWatch maintains both mastodon.py and MastoClient for good reasons:
+
+1. **MastoClient provides:**
+   - Auto-generated OpenAPI client with full type safety
+   - Custom metrics and monitoring integration
+   - Admin endpoint support not in standard API specs
+   - Existing proven functionality
+
+2. **mastodon.py provides:**
+   - Community-maintained OAuth implementation
+   - Built-in rate limiting and pagination
+   - Well-tested authentication flows
+   - Better error handling for auth
+
+The hybrid approach gives us the best of both worlds.
+
+## Configuration
+
+No special configuration is needed. The service reads from the existing settings:
+
+```python
+# Settings used by MastodonService
+INSTANCE_BASE = "https://mastodon.social"
+OAUTH_CLIENT_ID = "your_client_id"
+OAUTH_CLIENT_SECRET = "your_client_secret"
+ADMIN_TOKEN = "admin_access_token"
+BOT_TOKEN = "bot_access_token"
+USER_AGENT = "MastoWatch/1.0"
+HTTP_TIMEOUT = 30.0
+```
+
+## Error Handling
+
+The service catches and re-raises mastodon.py exceptions:
+
+```python
+from mastodon import MastodonAPIError, MastodonNetworkError
+
+try:
+    account = await mastodon_service.verify_credentials(token)
+except MastodonAPIError as e:
+    # API returned an error (4xx, 5xx)
+    logger.error(f"API error: {e}")
+except MastodonNetworkError as e:
+    # Network issue
+    logger.error(f"Network error: {e}")
+```
+
+## Testing
+
+The mastodon.py integration is tested through existing test suites:
+
+```bash
+# Run OAuth/auth tests
+PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest tests/test_authentication_authorization.py
+
+# Run all tests
+PYTHONPATH=backend SKIP_STARTUP_VALIDATION=1 pytest
+```
+
+All 113 tests pass with the mastodon.py integration.
+
+## Performance Considerations
+
+### Client Caching
+
+The service caches Mastodon client instances to avoid repeated instantiation:
+
+```python
+# Cached internally - only created once per unique token
+client1 = mastodon_service.get_client("token_abc")
+client2 = mastodon_service.get_client("token_abc")  # Returns cached instance
+```
+
+### Rate Limiting
+
+mastodon.py handles rate limiting automatically:
+
+- Waits when rate limit is hit
+- Retries failed requests
+- Respects `X-RateLimit-*` headers
+
+This means you don't need manual throttling when using MastodonService.
+
+### Async Wrappers
+
+All methods use `asyncio.to_thread()` to run synchronous mastodon.py calls in a thread pool, preventing FastAPI event loop blocking:
+
+```python
+# This won't block the FastAPI event loop
+account = await mastodon_service.verify_credentials(token)
+```
+
+## References
+
+- [mastodon.py GitHub](https://github.com/halcy/mastodon.py)
+- [mastodon.py Documentation](https://mastodonpy.readthedocs.io/)
+- [Mastodon API Documentation](https://docs.joinmastodon.org/api/)
+
+## Troubleshooting
+
+### OAuth Errors
+
+If you see OAuth-related errors, check:
+
+1. `OAUTH_CLIENT_ID` and `OAUTH_CLIENT_SECRET` are set correctly
+2. Redirect URI matches exactly (including trailing slashes)
+3. Scopes are appropriate for the operation
+
+### Rate Limiting
+
+mastodon.py waits automatically when rate limited. If you see delays:
+
+1. This is expected behavior
+2. The library respects server rate limits
+3. Consider caching results when possible
+
+### Import Errors
+
+If `from mastodon import Mastodon` fails:
+
+```bash
+pip install Mastodon.py
+```
+
+The library should be installed automatically via `requirements.txt`.

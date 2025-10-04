@@ -124,6 +124,17 @@ make regenerate-client
 
 See [docs/mastodon-api-client.md](docs/mastodon-api-client.md) for detailed documentation.
 
+### OAuth & Authentication
+
+MastoWatch uses the official [mastodon.py](https://github.com/halcy/mastodon.py) library for OAuth authentication and credential verification:
+
+- **Official library**: Community-maintained with full Mastodon API support
+- **Built-in features**: Rate limiting, pagination, error handling
+- **Async support**: FastAPI-compatible async wrappers
+- **Hybrid approach**: mastodon.py for auth, OpenAPI client for other operations
+
+See [docs/mastodon-py-integration.md](docs/mastodon-py-integration.md) for integration details.
+
 Endpoints:
 
 ### API Endpoints
