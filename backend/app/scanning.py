@@ -1,6 +1,11 @@
 import asyncio
 import logging
+from datetime import UTC, datetime
+from typing import Any
 
+from app.config import get_settings
+from app.db import SessionLocal
+from app.models import ScanSession
 from app.services.mastodon_service import mastodon_service
 from mastodon import MastodonNetworkError
 
@@ -8,7 +13,62 @@ logger = logging.getLogger(__name__)
 
 
 class ScanningSystem:
-    ...
+    def __init__(self):
+        """Initialize the scanning system."""
+        self.settings = get_settings()
+
+    # --- Session lifecycle -------------------------------------------------
+    def start_scan_session(self, session_type: str, metadata: dict[str, Any] | None = None) -> str:
+        """
+        Create (or reuse) an active scan session and return its ID.
+        jobs._poll_accounts(origin, ...) calls this with session_type="remote"/"local".
+        """
+        with SessionLocal() as db:
+            # Reuse an active session of same type if one exists
+            existing = (
+                db.query(ScanSession)
+                .filter(ScanSession.session_type == session_type, ScanSession.status == "active")
+                .first()
+            )
+            if existing:
+                return str(existing.id)
+
+            sess = ScanSession(
+                session_type=session_type,
+                status="active",
+                accounts_processed=0,
+                total_accounts=0,
+                current_cursor=None,
+                started_at=datetime.now(UTC),
+                rules_applied=(metadata or {}).get("rules_version"),
+                session_metadata=metadata,
+            )
+            db.add(sess)
+            db.commit()
+            db.refresh(sess)
+            return str(sess.id)
+
+    def complete_scan_session(self, session_id: str | int, status: str = "completed") -> None:
+        """Mark the session finished (used by jobs / tests)."""
+        with SessionLocal() as db:
+            sess = db.query(ScanSession).filter(ScanSession.id == session_id).first()
+            if not sess:
+                return
+            sess.status = status
+            sess.completed_at = datetime.now(UTC)
+            db.commit()
+
+    def should_scan_account(self, account_id: str, account_data: dict) -> bool:
+        """Placeholder for account filtering logic."""
+        # TODO: Implement actual filtering logic (rate limiting, caching, etc.)
+        return True
+
+    def _evaluate_and_store_scan(
+        self, account_id: str, account_data: dict, statuses: list[dict], session_id: int
+    ) -> dict | None:
+        """Placeholder for rule evaluation and DB storage."""
+        # TODO: Implement actual rule evaluation and storage
+        return {"account_id": account_id, "violations_found": 0}
 
     async def get_next_accounts_to_scan(
         self, session_type: str, limit: int = 50, cursor: str | None = None

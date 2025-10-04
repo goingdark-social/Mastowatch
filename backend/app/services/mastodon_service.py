@@ -58,7 +58,7 @@ class MastodonService:
         )
         try:
             return await asyncio.to_thread(
-                client.__api_request__,
+                client._Mastodon__api_request,
                 "POST",
                 "/oauth/token",
                 params={
@@ -80,7 +80,7 @@ class MastodonService:
     async def verify_credentials(self, token: str) -> dict[str, Any]:
         client = self.get_client(token)
         try:
-            return await asyncio.to_thread(client.account_verify_credentials_v2)
+            return await asyncio.to_thread(client.account_verify_credentials)
         except (MastodonAPIError, MastodonNetworkError) as e:
             logger.error(f"Credential verification failed: {e}")
             raise
@@ -88,7 +88,7 @@ class MastodonService:
     async def get_account(self, account_id: str) -> dict[str, Any]:
         client = self.get_admin_client()
         try:
-            return await asyncio.to_thread(client.account_v2, account_id)
+            return await asyncio.to_thread(client.account, account_id)
         except (MastodonAPIError, MastodonNetworkError) as e:
             logger.error(f"Failed to fetch account {account_id}: {e}")
             raise
@@ -97,7 +97,7 @@ class MastodonService:
         client = self.get_admin_client()
         try:
             return await asyncio.to_thread(
-                client.account_statuses_v2,
+                client.account_statuses,
                 account_id,
                 limit=limit,
             )
@@ -120,7 +120,7 @@ class MastodonService:
         client = self.get_admin_client()
         try:
             return await asyncio.to_thread(
-                client.report_v2,
+                client.report,
                 account_id=account_id,
                 status_ids=status_ids or [],
                 comment=comment,
