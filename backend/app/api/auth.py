@@ -8,7 +8,6 @@ from typing import Any
 from urllib.parse import urlencode
 
 from app.config import get_settings
-from app.mastodon_client import MastoClient
 from app.oauth import (
     User,
     clear_session_cookie,
@@ -66,7 +65,8 @@ def admin_login(request: Request, popup: bool = False):
 
     # For popup mode, return HTML that redirects immediately
     if popup:
-        return HTMLResponse(f"""
+        return HTMLResponse(
+            f"""
         <html>
             <head>
                 <title>Redirecting to OAuth...</title>
@@ -78,7 +78,8 @@ def admin_login(request: Request, popup: bool = False):
                 <p>Redirecting to authentication...</p>
             </body>
         </html>
-        """)
+        """
+        )
 
     # Check if this is a browser request (has Accept header indicating HTML preference)
     accept_header = request.headers.get("accept", "")
@@ -111,8 +112,10 @@ async def admin_callback(request: Request, response: Response, code: str = None,
         raise HTTPException(status_code=400, detail="Invalid state parameter")
 
     try:
+        from app.services.mastodon_service import mastodon_service
+
         redirect_uri = settings.OAUTH_REDIRECT_URI or f"{request.base_url}admin/callback"
-        token_info = await MastoClient.exchange_code_for_token(code, redirect_uri)
+        token_info = await mastodon_service.exchange_oauth_code(code, redirect_uri)
         access_token = token_info.get("access_token")
 
         if not access_token:
@@ -152,7 +155,8 @@ async def popup_callback(
     oauth_config = get_oauth_config()
 
     if not oauth_config.configured:
-        return HTMLResponse("""
+        return HTMLResponse(
+            """
         <html>
             <head><title>OAuth Error</title></head>
             <body>
@@ -163,11 +167,13 @@ async def popup_callback(
                 <p>OAuth not configured. Please contact your administrator.</p>
             </body>
         </html>
-        """)
+        """
+        )
 
     if error:
         logger.warning(f"OAuth error: {error}")
-        return HTMLResponse(f"""
+        return HTMLResponse(
+            f"""
         <html>
             <head><title>OAuth Error</title></head>
             <body>
@@ -178,10 +184,12 @@ async def popup_callback(
                 <p>Authentication failed: {error}</p>
             </body>
         </html>
-        """)
+        """
+        )
 
     if not code:
-        return HTMLResponse("""
+        return HTMLResponse(
+            """
         <html>
             <head><title>OAuth Error</title></head>
             <body>
@@ -192,11 +200,13 @@ async def popup_callback(
                 <p>Missing authorization code.</p>
             </body>
         </html>
-        """)
+        """
+        )
 
     stored_state = request.session.get("oauth_state")
     if not stored_state or stored_state != state:
-        return HTMLResponse("""
+        return HTMLResponse(
+            """
         <html>
             <head><title>OAuth Error</title></head>
             <body>
@@ -207,11 +217,14 @@ async def popup_callback(
                 <p>Invalid state parameter.</p>
             </body>
         </html>
-        """)
+        """
+        )
 
     try:
+        from app.services.mastodon_service import mastodon_service
+
         redirect_uri = settings.OAUTH_POPUP_REDIRECT_URI or f"{request.base_url}admin/popup-callback"
-        token_info = await MastoClient.exchange_code_for_token(code, redirect_uri)
+        token_info = await mastodon_service.exchange_oauth_code(code, redirect_uri)
         access_token = token_info.get("access_token")
 
         if not access_token:
@@ -229,7 +242,8 @@ async def popup_callback(
         request.session.pop("oauth_state", None)
 
         # Return HTML that communicates success to parent window
-        return HTMLResponse(f"""
+        return HTMLResponse(
+            f"""
         <html>
             <head><title>Authorization Complete</title></head>
             <body>
@@ -254,7 +268,8 @@ async def popup_callback(
                 <p>Authorization complete. You can close this window.</p>
             </body>
         </html>
-        """)
+        """
+        )
 
     except Exception as e:
         error_msg = str(e)
@@ -262,7 +277,8 @@ async def popup_callback(
         if "codec can't decode" in error_msg:
             error_msg = "Authentication failed due to server response encoding issue"
         logger.error("OAuth popup callback failed", extra={"error": error_msg})
-        return HTMLResponse(f"""
+        return HTMLResponse(
+            f"""
         <html>
             <head><title>OAuth Error</title></head>
             <body>
@@ -276,7 +292,8 @@ async def popup_callback(
                 <p>Authentication failed: {error_msg}</p>
             </body>
         </html>
-        """)
+        """
+        )
 
 
 @router.post("/admin/establish-session", tags=["auth"])
@@ -355,12 +372,7 @@ def evaluate_dryrun(request_data: dict[str, Any]):
     except Exception as e:
         logger.warning("Failed to evaluate dry run, returning empty result", extra={"error": str(e)})
         # Return a valid response even if database is not available (for tests)
-        return {
-            "violations": [],
-            "total_score": 0,
-            "dry_run": True,
-            "error": "Database not available in test mode"
-        }
+        return {"violations": [], "total_score": 0, "dry_run": True, "error": "Database not available in test mode"}
 
 
 @router.post("/webhooks/mastodon_events", tags=["webhooks"])

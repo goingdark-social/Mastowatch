@@ -6,7 +6,7 @@ import sys
 from pydantic import ValidationError
 
 from app.config import get_settings
-from app.mastodon_client import MastoClient
+from app.services.mastodon_service import mastodon_service
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +131,8 @@ def validate_mastodon_version() -> None:
     """Fetches Mastodon instance version and validates it against MIN_MASTODON_VERSION."""
     settings = get_settings()
     try:
-        client = MastoClient(settings.BOT_TOKEN)
-        instance_info = client.get_instance_info()
+        # Use mastodon.py's instance() method
+        instance_info = mastodon_service.get_instance_info_sync()
         current_version = instance_info.get("version")
         if not current_version:
             raise ValueError("Could not find version in instance info")

@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.mastodon_client import MastoClient
 from app.models import Account, ContentScan, DomainAlert, ScanSession
+from app.services.mastodon_service import mastodon_service
 from app.services.rule_service import rule_service
 from sqlalchemy import and_, desc, func
 
@@ -127,14 +127,14 @@ class EnhancedScanningSystem:
         content_hash = self._calculate_content_hash(account_data)
 
         try:
-            admin_client = MastoClient(self.settings.ADMIN_TOKEN)
-            statuses = admin_client.get_account_statuses(
-                account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
+            statuses = mastodon_service.get_account_statuses_sync(
+                account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, use_admin=True
             )
-            media_statuses = admin_client.get_account_statuses(
+            media_statuses = mastodon_service.get_account_statuses_sync(
                 account_id=account_id,
                 limit=self.settings.MAX_STATUSES_TO_FETCH,
                 only_media=True,
+                use_admin=True,
             )
             seen = {s["id"] for s in statuses if "id" in s}
             statuses.extend([s for s in media_statuses if ("id" not in s) or (s["id"] not in seen)])
@@ -156,7 +156,7 @@ class EnhancedScanningSystem:
             with SessionLocal() as db_session:
                 # Get or create content scan record using database-agnostic approach
                 content_scan = db_session.query(ContentScan).filter(ContentScan.content_hash == content_hash).first()
-                
+
                 if content_scan:
                     # Update existing record
                     content_scan.scan_result = scan_result
@@ -205,14 +205,7 @@ class EnhancedScanningSystem:
     ) -> tuple[list[dict], str | None]:
         """Get next batch of accounts to scan with cursor-based pagination"""
         try:
-            admin_client = MastoClient(self.settings.ADMIN_TOKEN)
-
-            params = {"origin": session_type, "status": "active", "limit": limit}  # 'local' or 'remote'
-
-            if cursor:
-                params["max_id"] = cursor
-
-            accounts, next_cursor = admin_client.get_admin_accounts(
+            accounts, next_cursor = mastodon_service.get_admin_accounts_sync(
                 origin=session_type, status="active", limit=limit, max_id=cursor
             )
 
@@ -278,20 +271,16 @@ class EnhancedScanningSystem:
         with SessionLocal() as session:
             # Get or create domain alert record using database-agnostic approach
             domain_alert = session.query(DomainAlert).filter(DomainAlert.domain == domain).first()
-            
+
             if domain_alert:
                 # Update existing record
                 domain_alert.violation_count += 1
                 domain_alert.last_violation_at = func.now()
             else:
                 # Create new record
-                domain_alert = DomainAlert(
-                    domain=domain,
-                    violation_count=1,
-                    last_violation_at=func.now()
-                )
+                domain_alert = DomainAlert(domain=domain, violation_count=1, last_violation_at=func.now())
                 session.add(domain_alert)
-            
+
             session.commit()
 
     def _check_defederation_threshold(self, domain: str):
@@ -396,9 +385,10 @@ class EnhancedScanningSystem:
         """Parse the next cursor from a Link header"""
         if not link_header:
             return None
-        
+
         # Look for a link with rel="next"
         import re
+
         match = re.search(r'<[^>]*[?&]max_id=([^&>]+)[^>]*>;\s*rel="next"', link_header)
         if match:
             return match.group(1)

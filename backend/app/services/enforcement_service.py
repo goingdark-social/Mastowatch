@@ -5,8 +5,8 @@ from typing import Any
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.mastodon_client import MastoClient
 from app.models import AuditLog
+from app.services.mastodon_service import mastodon_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -15,8 +15,9 @@ settings = get_settings()
 class EnforcementService:
     """Wrap Mastodon admin endpoints used for moderation."""
 
-    def __init__(self, mastodon_client: MastoClient):
-        self.mastodon_client = mastodon_client
+    def __init__(self):
+        # Use the singleton mastodon_service instead of injecting a client
+        self.mastodon_service = mastodon_service
 
     def _log_action(
         self,
@@ -57,13 +58,19 @@ class EnforcementService:
                 api_response={"dry_run": True},
             )
             return
-        path = f"/api/v1/admin/accounts/{account_id}/action"
-        resp = self.mastodon_client._make_request("POST", path, json=payload)
+
         try:
-            api_response = resp.json()
+            # Use mastodon_service for admin actions
+            api_response = self.mastodon_service.admin_account_action_sync(
+                account_id=account_id,
+                action_type=payload.get("type", ""),
+                text=payload.get("text"),
+                warning_preset_id=payload.get("warning_preset_id"),
+            )
         except Exception as e:
-            logger.error("Failed to decode JSON response for account %s: %s", account_id, str(e))
-            api_response = {"error": "Invalid JSON response", "response_text": getattr(resp, "text", None)}
+            logger.error("Failed to perform action on account %s: %s", account_id, str(e))
+            api_response = {"error": str(e)}
+
         self._log_action(
             action_type=payload.get("type", ""),
             account_id=account_id,
@@ -141,13 +148,13 @@ class EnforcementService:
                 api_response={"dry_run": True},
             )
             return
-        path = f"/api/v1/admin/accounts/{account_id}/unsilence"
-        resp = self.mastodon_client._make_request("POST", path)
+
         try:
-            api_response = resp.json()
-        except (ValueError, json.decoder.JSONDecodeError) as e:
-            logger.error("Failed to decode JSON response for unsilence_account: %s", e)
-            api_response = {"error": "Invalid JSON response", "response_text": resp.text}
+            api_response = self.mastodon_service.admin_unsilence_account_sync(account_id)
+        except Exception as e:
+            logger.error("Failed to unsilence account %s: %s", account_id, str(e))
+            api_response = {"error": str(e)}
+
         self._log_action(
             action_type="unsilence",
             account_id=account_id,
@@ -174,13 +181,13 @@ class EnforcementService:
                 api_response={"dry_run": True},
             )
             return
-        path = f"/api/v1/admin/accounts/{account_id}/unsuspend"
-        resp = self.mastodon_client._make_request("POST", path)
+
         try:
-            api_response = resp.json()
-        except ValueError as e:
-            logger.error("Failed to decode JSON response for unsuspend_account: %s", e)
-            api_response = {"error": "Invalid JSON response"}
+            api_response = self.mastodon_service.admin_unsuspend_account_sync(account_id)
+        except Exception as e:
+            logger.error("Failed to unsuspend account %s: %s", account_id, str(e))
+            api_response = {"error": str(e)}
+
         self._log_action(
             action_type="unsuspend",
             account_id=account_id,
