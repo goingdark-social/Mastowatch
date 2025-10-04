@@ -15,14 +15,18 @@ from sqlalchemy import text
 
 @pytest.fixture
 def admin_account_with_violations():
-    """Admin account that should trigger violations."""
+    """Admin account that should trigger violations.
+
+    Mastodon API v2 compliant structure with ip as a string.
+    """
     return {
         "id": "malicious123",
         "username": "spammer",
         "domain": None,
         "created_at": datetime.now(UTC).isoformat(),  # New account
         "email": "spam@malicious.com",
-        "ip": {"ip": "1.2.3.4", "used_at": datetime.now(UTC).isoformat()},
+        "ip": "1.2.3.4",  # v2 API: ip is a STRING
+        "ips": [{"ip": "1.2.3.4", "used_at": datetime.now(UTC).isoformat()}],  # Historical IPs
         "confirmed": False,  # Unconfirmed
         "suspended": False,
         "silenced": False,

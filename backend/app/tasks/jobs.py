@@ -570,14 +570,19 @@ def process_expired_actions():
     retry_jitter=True,
 )
 def process_new_report(report_payload: dict):
-    """Processes a new report webhook payload."""
+    """Processes a new report webhook payload.
+    
+    Mastodon API v2: receives the report object directly (not wrapped).
+    The webhook handler extracts payload["object"] and passes it here.
+    """
     logging.info(f"Processing new report: {report_payload.get('id')}")
     try:
         if _should_pause():
             logging.warning("PANIC_STOP enabled; skipping new report processing")
             return
 
-        report_data = report_payload.get("report", {})
+        # v2: report_payload is already the report object
+        report_data = report_payload
         account_data = report_data.get("target_account", {})  # Should analyze the target account, not the reporter
         status_ids = report_data.get("status_ids", [])
 

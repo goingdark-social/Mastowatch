@@ -163,6 +163,7 @@ def sample_admin_account_data():
 
     Structure matches Mastodon API v2:
     https://docs.joinmastodon.org/methods/admin/accounts/#v2
+    https://docs.joinmastodon.org/entities/Admin_Account/
     """
     return {
         "id": "108267695853695427",
@@ -170,7 +171,7 @@ def sample_admin_account_data():
         "domain": None,
         "created_at": "2022-05-08T18:18:53.221Z",
         "email": "testuser@mastodon.local",
-        "ip": {"user_id": 1, "ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"},
+        "ip": "192.168.42.1",  # v2 API: ip is a STRING, not an object
         "role": {
             "id": 3,
             "name": "User",
@@ -188,7 +189,7 @@ def sample_admin_account_data():
         "approved": True,
         "locale": None,
         "invite_request": None,
-        "ips": [{"ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"}],
+        "ips": [{"ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"}],  # Array of Admin::Ip objects
         "account": {
             "id": "108267695853695427",
             "username": "testuser",
@@ -243,12 +244,22 @@ def sample_status_data():
 
 @pytest.fixture
 def sample_webhook_report_payload():
-    """Sample webhook payload for report.created event."""
+    """Sample webhook payload for report.created event.
+
+    Matches Mastodon webhook v2 structure:
+    https://mastodonpy.readthedocs.io/en/stable/02_return_values.html
+
+    Webhook events have the structure:
+    {
+        "event": "<event_name>",
+        "created_at": "...",
+        "object": {...}
+    }
+    """
     return {
         "event": "report.created",
         "created_at": "2023-01-01T12:00:00.000Z",
-        "object": "report",
-        "report": {
+        "object": {
             "id": "report_123",
             "action_taken": False,
             "comment": "Test report",
@@ -262,12 +273,22 @@ def sample_webhook_report_payload():
 
 @pytest.fixture
 def sample_webhook_status_payload():
-    """Sample webhook payload for status.created event."""
+    """Sample webhook payload for status.created event.
+
+    Matches Mastodon webhook v2 structure:
+    https://mastodonpy.readthedocs.io/en/stable/02_return_values.html
+
+    Webhook events have the structure:
+    {
+        "event": "<event_name>",
+        "created_at": "...",
+        "object": {...}
+    }
+    """
     return {
         "event": "status.created",
         "created_at": "2023-01-01T12:00:00.000Z",
-        "object": "status",
-        "status": {
+        "object": {
             "id": "987654321",
             "content": "This is a test status",
             "created_at": "2023-01-01T12:00:00.000Z",

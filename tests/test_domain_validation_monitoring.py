@@ -637,9 +637,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
                 scanner = ScanningSystem()
                 accounts, cursor = scanner.get_next_accounts_to_scan("local", limit=10)
 
-                # Should use admin API endpoint
+                # Should use admin API v2 endpoint
                 mock_admin_instance.get.assert_called_with(
-                    "/api/v1/admin/accounts", params={"origin": "local", "status": "active", "limit": 10}
+                    "/api/v2/admin/accounts", params={"origin": "local", "status": "active", "limit": 10}
                 )
 
     # ========== ERROR RESILIENCE TESTS ==========

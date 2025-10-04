@@ -36,6 +36,11 @@ def sample_admin_account():
 
     Based on official Mastodon docs:
     https://docs.joinmastodon.org/methods/admin/accounts/#v2
+    https://docs.joinmastodon.org/entities/Admin_Account/
+
+    Key v2 API compliance notes:
+    - ip: STRING (not object with user_id)
+    - ips: array of {ip, used_at} (no user_id)
     """
     return {
         "id": "108267695853695427",
@@ -43,7 +48,7 @@ def sample_admin_account():
         "domain": None,
         "created_at": "2022-05-08T18:18:53.221Z",
         "email": "testuser@mastodon.local",
-        "ip": {"user_id": 1, "ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"},
+        "ip": "192.168.42.1",  # v2 API: ip is a STRING, not an object
         "role": {
             "id": 3,
             "name": "User",
@@ -61,7 +66,7 @@ def sample_admin_account():
         "approved": True,
         "locale": None,
         "invite_request": None,
-        "ips": [{"ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"}],
+        "ips": [{"ip": "192.168.42.1", "used_at": "2022-09-08T16:10:38.621Z"}],  # Array of Admin::Ip objects
         "account": {
             "id": "108267695853695427",
             "username": "testuser",
@@ -133,7 +138,7 @@ class TestAdminAccountDataStructure:
         # Scanner should be able to access admin fields
         admin_fields = {
             "email": sample_admin_account.get("email"),
-            "ip": sample_admin_account.get("ip", {}).get("ip"),
+            "ip": sample_admin_account.get("ip"),  # v2 API: ip is a STRING
             "created_at": sample_admin_account.get("created_at"),
             "confirmed": sample_admin_account.get("confirmed"),
             "suspended": sample_admin_account.get("suspended"),

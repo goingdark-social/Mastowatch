@@ -34,9 +34,9 @@ class Settings(BaseSettings):
     PANIC_STOP: bool = False
     API_KEY: str | None = None
 
-    # Webhooks
+    # Webhooks (Mastodon API v2 compliant)
     WEBHOOK_SECRET: str | None = None
-    WEBHOOK_SIG_HEADER: str = "X-Hub-Signature-256"  # sha256=<hexdigest>
+    WEBHOOK_SIG_HEADER: str = "X-Hub-Signature"  # Mastodon uses X-Hub-Signature (not X-Hub-Signature-256)
 
     # Slack notifications
     SLACK_WEBHOOKS: dict[str, str] = Field(default_factory=dict)
