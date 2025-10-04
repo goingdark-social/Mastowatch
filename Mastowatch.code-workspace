@@ -25,7 +25,8 @@
 				"source.organizeImports.ruff": "explicit"
 			},
 			"editor.defaultFormatter": "charliermarsh.ruff"
-		}
+		},
+		"python.analysis.typeCheckingMode": "strict"
 	},
 	"tasks": {
 		"version": "2.0.0",

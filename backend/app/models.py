@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 
 from app.db import Base
 
+
 def get_id_column():
     """Get appropriate ID column type based on database URL."""
     database_url = os.environ.get("DATABASE_URL", "")
@@ -11,6 +12,7 @@ def get_id_column():
         return Column(Integer, primary_key=True, autoincrement=True)
     else:
         return Column(BigInteger, primary_key=True, autoincrement=True)
+
 
 def get_id_fk_column(table_name):
     """Get appropriate foreign key column type based on database URL."""

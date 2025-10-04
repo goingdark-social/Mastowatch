@@ -46,12 +46,12 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         from sqlalchemy import create_engine
         from app.db import Base
         from app.config import get_settings
-        
+
         settings = get_settings()
         engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
         Base.metadata.create_all(bind=engine)
         self.test_engine = engine
-        
+
         # Mock external dependencies during app import
         with patch("redis.from_url") as mock_redis:
             mock_redis_instance = MagicMock()
@@ -62,7 +62,7 @@ class TestAuthenticationAuthorization(unittest.TestCase):
 
             self.app = app
             self.client = TestClient(app)
-        
+
         # Mock Redis for test execution
         self.redis_patcher = patch("redis.from_url")
         self.mock_redis = self.redis_patcher.start()
@@ -83,9 +83,10 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         self.redis_patcher.stop()
         self.oauth_patcher.stop()
         self.app.dependency_overrides.clear()
-        
+
         # Drop all tables after test
         from app.db import Base
+
         Base.metadata.drop_all(bind=self.test_engine)
         self.test_engine.dispose()
 
@@ -219,64 +220,64 @@ class TestAuthenticationAuthorization(unittest.TestCase):
     def test_admin_role_access(self):
         """Test that Admin role has access to admin endpoints"""
         from app.oauth import get_current_user
-        
+
         admin_user = self.create_test_admin_user()
         self.app.dependency_overrides[get_current_user] = lambda: admin_user
-        
+
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 200)
-        
+
         # Clean up
         self.app.dependency_overrides.clear()
 
     def test_owner_role_access(self):
         """Test that Owner role has access to admin endpoints"""
         from app.oauth import get_current_user
-        
+
         owner_user = self.create_test_owner_user()
         self.app.dependency_overrides[get_current_user] = lambda: owner_user
-        
+
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 200)
-        
+
         # Clean up
         self.app.dependency_overrides.clear()
 
     def test_moderator_role_access(self):
         """Test that Moderator role has access to admin endpoints"""
         from app.oauth import get_current_user
-        
+
         mod_user = self.create_test_moderator_user()
         self.app.dependency_overrides[get_current_user] = lambda: mod_user
-        
+
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 200)
-        
+
         # Clean up
         self.app.dependency_overrides.clear()
 
     def test_regular_user_access_denied(self):
         """Test that regular users are denied access to admin endpoints"""
         from app.oauth import get_current_user
-        
+
         regular_user = self.create_test_regular_user()
         self.app.dependency_overrides[get_current_user] = lambda: regular_user
-        
+
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 403)
-        
+
         # Clean up
         self.app.dependency_overrides.clear()
 
     def test_unauthenticated_access_denied(self):
         """Test that unauthenticated users are denied access"""
         from app.oauth import get_current_user
-        
+
         self.app.dependency_overrides[get_current_user] = lambda: None
-        
+
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 401)
-        
+
         # Clean up
         self.app.dependency_overrides.clear()
 
@@ -418,7 +419,7 @@ class TestAuthenticationAuthorization(unittest.TestCase):
         """Test webhook signature-based authentication"""
         payload = {"account": {"id": "123"}, "statuses": []}
         # Use json.dumps with separators to match FastAPI's JSON encoding
-        body = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         signature = "sha256=" + hmac.new(os.environ["WEBHOOK_SECRET"].encode("utf-8"), body, hashlib.sha256).hexdigest()
 
         response = self.client.post(
@@ -432,18 +433,18 @@ class TestAuthenticationAuthorization(unittest.TestCase):
     def test_api_key_authentication(self):
         """Test API key authentication for config endpoints"""
         from app.oauth import get_current_user
-        
+
         # Mock admin user for API key auth
         admin_user = self.create_test_admin_user()
         self.app.dependency_overrides[get_current_user] = lambda: admin_user
-        
+
         response = self.client.post(
             "/config/dry_run", json={"dry_run": True}, headers={"X-API-Key": "test_api_key_123"}
         )
 
         # Should work with valid API key and admin user
         self.assertEqual(response.status_code, 200)
-        
+
         # Clean up
         self.app.dependency_overrides.clear()
 

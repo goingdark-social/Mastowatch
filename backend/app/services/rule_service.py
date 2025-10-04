@@ -376,19 +376,37 @@ class RuleService:
                             metrics={k: v for viol in primary + secondary for k, v in viol.evidence.metrics.items()},
                         )
                         violations.append(
-                            Violation(rule_name=rule.name, rule_type=rule.detector_type, score=rule.weight, evidence=evidence, actions=actions)
+                            Violation(
+                                rule_name=rule.name,
+                                rule_type=rule.detector_type,
+                                score=rule.weight,
+                                evidence=evidence,
+                                actions=actions,
+                            )
                         )
                 else:
                     for v in primary + secondary:
                         if v.score >= rule.trigger_threshold:
                             violations.append(
-                                Violation(rule_name=rule.name, rule_type=rule.detector_type, score=v.score, evidence=v.evidence, actions=actions)
+                                Violation(
+                                    rule_name=rule.name,
+                                    rule_type=rule.detector_type,
+                                    score=v.score,
+                                    evidence=v.evidence,
+                                    actions=actions,
+                                )
                             )
             else:
                 for v in primary:
                     if v.score >= rule.trigger_threshold:
                         violations.append(
-                            Violation(rule_name=rule.name, rule_type=rule.detector_type, score=v.score, evidence=v.evidence, actions=actions)
+                            Violation(
+                                rule_name=rule.name,
+                                rule_type=rule.detector_type,
+                                score=v.score,
+                                evidence=v.evidence,
+                                actions=actions,
+                            )
                         )
         return violations
 

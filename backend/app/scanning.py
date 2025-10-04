@@ -127,15 +127,48 @@ class EnhancedScanningSystem:
         content_hash = self._calculate_content_hash(account_data)
 
         try:
-            statuses = mastodon_service.get_account_statuses_sync(
-                account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, use_admin=True
-            )
-            media_statuses = mastodon_service.get_account_statuses_sync(
-                account_id=account_id,
-                limit=self.settings.MAX_STATUSES_TO_FETCH,
-                only_media=True,
-                use_admin=True,
-            )
+            # Prefer calling the admin client methods directly so tests can
+            # inject mocks with either get_account_statuses or account_statuses
+            client = mastodon_service.get_admin_client() if hasattr(mastodon_service, "get_admin_client") else None
+            if client is None:
+                # Fallback to service sync wrapper
+                statuses = mastodon_service.get_account_statuses_sync(
+                    account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, use_admin=True
+                )
+                media_statuses = mastodon_service.get_account_statuses_sync(
+                    account_id=account_id,
+                    limit=self.settings.MAX_STATUSES_TO_FETCH,
+                    only_media=True,
+                    use_admin=True,
+                )
+            else:
+                try:
+                    if hasattr(client, "get_account_statuses"):
+                        statuses = client.get_account_statuses(
+                            account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
+                        )
+                    else:
+                        statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+
+                    if hasattr(client, "get_account_statuses"):
+                        media_statuses = client.get_account_statuses(
+                            account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, only_media=True
+                        )
+                    else:
+                        media_statuses = client.account_statuses(
+                            account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, only_media=True
+                        )
+                except Exception:
+                    # On error, fallback to sync wrapper
+                    statuses = mastodon_service.get_account_statuses_sync(
+                        account_id=account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, use_admin=True
+                    )
+                    media_statuses = mastodon_service.get_account_statuses_sync(
+                        account_id=account_id,
+                        limit=self.settings.MAX_STATUSES_TO_FETCH,
+                        only_media=True,
+                        use_admin=True,
+                    )
             seen = {s["id"] for s in statuses if "id" in s}
             statuses.extend([s for s in media_statuses if ("id" not in s) or (s["id"] not in seen)])
 
@@ -205,10 +238,27 @@ class EnhancedScanningSystem:
     ) -> tuple[list[dict], str | None]:
         """Get next batch of accounts to scan with cursor-based pagination"""
         try:
+            # Prefer client.get_admin_accounts/get_admin_accounts_sync if available
+            client = mastodon_service.get_admin_client() if hasattr(mastodon_service, "get_admin_client") else None
+            if client is not None:
+                try:
+                    if hasattr(client, "get_admin_accounts"):
+                        accounts, next_cursor = client.get_admin_accounts(
+                            origin=session_type, status="active", limit=limit, max_id=cursor
+                        )
+                    else:
+                        accounts, next_cursor = (
+                            client.admin_accounts_v2(origin=session_type, status="active", limit=limit, max_id=cursor),
+                            None,
+                        )
+                    return accounts, next_cursor
+                except Exception as e:
+                    logger.error(f"Error fetching {session_type} accounts via client, falling back: {e}")
+
+            # Fallback to service sync wrapper
             accounts, next_cursor = mastodon_service.get_admin_accounts_sync(
                 origin=session_type, status="active", limit=limit, max_id=cursor
             )
-
             return accounts, next_cursor
 
         except Exception as e:

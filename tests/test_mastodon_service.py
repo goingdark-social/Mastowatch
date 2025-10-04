@@ -83,9 +83,7 @@ class TestMastodonService(unittest.TestCase):
         # Mock the log_in call
         mock_to_thread.return_value = "test_access_token"
 
-        result = await self.service.exchange_oauth_code(
-            code="auth_code", redirect_uri="https://example.com/callback"
-        )
+        result = await self.service.exchange_oauth_code(code="auth_code", redirect_uri="https://example.com/callback")
 
         self.assertEqual(result["access_token"], "test_access_token")
         self.assertEqual(result["token_type"], "Bearer")

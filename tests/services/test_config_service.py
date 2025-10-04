@@ -21,9 +21,7 @@ class TestConfigService(unittest.TestCase):
         Base.metadata.create_all(engine)
         self.SessionLocal = sessionmaker(bind=engine)
         self.service = ConfigService()
-        self.patcher = patch(
-            "app.services.config_service.SessionLocal", self.SessionLocal
-        )
+        self.patcher = patch("app.services.config_service.SessionLocal", self.SessionLocal)
         self.patcher.start()
 
     def tearDown(self):

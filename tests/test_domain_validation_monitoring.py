@@ -326,7 +326,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         # Verify API was called to get domain data
         self.mock_scanning_instance.get_domain_alerts.assert_called_once()
 
-    @unittest.skip("Test expects API to throw 500 on error but implementation may handle errors differently - mock not integrated")
+    @unittest.skip(
+        "Test expects API to throw 500 on error but implementation may handle errors differently - mock not integrated"
+    )
     def test_domain_monitoring_api_failure_handling(self):
         """Test domain monitoring handles API failures gracefully"""
 
@@ -340,7 +342,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
 
     # ========== REAL-TIME JOB TRACKING TESTS ==========
 
-    @unittest.skip("API returns different fields (active_sessions) than expected (active_jobs) - feature not yet implemented")
+    @unittest.skip(
+        "API returns different fields (active_sessions) than expected (active_jobs) - feature not yet implemented"
+    )
     def test_real_time_job_tracking_15_second_refresh(self):
         """Test real-time job tracking with 15-second refresh capability"""
 
@@ -375,7 +379,9 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         self.assertIn("last_updated", data)
         self.assertIn("refresh_interval", data)
 
-    @unittest.skip("API returns different fields (active_sessions) than expected (session_progress) - feature not yet implemented")
+    @unittest.skip(
+        "API returns different fields (active_sessions) than expected (session_progress) - feature not yet implemented"
+    )
     def test_job_tracking_progress_monitoring(self):
         """Test job tracking provides detailed progress monitoring"""
 
@@ -593,6 +599,7 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         # Test various client errors that might occur
         with patch("app.scanning.mastodon_service") as mock_service:
             from mastodon import MastodonAPIError
+
             mock_client_instance = MagicMock()
             mock_service.get_admin_client.return_value = mock_client_instance
 
@@ -626,7 +633,7 @@ class TestDomainValidationMonitoring(unittest.TestCase):
             # Mock admin accounts response
             mock_admin_instance.admin_accounts.return_value = [
                 {"id": "1", "username": "admin1"},
-                {"id": "2", "username": "admin2"}
+                {"id": "2", "username": "admin2"},
             ]
 
             # Verify admin endpoint usage

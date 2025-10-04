@@ -19,14 +19,17 @@ from app.logging_conf import setup_logging
 from app.oauth import require_admin_hybrid, get_oauth_config, get_current_user
 from app.scanning import EnhancedScanningSystem
 
+
 # For backward compatibility with tests
 def get_current_user_hybrid(request=None):
     """Backward compatibility function for tests."""
     if request is None:
         # Import here to avoid circular imports
         from fastapi import Request
+
         request = Request(scope={"type": "http", "headers": []})
     return get_current_user(request)
+
 
 # Make require_admin_hybrid available for test patching
 require_admin_hybrid = require_admin_hybrid
@@ -203,9 +206,6 @@ def readyz():
 @app.get("/metrics", response_class=PlainTextResponse, tags=["ops"])
 def metrics():
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
-
-
-
 
 
 @app.post("/webhooks/mastodon_events", tags=["webhooks"])

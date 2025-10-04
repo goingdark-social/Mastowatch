@@ -8,18 +8,18 @@ class Evidence(BaseModel):
     metrics: Dict
     matched_pattern: str | None = None  # For regex detector compatibility
     matched_keywords: List[str] | None = None  # For keyword detector compatibility
-    
+
     def __getitem__(self, key):
         """Allow dictionary-style access for test compatibility."""
         return getattr(self, key)
-    
+
     def get(self, key, default=None):
         """Allow dictionary-style .get() access for compatibility."""
         try:
             return getattr(self, key)
         except AttributeError:
             return default
-    
+
     def __contains__(self, key):
         """Allow 'in' operator for test compatibility."""
         return hasattr(self, key)

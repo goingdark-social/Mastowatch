@@ -32,6 +32,7 @@ os.environ["UI_ORIGIN"] = "http://localhost:3000"  # Test UI origin
 from app.config import Settings
 from app.db import Base, get_db
 from app.main import app
+
 # Import models to ensure they're registered with Base.metadata
 import app.models
 

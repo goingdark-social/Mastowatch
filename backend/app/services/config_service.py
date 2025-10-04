@@ -15,9 +15,7 @@ class ConfigService:
             row = session.get(Config, key)
             return row.value if row else None
 
-    def set_flag(
-        self, key: str, enabled: bool, updated_by: str | None = None
-    ) -> dict[str, bool]:
+    def set_flag(self, key: str, enabled: bool, updated_by: str | None = None) -> dict[str, bool]:
         """Store boolean flag in configuration."""
         with SessionLocal() as session:
             config = session.get(Config, key)
@@ -25,15 +23,11 @@ class ConfigService:
                 config.value = {"enabled": enabled}
                 config.updated_by = updated_by
             else:
-                session.add(
-                    Config(key=key, value={"enabled": enabled}, updated_by=updated_by)
-                )
+                session.add(Config(key=key, value={"enabled": enabled}, updated_by=updated_by))
             session.commit()
             return {"enabled": enabled}
 
-    def set_threshold(
-        self, key: str, threshold: float, updated_by: str | None = None
-    ) -> dict[str, float]:
+    def set_threshold(self, key: str, threshold: float, updated_by: str | None = None) -> dict[str, float]:
         """Store numeric threshold in configuration."""
         with SessionLocal() as session:
             config = session.get(Config, key)
@@ -41,11 +35,7 @@ class ConfigService:
                 config.value = {"threshold": threshold}
                 config.updated_by = updated_by
             else:
-                session.add(
-                    Config(
-                        key=key, value={"threshold": threshold}, updated_by=updated_by
-                    )
-                )
+                session.add(Config(key=key, value={"threshold": threshold}, updated_by=updated_by))
             session.commit()
             return {"threshold": threshold}
 

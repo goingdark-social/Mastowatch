@@ -199,13 +199,13 @@ class TestBehavioralDetector(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         self.detector = BehavioralDetector()
-        
+
         # Mock database session and queries
-        self.session_patcher = patch('app.services.detectors.behavioral_detector.Session')
+        self.session_patcher = patch("app.services.detectors.behavioral_detector.Session")
         self.mock_session_class = self.session_patcher.start()
         self.mock_session = Mock()
         self.mock_session_class.return_value.__enter__.return_value = self.mock_session
-        
+
         # Mock query chain
         self.mock_query = Mock()
         self.mock_session.query.return_value = self.mock_query
