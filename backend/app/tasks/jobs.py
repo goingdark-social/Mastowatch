@@ -536,7 +536,7 @@ def process_expired_actions():
     """Processes scheduled actions that have expired and reverses them."""
     logging.info("Running process_expired_actions task...")
 
-    client = _get_client()
+    _get_client()
     enforcement_service = EnforcementService()
 
     with SessionLocal() as session:
@@ -594,7 +594,7 @@ def process_new_report(report_payload: dict):
 
         # Fetch statuses related to the report
         statuses = []
-        for s_id in status_ids:
+        for _s_id in status_ids:
             try:
                 # This is a simplified approach. Tests mock client.get_account_statuses
                 if hasattr(client, "get_account_statuses"):

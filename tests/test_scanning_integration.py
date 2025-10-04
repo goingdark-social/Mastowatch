@@ -375,7 +375,7 @@ class TestRuleEvaluation:
         # - admin_account_with_violations["email"] == suspicious
 
         # The scanner should receive the full admin object
-        scanner = ScanningSystem()
+        ScanningSystem()
 
         # Verify admin fields are accessible
         assert admin_account_with_violations.get("confirmed") is False

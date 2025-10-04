@@ -20,8 +20,8 @@ def get_analytics_overview(_: User = Depends(require_admin_hybrid)):
             # Time ranges
             now = datetime.now(UTC)
             last_24h = now - timedelta(hours=24)
-            last_7d = now - timedelta(days=7)
-            last_30d = now - timedelta(days=30)
+            now - timedelta(days=7)
+            now - timedelta(days=30)
 
             # Total counts
             total_accounts = db.query(func.count(Account.id)).scalar() or 0
@@ -260,14 +260,14 @@ def get_scanning_analytics(_: User = Depends(require_admin_hybrid)):
         from app.models import ScanSession
         from app.scanning import ScanningSystem
 
-        scanner = ScanningSystem()
+        ScanningSystem()
         settings = get_settings()
 
         # Get active jobs from Redis/Celery
         r = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
         # Get Celery queue length
-        queue_length = r.llen("celery")
+        r.llen("celery")
 
         with SessionLocal() as db:
             # Get active scan sessions
@@ -283,14 +283,14 @@ def get_scanning_analytics(_: User = Depends(require_admin_hybrid)):
             )
 
             # Get last federated scan and domain check times
-            last_federated_scan_record = (
+            (
                 db.query(ScanSession.completed_at)
                 .filter(ScanSession.session_type == "federated", ScanSession.status == "completed")
                 .order_by(desc(ScanSession.completed_at))
                 .first()
             )
 
-            last_domain_check_record = (
+            (
                 db.query(ScanSession.completed_at)
                 .filter(ScanSession.session_type == "domain_check", ScanSession.status == "completed")
                 .order_by(desc(ScanSession.completed_at))
@@ -300,7 +300,7 @@ def get_scanning_analytics(_: User = Depends(require_admin_hybrid)):
             # Get content scan statistics
             content_scan_stats = db.query(
                 func.count(ContentScan.id).label("total_scans"),
-                func.count(ContentScan.id).filter(ContentScan.needs_rescan == True).label("needs_rescan"),
+                func.count(ContentScan.id).filter(ContentScan.needs_rescan).label("needs_rescan"),
                 func.max(ContentScan.last_scanned_at).label("last_scan"),
             ).first()
 

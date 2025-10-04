@@ -60,7 +60,7 @@ class Settings(BaseSettings):
         return self.MASTODON_CLIENT_SECRET
 
     OAUTH_REDIRECT_URI: str | None = None
-    OAUTH_SCOPE: str = "read write follow"
+    OAUTH_SCOPE: str = "read write follow admin:read admin:read:accounts admin:write:accounts"
     OAUTH_POPUP_REDIRECT_URI: str | None = None
     SESSION_SECRET_KEY: str | None = None
     SESSION_COOKIE_NAME: str = "mastowatch_session"
@@ -77,6 +77,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",  # Allow extra env vars without validation errors
     )
 
 

@@ -419,12 +419,6 @@ class TestDomainValidationMonitoring(unittest.TestCase):
         self.setup_admin_auth()
 
         # Mock overview data with job tracking
-        mock_overview = {
-            "totals": {"accounts": 1000, "reports": 50},
-            "recent_24h": {"new_accounts": 25, "new_reports": 3},
-            "active_jobs": {"federated_scans": 1, "domain_checks": 0, "total_active": 1},
-            "system_status": "healthy",
-        }
 
         response = self.client.get("/analytics/overview")
         self.assertEqual(response.status_code, 200)

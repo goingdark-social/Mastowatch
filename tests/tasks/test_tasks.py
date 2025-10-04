@@ -275,7 +275,7 @@ class TestCeleryTasks(unittest.TestCase):
         }
 
         # Call the function
-        result = analyze_and_maybe_report(payload)
+        analyze_and_maybe_report(payload)
 
         # Should create a report since score (2.5) > threshold (1.0)
         # Note: Function may return None if dry_run is enabled or other conditions

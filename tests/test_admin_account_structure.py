@@ -121,14 +121,14 @@ class TestAdminAccountDataStructure:
             session_id = "test-session"
 
             # CORRECT: Pass full admin object
-            result = scanner.scan_account_efficiently(sample_admin_account, session_id)
+            scanner.scan_account_efficiently(sample_admin_account, session_id)
 
             # Verify scanner was called with full admin object
             mock_scan.assert_called_once_with(sample_admin_account, session_id)
 
     def test_scanner_can_access_admin_fields(self, sample_admin_account):
         """Test that scanner can access admin-specific fields for rule evaluation."""
-        scanner = ScanningSystem()
+        ScanningSystem()
 
         # Scanner should be able to access admin fields
         admin_fields = {
