@@ -16,7 +16,6 @@ os.environ.update(
         "SKIP_STARTUP_VALIDATION": "1",
         "INSTANCE_BASE": "https://test.mastodon.social",
         "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123456789",
-        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123456789",
         "DATABASE_URL": "postgresql+psycopg://test:test@localhost:5433/mastowatch_test",
         "REDIS_URL": "redis://localhost:6380/1",
         "OAUTH_CLIENT_ID": "test_oauth_client_id",

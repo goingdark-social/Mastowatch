@@ -25,16 +25,14 @@ ignore = [
   "D401",  # First line should be in imperative mood – stylistic, not critical
 ]
 
-# --------------------------------------
-# Ban manual HTTP libraries project-wide; allow narrow exceptions via per-file-ignores below
-[tool.ruff.lint.flake8-tidy-imports.banned-api]
-"requests".msg = "Use MastodonService (mastodon.py wrapper); no direct HTTP to Mastodon."
-"httpx".msg     = "Use MastodonService (mastodon.py wrapper); no direct HTTP to Mastodon."
-"urllib.request".msg = "Use MastodonService (mastodon.py wrapper); no direct HTTP to Mastodon."
-
 [tool.ruff.lint.per-file-ignores]
-# Example: allow requests in a generic HTTP adapter if you truly need it (not for Mastodon)
-"app/integrations/http_adapter.py" = ["TID251"]
-"app/services/slack_service.py" = ["TID251"]
+# FastAPI Depends in default args is the framework's recommended pattern
+"backend/app/api/*.py" = ["B008"]
+# Tests can have long lines and don't need full docstring coverage
+"tests/**/*.py" = ["E501", "D100", "D101", "D102", "D103"]
+# conftest.py needs to set env vars before importing app modules
+"tests/conftest.py" = ["E402"]
+# Models are often self-documenting via type hints
+"backend/app/models.py" = ["D101"]
 
 

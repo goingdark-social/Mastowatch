@@ -419,8 +419,16 @@ def get_rule_creation_help():
                 "phrase_match": "Treat entire pattern as single phrase (default: false)",
             },
             "examples": [
-                {"case_sensitive": False, "word_boundaries": True, "description": "Match 'spam' but not 'Spam' or 'spammer'"},
-                {"case_sensitive": False, "word_boundaries": False, "description": "Match 'spam' in 'spammer', 'SPAM', etc."},
+                {
+                    "case_sensitive": False,
+                    "word_boundaries": True,
+                    "description": "Match 'spam' but not 'Spam' or 'spammer'",
+                },
+                {
+                    "case_sensitive": False,
+                    "word_boundaries": False,
+                    "description": "Match 'spam' in 'spammer', 'SPAM', etc.",
+                },
                 {"case_sensitive": True, "word_boundaries": True, "description": "Exact word match, case-sensitive"},
             ],
         },
@@ -472,7 +480,6 @@ def get_rule_creation_help():
             ],
         },
     }
-
 
 
 @router.put("/rules/{rule_id}", tags=["rules"])

@@ -27,7 +27,7 @@ format: ## Format code with black
 	black --line-length 120 backend/app/ tests/
 
 format-check: ## Check code formatting
-	black --check backend/app tests
+	black --check --line-length 120 backend/app tests
 
 lint: ## Lint code with ruff
 	ruff check backend/app/ tests/ --fix

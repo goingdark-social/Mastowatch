@@ -16,7 +16,7 @@ class RegexDetector(BaseDetector):
 
         # Get target fields (default to all if not specified)
         target_fields = rule.target_fields or ["username", "display_name", "bio", "content"]
-        
+
         u = account_data.get("username") or (account_data.get("acct", "").split("@")[0]) or ""
         dn = account_data.get("display_name") or ""
         note = account_data.get("note") or ""

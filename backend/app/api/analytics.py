@@ -1,3 +1,5 @@
+"""Analytics API endpoints for dashboard metrics and insights."""
+
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -72,7 +74,7 @@ def get_analytics_overview(_: User = Depends(require_admin_hybrid)):
         logger.error("Failed to fetch analytics overview", extra={"error": str(e), "error_type": type(e).__name__})
         raise HTTPException(
             status_code=500, detail={"error": "analytics_fetch_failed", "message": "Failed to fetch analytics overview"}
-        )
+        ) from e
 
 
 @router.get("/analytics/timeline", tags=["analytics"])
@@ -119,7 +121,7 @@ def get_analytics_timeline(days: int = 7, _: User = Depends(require_admin_hybrid
         )
         raise HTTPException(
             status_code=500, detail={"error": "timeline_fetch_failed", "message": "Failed to fetch analytics timeline"}
-        )
+        ) from e
 
 
 @router.get("/analytics/accounts", tags=["analytics"])
@@ -337,7 +339,7 @@ def get_scanning_analytics(_: User = Depends(require_admin_hybrid)):
 
     except Exception as e:
         logger.error("Failed to fetch scanning analytics", extra={"error": str(e)})
-        raise HTTPException(status_code=500, detail="Failed to fetch scanning analytics")
+        raise HTTPException(status_code=500, detail="Failed to fetch scanning analytics") from e
 
 
 @router.get("/analytics/domains", tags=["analytics"])

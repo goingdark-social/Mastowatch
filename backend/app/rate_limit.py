@@ -1,3 +1,5 @@
+"""Rate limiting utilities for API endpoints."""
+
 import time
 
 import redis

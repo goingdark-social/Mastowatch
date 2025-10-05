@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, call, patch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import app.jobs.tasks as jobs
-from app.schemas import Violation
 from app.jobs.tasks import (
     CURSOR_NAME,
     CURSOR_NAME_LOCAL,
@@ -19,6 +18,7 @@ from app.jobs.tasks import (
     process_new_report,
     process_new_status,
 )
+from app.schemas import Violation
 
 
 class TestCeleryTasks(unittest.TestCase):
