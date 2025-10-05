@@ -136,6 +136,7 @@ def _poll_accounts(origin: str, cursor_name: str):
                         if scan_result.get("score", 0) > 0:
                             # Enqueue job using RQ
                             from app.jobs.worker import get_queue
+
                             queue = get_queue()
                             queue.enqueue(
                                 analyze_and_maybe_report,
@@ -143,7 +144,7 @@ def _poll_accounts(origin: str, cursor_name: str):
                                     "account": account_data.get("account"),
                                     "admin_obj": account_data,
                                     "scan_result": scan_result,
-                                }
+                                },
                             )
 
                 except Exception as e:
@@ -535,13 +536,8 @@ def process_new_report(report_payload: dict):
         statuses = []
         for _s_id in status_ids:
             try:
-                # This is a simplified approach. Tests mock client.get_account_statuses
-                if hasattr(client, "get_account_statuses"):
-                    account_statuses = client.get_account_statuses(
-                        account_id=account_data["id"], limit=settings.MAX_STATUSES_TO_FETCH
-                    )
-                else:
-                    account_statuses = client.account_statuses(account_data["id"], limit=settings.MAX_STATUSES_TO_FETCH)
+                # Always use the standard account_statuses method from mastodon.py
+                account_statuses = client.account_statuses(account_data["id"], limit=settings.MAX_STATUSES_TO_FETCH)
                 statuses = [s for s in account_statuses if s.get("id") in status_ids]
                 break  # Assuming we only need to fetch once
             except Exception as e:

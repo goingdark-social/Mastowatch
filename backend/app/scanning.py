@@ -164,14 +164,7 @@ class ScanningSystem:
         This method calls the Mastodon service synchronously.
         """
         try:
-            client = mastodon_service.get_admin_client()
-            # Tests/mock clients provide `get_admin_accounts` on the client
-            if hasattr(client, "get_admin_accounts"):
-                accounts, next_cursor = client.get_admin_accounts(
-                    origin=session_type, status="active", limit=limit, max_id=cursor
-                )
-                return accounts, next_cursor
-            # Call service method directly (it's synchronous)
+            # Call service method directly - it's synchronous and always available
             accounts, next_cursor = mastodon_service.get_admin_accounts(
                 origin=session_type, status="active", limit=limit
             )
@@ -183,13 +176,7 @@ class ScanningSystem:
                 import time
 
                 time.sleep(1)
-                client = mastodon_service.get_admin_client()
-                if hasattr(client, "get_admin_accounts"):
-                    accounts, next_cursor = client.get_admin_accounts(
-                        origin=session_type, status="active", limit=limit, max_id=cursor
-                    )
-                    return accounts, next_cursor
-                # Call service method directly (it's synchronous)
+                # Retry using service method
                 accounts, next_cursor = mastodon_service.get_admin_accounts(
                     origin=session_type, status="active", limit=limit
                 )
@@ -213,12 +200,8 @@ class ScanningSystem:
         try:
             client = mastodon_service.get_admin_client()
             # Fetch statuses once (no need for separate media_only call)
-            # We can filter media statuses on our side
-            if hasattr(client, "account_statuses"):
-                statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
-            else:
-                # Call service methods directly (they're synchronous)
-                statuses = mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+            # Always use the standard account_statuses method from mastodon.py
+            statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
 
             # Continue with existing rule evaluation and DB writes...
             scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)

@@ -168,9 +168,10 @@ class MastodonService:
         """
         client = self.get_admin_client()
         params = {"limit": limit}
-        if origin:
+        # Only add parameters if they're not None
+        if origin is not None:
             params["origin"] = origin
-        if status:
+        if status is not None:
             params["status"] = status
         try:
             logger.info(f"Calling admin_accounts_v2 with params: {params}")

@@ -72,7 +72,9 @@ class MastodonAPICallVisitor(ast.NodeVisitor):
             args.append(self._get_arg_repr(arg))
 
         for keyword in node.keywords:
-            kwargs[keyword.arg] = self._get_arg_repr(keyword.value)
+            # Skip **kwargs expansion (keyword.arg is None for **dict unpacking)
+            if keyword.arg is not None:
+                kwargs[keyword.arg] = self._get_arg_repr(keyword.value)
 
         self.calls.append(
             {
@@ -247,7 +249,7 @@ class MastodonAPIChecker:
         """Print details about a call."""
         file_short = Path(call["file"]).relative_to(Path.cwd())
         print(f"  {file_short}:{call['line']} in {call['function']}()")
-        kwarg_names = [k for k in call['kwargs'].keys() if k is not None]
+        kwarg_names = [k for k in call["kwargs"].keys() if k is not None]
         print(f"    {call['method']}({', '.join(kwarg_names)})")
 
     def report(self) -> bool:
