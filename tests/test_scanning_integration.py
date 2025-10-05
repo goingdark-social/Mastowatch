@@ -88,17 +88,27 @@ def spam_detection_rules(test_db_session):
 class TestCompleteScanningFlow:
     """Test complete flow from polling to reporting."""
 
+    @patch("app.scanning.SessionLocal")
+    @patch("app.jobs.tasks.SessionLocal")
     @patch("app.jobs.worker.get_queue")
     @patch("app.jobs.tasks.mastodon_service")
     def test_poll_scan_detect_flow(
         self,
         mock_mastodon_service,
         mock_get_queue,
+        mock_tasks_session_local,
+        mock_scanning_session_local,
         test_db_session,
         admin_account_with_violations,
         spam_detection_rules,
     ):
         """Test: Poll accounts → Scan → Detect violations → Queue reporting."""
+        
+        # Mock SessionLocal to return test session
+        mock_tasks_session_local.return_value.__enter__.return_value = test_db_session
+        mock_tasks_session_local.return_value.__exit__.return_value = None
+        mock_scanning_session_local.return_value.__enter__.return_value = test_db_session
+        mock_scanning_session_local.return_value.__exit__.return_value = None
         
         # Mock RQ queue
         mock_queue = MagicMock()
@@ -165,8 +175,13 @@ class TestCompleteScanningFlow:
         # (actual implementation may vary)
         # mock_create_report.assert_called_once()
 
-    def test_session_lifecycle(self, test_db_session):
+    @patch("app.scanning.SessionLocal")
+    def test_session_lifecycle(self, mock_session_local, test_db_session):
         """Test scan session creation, update, and completion."""
+        # Mock SessionLocal to return test session
+        mock_session_local.return_value.__enter__.return_value = test_db_session
+        mock_session_local.return_value.__exit__.return_value = None
+        
         scanner = ScanningSystem()
 
         # Start session
