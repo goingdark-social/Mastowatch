@@ -16,7 +16,7 @@ from app.oauth import (
     require_admin_hybrid,
 )
 from app.services.rule_service import rule_service
-from app.tasks.jobs import process_new_report, process_new_status
+from app.jobs.tasks import process_new_report, process_new_status
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
@@ -376,7 +376,7 @@ def evaluate_dryrun(request_data: dict[str, Any]):
 
 
 @router.post("/webhooks/mastodon_events", tags=["webhooks"])
-async def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
+def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
     """Handle incoming webhooks from Mastodon.
 
     Mastodon API v2 webhook structure:
@@ -414,8 +414,11 @@ async def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
         except ValueError as e:
             raise HTTPException(status_code=401, detail="Invalid signature format") from e
 
-        # Validate signature
-        body = await request.body()
+        # Validate signature - for sync endpoints, read body directly
+        body = request._body if hasattr(request, '_body') and request._body else b""
+        if not body:
+            import io
+            body = b"".join(request.stream())
         expected_signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hash_func).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):
@@ -427,14 +430,18 @@ async def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
         event_type = payload.get("event", "unknown")
         event_object = payload.get("object", {})
 
+        # Enqueue jobs using RQ
+        from app.jobs.worker import get_queue
+        queue = get_queue()
+
         if event_type == "report.created":
             # Process new report - pass the object, not the whole payload
-            task = process_new_report.delay(event_object)
-            return {"message": "Report processing queued", "task_id": task.id}
+            job = queue.enqueue(process_new_report, event_object)
+            return {"message": "Report processing queued", "task_id": job.id}
         elif event_type == "status.created":
             # Process new status for proactive scanning - pass the object, not the whole payload
-            task = process_new_status.delay(event_object)
-            return {"message": "Status processing queued", "task_id": task.id}
+            job = queue.enqueue(process_new_status, event_object)
+            return {"message": "Status processing queued", "task_id": job.id}
         else:
             return {"message": f"Ignored event type: {event_type}"}
 

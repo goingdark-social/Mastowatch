@@ -73,12 +73,14 @@ def get_domain_alerts(limit: int = 100, user: User = Depends(require_api_key)):
 def trigger_federated_scan(target_domains: list[str] | None = None, user: User = Depends(require_api_key)):
     """Trigger federated content scanning."""
     try:
-        from app.tasks.jobs import scan_federated_content
+        from app.jobs.tasks import scan_federated_content
+        from app.jobs.worker import get_queue
 
-        # Start the task
-        task = scan_federated_content.delay(target_domains)
+        # Enqueue the job
+        queue = get_queue()
+        job = queue.enqueue(scan_federated_content, target_domains)
 
-        return {"message": "Federated scan initiated", "task_id": task.id, "target_domains": target_domains or "all"}
+        return {"message": "Federated scan initiated", "task_id": job.id, "target_domains": target_domains or "all"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start federated scan: {str(e)}") from e
 
@@ -87,12 +89,14 @@ def trigger_federated_scan(target_domains: list[str] | None = None, user: User =
 def trigger_domain_check(user: User = Depends(require_admin_hybrid)):
     """Trigger domain violation checking."""
     try:
-        from app.tasks.jobs import check_domain_violations
+        from app.jobs.tasks import check_domain_violations
+        from app.jobs.worker import get_queue
 
-        # Start the task
-        task = check_domain_violations.delay()
+        # Enqueue the job
+        queue = get_queue()
+        job = queue.enqueue(check_domain_violations)
 
-        return {"message": "Domain check initiated", "task_id": task.id}
+        return {"message": "Domain check initiated", "task_id": job.id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start domain check: {str(e)}") from e
 

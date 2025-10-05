@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from app.models import Account, Rule, ScanSession
 from app.scanning import ScanningSystem
-from app.tasks.jobs import analyze_and_maybe_report, poll_admin_accounts
+from app.jobs.tasks import analyze_and_maybe_report, poll_admin_accounts
 from sqlalchemy import text
 
 
@@ -284,7 +284,7 @@ class TestCursorPersistence:
         test_db_session.commit()
 
         # First poll
-        from app.tasks.jobs import _poll_accounts
+        from app.jobs.tasks import _poll_accounts
 
         _poll_accounts("remote", "test_cursor")
 
@@ -329,7 +329,7 @@ class TestErrorHandling:
         test_db_session.commit()
 
         # Should not crash
-        from app.tasks.jobs import _poll_accounts
+        from app.jobs.tasks import _poll_accounts
 
         try:
             _poll_accounts("remote", "error_cursor")
@@ -338,7 +338,7 @@ class TestErrorHandling:
 
     def test_invalid_account_data_handling(self, test_db_session):
         """Test handling of malformed account data."""
-        from app.tasks.jobs import _persist_account
+        from app.jobs.tasks import _persist_account
 
         # Missing required fields
         invalid_account = {
