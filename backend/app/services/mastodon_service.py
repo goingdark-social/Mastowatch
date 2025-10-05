@@ -217,7 +217,7 @@ class MastodonService:
     ) -> dict[str, Any]:
         """Synchronous wrapper for admin account moderation.
         
-        Used by enforcement_service which runs in Celery workers (sync context).
+        Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()
         try:
@@ -234,7 +234,7 @@ class MastodonService:
     def admin_unsilence_account_sync(self, account_id: str) -> dict[str, Any]:
         """Synchronous wrapper for unsilencing accounts.
         
-        Used by enforcement_service which runs in Celery workers (sync context).
+        Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()
         try:
@@ -246,7 +246,7 @@ class MastodonService:
     def admin_unsuspend_account_sync(self, account_id: str) -> dict[str, Any]:
         """Synchronous wrapper for unsuspending accounts.
         
-        Used by enforcement_service which runs in Celery workers (sync context).
+        Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()
         try:
@@ -266,7 +266,7 @@ class MastodonService:
     ) -> dict[str, Any]:
         """Synchronous wrapper for creating reports.
         
-        Used by enforcement_service which runs in Celery workers (sync context).
+        Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()
         try:

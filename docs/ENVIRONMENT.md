@@ -24,7 +24,7 @@ These variables must be set for MastoWatch to function properly:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `REDIS_URL` | Redis connection string for Celery broker/backend | `redis://host:port/db` |
+| `REDIS_URL` | Redis connection string for RQ job queue and cache | `redis://host:port/db` |
 
 ### Security Configuration
 

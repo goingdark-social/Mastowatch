@@ -14,7 +14,7 @@ MastoWatch now includes comprehensive production-readiness features:
 
 ### 🧪 Testing Infrastructure
 - **Edge case testing**: 22 comprehensive test scenarios covering webhooks, health checks, and configuration
-- **Mocked dependencies**: Isolated testing with database, Redis, and Celery mocks
+- **Mocked dependencies**: Isolated testing with database, Redis, and RQ job mocks
 - **Environment controls**: `SKIP_STARTUP_VALIDATION=1` for test environments
 
 ### 📊 Monitoring & Observability
@@ -178,8 +178,8 @@ app/                    # Backend Python code
 ├── config.py          # Configuration management
 ├── models.py          # SQLAlchemy database models
 ├── startup_validation.py  # Environment validation with test bypass
-├── clients/mastodon/  # Type-safe Mastodon API client
-└── tasks/             # Celery background tasks
+├── services/          # Service layer (MastodonService, etc.)
+└── jobs/              # RQ background jobs
 
 frontend/              # React/TypeScript frontend
 ├── src/App.tsx       # settings interface with error states

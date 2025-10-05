@@ -263,11 +263,12 @@ def get_scanning_analytics(_: User = Depends(require_admin_hybrid)):
         ScanningSystem()
         settings = get_settings()
 
-        # Get active jobs from Redis/Celery
+        # Get active jobs from Redis/RQ
         r = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
-        # Get Celery queue length
-        r.llen("celery")
+        # Get RQ queue length (RQ uses different queue naming than Celery)
+        # Note: RQ jobs are tracked differently - see /jobs/* endpoints for details
+        r.llen("default")
 
         with SessionLocal() as db:
             # Get active scan sessions
