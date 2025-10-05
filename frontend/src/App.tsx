@@ -1389,10 +1389,6 @@ function RulesTab({ rules, onReload }: {
                 </Stack>
               </div>
             )}
-                  <div><Code>.*(earn|money|profit).*home.*</Code> <Text size="xs" c="dimmed" ml="sm">- Matches work-from-home scams</Text></div>
-                </Stack>
-              </div>
-            )}
 
             {selectedRuleForInfo.trigger_count !== undefined && (
               <div>
