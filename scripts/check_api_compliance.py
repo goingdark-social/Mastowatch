@@ -130,15 +130,6 @@ class TypeInferencer:
                 return (type(None), "None")
             return (type(value), repr(value))
 
-        # Legacy Python 3.7 compatibility (will be removed in Python 3.14)
-        # Using hasattr to avoid DeprecationWarning on newer Python versions
-        if hasattr(ast, "Num") and isinstance(node, ast.Num):
-            return (type(node.n), str(node.n))
-        if hasattr(ast, "Str") and isinstance(node, ast.Str):
-            return (str, f'"{node.s}"')
-        if hasattr(ast, "NameConstant") and isinstance(node, ast.NameConstant):
-            return (type(node.value), str(node.value))
-
         # Collections (work in all Python versions)
         if isinstance(node, ast.List):
             return (list, f"[...{len(node.elts)} items]")
