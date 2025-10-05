@@ -7,7 +7,7 @@ MastoWatch is a Mastodon **auto-moderation** tool that analyzes accounts/statuse
 - Database: PostgreSQL with Alembic migrations
 - Cache/Queue: Redis
 - Frontend: React (Vite)
-- Mastodon Integration: OpenAPI-generated client + mastodon.py for OAuth
+- Mastodon Integration: mastodon.py library via MastodonService wrapper
 
 **Development Tools:**
 - **Serena MCP**: Use Serena tools for all codebase exploration, symbol search, and code editing. Always read/write memories for collaboration context.
@@ -56,12 +56,6 @@ make logs          # All services
 make logs-api      # API only
 make logs-worker   # Celery worker only
 make status        # Show service status
-```
-
-### Mastodon API Client
-```bash
-make update-mastodon-client  # Update OpenAPI spec and regenerate client
-make api-client-status       # Show current client version
 ```
 
 ## Architecture
@@ -150,9 +144,8 @@ make api-client-status       # Show current client version
 
 **Mastodon API Access:**
 - NEVER call Mastodon APIs directly with `requests`/`httpx`
-- ALWAYS use `MastodonService` wrapper
-- Prefer OpenAPI-generated client methods
-- Fall back to raw HTTP only for admin endpoints not in OpenAPI spec
+- ALWAYS use `MastodonService` wrapper (wraps mastodon.py library)
+- All Mastodon API operations go through mastodon.py methods
 
 **Admin vs Public Data:**
 - Public account API: username, display_name, followers_count, etc.

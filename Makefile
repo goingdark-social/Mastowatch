@@ -77,18 +77,6 @@ status: ## Show service status
 shell-api: ## Enter API container shell
 	docker compose exec api bash
 
-update-api-spec: ## Update OpenAPI spec from submodule
-	./scripts/regenerate_client.sh update
-
-regenerate-client: ## Regenerate typed client from current spec
-	./scripts/regenerate_client.sh regenerate
-
-update-mastodon-client: ## Full update: submodule + spec + client
-	./scripts/regenerate_client.sh update
-
-api-client-status: ## Show current API client status
-	./scripts/regenerate_client.sh status
-
 docker-build: ## Build with BuildKit
 	DOCKER_BUILDKIT=1 docker compose build
 

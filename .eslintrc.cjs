@@ -71,18 +71,18 @@ module.exports = {
       {
         selector:
           "CallExpression[callee.name='fetch'][arguments.0.type='Literal'][arguments.0.value=/mastodon\\./i]",
-        message: 'Do not call Mastodon directly. Use the generated OpenAPI client.'
+        message: 'Do not call Mastodon directly. Use the backend API.'
       },
       {
         selector:
           "CallExpression[callee.object.name='axios'][callee.property.name=/^(get|post|put|delete|patch|head|options)$/][arguments.0.type='Literal'][arguments.0.value=/mastodon\\./i]",
-        message: 'Do not call Mastodon directly. Use the generated OpenAPI client.'
+        message: 'Do not call Mastodon directly. Use the backend API.'
       },
       {
         // axios({ url: 'https://mastodon...' })
         selector:
           "CallExpression[callee.name='axios'] ObjectExpression > Property[key.name='url'] Literal[value=/mastodon\\./i]",
-        message: 'Do not call Mastodon directly. Use the generated OpenAPI client.'
+        message: 'Do not call Mastodon directly. Use the backend API.'
       }
     ],
 
