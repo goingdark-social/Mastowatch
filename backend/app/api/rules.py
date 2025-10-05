@@ -77,6 +77,11 @@ def list_rules(user: User = Depends(require_admin_hybrid), session: Session = De
                 "created_at": rule.created_at.isoformat() if rule.created_at else None,
                 "updated_at": rule.updated_at.isoformat() if rule.updated_at else None,
                 "rule_type": rule.detector_type,  # For backwards compatibility
+                # Enhanced configuration fields
+                "target_fields": rule.target_fields,
+                "match_options": rule.match_options,
+                "behavioral_params": rule.behavioral_params,
+                "media_params": rule.media_params,
             }
         )
 
@@ -176,6 +181,10 @@ def create_rule(
             enabled=rule_data.get("enabled", True),
             description=rule_data.get("description"),
             created_by=user.username if user else "system",
+            target_fields=rule_data.get("target_fields"),
+            match_options=rule_data.get("match_options"),
+            behavioral_params=rule_data.get("behavioral_params"),
+            media_params=rule_data.get("media_params"),
         )
 
         return new_rule
@@ -192,59 +201,165 @@ def create_rule(
 def get_rule_creation_help():
     """Get comprehensive help text and examples for creating rules."""
     return {
-        "rule_types": {
-            "regex": {
-                "description": "Matches against text content using regular expressions.",
-                "fields": [
-                    "pattern",
-                    "boolean_operator",
-                    "secondary_pattern",
-                    "weight",
-                    "action_type",
-                    "trigger_threshold",
-                    "description",
-                ],
-                "examples": [
-                    {
-                        "name": "Spam URL Regex",
-                        "detector_type": "regex",
-                        "pattern": r"https?://[a-zA-Z0-9.-]+\\.(tk|ml|ga|cf|gq)/",
-                        "weight": 1.5,
-                        "action_type": "report",
-                        "trigger_threshold": 1.0,
-                        "description": "Detects common spam URLs using free domains.",
-                    }
-                ],
+        "overview": {
+            "description": "MastoWatch supports multiple detector types. Choose the right tool for each moderation task.",
+            "detector_types": {
+                "keyword": "Simple, fast text matching - best for known spam terms, blocked phrases, or specific words",
+                "behavioral": "Account activity patterns - best for detecting bots, spam behavior, or abuse patterns",
+                "media": "Media content policies - best for attachment requirements, MIME type filtering, or image hashing",
+                "regex": "Advanced pattern matching - use when keyword matching isn't flexible enough (requires regex expertise)",
             },
+            "choosing_detector": [
+                "Start with keyword rules for simple text matches - they're faster and easier to maintain",
+                "Use behavioral rules for account activity patterns like rapid posting or link spam",
+                "Use media rules for attachment policies like required alt-text or MIME type filtering",
+                "Only use regex when you need complex pattern matching that keywords can't handle",
+            ],
+        },
+        "rule_types": {
             "keyword": {
-                "description": "Matches against text content for specific keywords.",
+                "description": "Fast, simple text matching for known terms and phrases. Best for most moderation needs.",
+                "priority": 1,
                 "fields": [
                     "pattern (comma-separated keywords)",
-                    "boolean_operator",
-                    "secondary_pattern",
+                    "target_fields (which fields to check: username, display_name, bio, content)",
+                    "match_options (case_sensitive, word_boundaries, etc.)",
                     "weight",
                     "action_type",
                     "trigger_threshold",
-                    "target_field (username, display_name, content)",
                     "description",
                 ],
                 "examples": [
                     {
-                        "name": "Crypto Keywords",
+                        "name": "Spam Keywords in Bio",
                         "detector_type": "keyword",
-                        "pattern": "bitcoin, crypto, nft, blockchain",
-                        "weight": 0.8,
-                        "action_type": "silence",
+                        "pattern": "casino,pills,viagra,crypto",
+                        "target_fields": ["bio"],
+                        "match_options": {"case_sensitive": False, "word_boundaries": True},
+                        "weight": 1.2,
+                        "action_type": "report",
                         "trigger_threshold": 1.0,
-                        "target_field": "content",
-                        "description": "Detects cryptocurrency related keywords in posts.",
-                    }
+                        "description": "Detects common spam keywords in user bios only.",
+                    },
+                    {
+                        "name": "Promotional Terms in Username",
+                        "detector_type": "keyword",
+                        "pattern": "buy,discount,sale,promo",
+                        "target_fields": ["username", "display_name"],
+                        "match_options": {"case_sensitive": False, "word_boundaries": False},
+                        "weight": 0.8,
+                        "action_type": "report",
+                        "trigger_threshold": 1.0,
+                        "description": "Flags promotional language in usernames and display names.",
+                    },
+                    {
+                        "name": "Blocked Domains",
+                        "detector_type": "keyword",
+                        "pattern": "spam-site.com,scam-site.net,bad-domain.tk",
+                        "target_fields": ["content", "bio"],
+                        "match_options": {"case_sensitive": False, "word_boundaries": False},
+                        "weight": 2.0,
+                        "action_type": "suspend",
+                        "trigger_threshold": 1.0,
+                        "description": "Blocks specific known spam/scam domains.",
+                    },
                 ],
             },
             "behavioral": {
-                "description": "Matches against account behavior metrics.",
+                "description": "Detect suspicious account activity patterns and bot-like behavior.",
+                "priority": 2,
                 "fields": [
-                    "pattern (behavior type, e.g., 'rapid_posting')",
+                    "pattern (behavior type: rapid_posting, link_spam, automation_disclosure)",
+                    "behavioral_params (time_window_hours, post_threshold, link_threshold)",
+                    "weight",
+                    "action_type",
+                    "trigger_threshold",
+                    "description",
+                ],
+                "examples": [
+                    {
+                        "name": "Rapid Posting Detection",
+                        "detector_type": "behavioral",
+                        "pattern": "rapid_posting",
+                        "behavioral_params": {"time_window_hours": 1, "post_threshold": 10},
+                        "weight": 1.5,
+                        "action_type": "silence",
+                        "trigger_threshold": 1.0,
+                        "description": "Flags accounts posting more than 10 times per hour (typical bot behavior).",
+                    },
+                    {
+                        "name": "Link Spam Detector",
+                        "detector_type": "behavioral",
+                        "pattern": "link_spam",
+                        "behavioral_params": {"min_links_per_post": 3, "post_sample_size": 5},
+                        "weight": 1.8,
+                        "action_type": "report",
+                        "trigger_threshold": 1.0,
+                        "description": "Detects accounts posting excessive links (3+ links in most posts).",
+                    },
+                    {
+                        "name": "Suspicious New Account",
+                        "detector_type": "behavioral",
+                        "pattern": "new_account_activity",
+                        "behavioral_params": {"account_age_days": 1, "min_posts": 20},
+                        "weight": 1.0,
+                        "action_type": "report",
+                        "trigger_threshold": 1.0,
+                        "description": "Flags brand new accounts with immediate high posting activity.",
+                    },
+                ],
+            },
+            "media": {
+                "description": "Media attachment policies for accessibility, content type filtering, and known image detection.",
+                "priority": 3,
+                "fields": [
+                    "pattern (MIME type, alt-text pattern, or image hash)",
+                    "media_params (require_alt_text, allowed_mime_types, blocked_hashes)",
+                    "weight",
+                    "action_type",
+                    "trigger_threshold",
+                    "description",
+                ],
+                "examples": [
+                    {
+                        "name": "Missing Alt Text",
+                        "detector_type": "media",
+                        "pattern": "missing_alt_text",
+                        "media_params": {"require_alt_text": True},
+                        "weight": 0.3,
+                        "action_type": "report",
+                        "trigger_threshold": 1.0,
+                        "description": "Flags posts with images missing alt text (accessibility requirement).",
+                    },
+                    {
+                        "name": "Blocked Image Types",
+                        "detector_type": "media",
+                        "pattern": "image/gif",
+                        "media_params": {"allowed_mime_types": ["image/jpeg", "image/png", "image/webp"]},
+                        "weight": 1.0,
+                        "action_type": "sensitive",
+                        "trigger_threshold": 1.0,
+                        "description": "Blocks or marks GIF attachments as sensitive.",
+                    },
+                    {
+                        "name": "Known Spam Image",
+                        "detector_type": "media",
+                        "pattern": "a1b2c3d4e5f6...",  # SHA256 hash
+                        "media_params": {"detection_type": "hash"},
+                        "weight": 2.5,
+                        "action_type": "suspend",
+                        "trigger_threshold": 1.0,
+                        "description": "Detects known spam/scam image by content hash.",
+                    },
+                ],
+            },
+            "regex": {
+                "description": "Advanced pattern matching using regular expressions. Use sparingly - regex can be slow and error-prone.",
+                "priority": 4,
+                "warning": "Regex patterns can cause performance issues and false positives. Consider using keyword rules first.",
+                "fields": [
+                    "pattern (regex pattern)",
+                    "target_fields (which fields to check: username, display_name, bio, content)",
                     "boolean_operator",
                     "secondary_pattern",
                     "weight",
@@ -252,39 +367,62 @@ def get_rule_creation_help():
                     "trigger_threshold",
                     "description",
                 ],
-                "examples": [
-                    {
-                        "name": "Rapid Posting Behavior",
-                        "detector_type": "behavioral",
-                        "pattern": "rapid_posting",
-                        "weight": 1.2,
-                        "action_type": "suspend",
-                        "trigger_threshold": 5.0,
-                        "description": "Detects accounts posting more than 5 times in an hour.",
-                    }
-                ],
-            },
-            "media": {
-                "description": "Examines media attachments for alt text, MIME types, or URL hashes.",
-                "fields": [
-                    "pattern",
-                    "weight",
-                    "action_type",
-                    "trigger_threshold",
-                    "description",
+                "safety_tips": [
+                    "Avoid catastrophic backtracking - test patterns at regex101.com",
+                    "Keep patterns simple - complex regex can timeout or slow down scanning",
+                    "Use keyword rules instead when possible - they're faster and safer",
+                    "Always test with sample data before enabling",
                 ],
                 "examples": [
                     {
-                        "name": "Disallowed Image Type",
-                        "detector_type": "media",
-                        "pattern": "image/gif",
-                        "weight": 1.0,
+                        "name": "Spam URL Pattern",
+                        "detector_type": "regex",
+                        "pattern": r"https?://[a-zA-Z0-9.-]+\.(tk|ml|ga|cf|gq)/",
+                        "target_fields": ["content", "bio"],
+                        "weight": 1.5,
                         "action_type": "report",
                         "trigger_threshold": 1.0,
-                        "description": "Flags GIF attachments.",
-                    }
+                        "description": "Detects URLs with free/disposable domain TLDs often used for spam.",
+                    },
+                    {
+                        "name": "Suspicious Username Pattern",
+                        "detector_type": "regex",
+                        "pattern": r"^[a-z]+\d{4,}$",
+                        "target_fields": ["username"],
+                        "weight": 0.5,
+                        "action_type": "report",
+                        "trigger_threshold": 1.0,
+                        "description": "Flags usernames like 'user12345' (common bot pattern).",
+                    },
                 ],
             },
+        },
+        "field_scoping": {
+            "description": "Target specific fields to reduce false positives and improve precision",
+            "available_fields": {
+                "username": "The user's account name (e.g., '@alice')",
+                "display_name": "The user's display name shown on their profile",
+                "bio": "The user's profile bio/note text",
+                "content": "Post content (status text)",
+            },
+            "examples": [
+                "username-only rules catch spammy account names without false positives from legitimate post content",
+                "bio-only rules target profile spam without affecting normal posting",
+                "content-only rules focus on what users post, not their identity",
+            ],
+        },
+        "match_options": {
+            "description": "Fine-tune keyword matching behavior",
+            "options": {
+                "case_sensitive": "Whether to match case exactly (default: false)",
+                "word_boundaries": "Only match whole words, not substrings (default: true)",
+                "phrase_match": "Treat entire pattern as single phrase (default: false)",
+            },
+            "examples": [
+                {"case_sensitive": False, "word_boundaries": True, "description": "Match 'spam' but not 'Spam' or 'spammer'"},
+                {"case_sensitive": False, "word_boundaries": False, "description": "Match 'spam' in 'spammer', 'SPAM', etc."},
+                {"case_sensitive": True, "word_boundaries": True, "description": "Exact word match, case-sensitive"},
+            ],
         },
         "action_types": ["report", "silence", "suspend", "disable", "sensitive", "domain_block"],
         "weight_guidelines": {
@@ -305,32 +443,25 @@ def get_rule_creation_help():
                 "Can be used to combine multiple weaker rules to trigger a stronger action.",
             ],
         },
-        "regex_tips": {
-            "description": "Tips for creating effective regex patterns",
-            "tips": [
-                "Use ^ and $ to match the entire string (^pattern$)",
-                "Use .* to match any characters before/after your pattern",
-                r"Use \d for digits, \w for word characters, \s for spaces",
-                r"Use + for one or more, * for zero or more, {3,} for 3 or more",
-                r"Use (option1|option2) for alternatives",
-                r"Escape special characters with backslash: \. \? \+ \*",
-                "Test your patterns carefully - they affect real moderation decisions",
-            ],
-        },
         "testing_guidance": {
             "description": "How to test and validate your rules",
             "steps": [
-                "1. Test your regex pattern with online tools first",
-                "2. Start with a low weight (0.1-0.3) for new rules",
-                "3. Monitor rule performance after creation",
-                "4. Adjust weights based on false positive/negative rates",
-                "5. Use the dry-run mode to test before applying",
+                "1. Start with keyword rules when possible - they're easier to test and debug",
+                "2. Test regex patterns with online tools first (only if keyword rules aren't sufficient)",
+                "3. Start with a low weight (0.1-0.3) for new rules",
+                "4. Monitor rule performance after creation",
+                "5. Adjust weights based on false positive/negative rates",
                 "6. Review triggered rules regularly for accuracy",
             ],
         },
         "best_practices": {
             "description": "Best practices for effective moderation rules",
             "practices": [
+                "Prefer keyword rules over regex - they're faster, safer, and easier to maintain",
+                "Use field scoping to target specific areas (e.g., username-only or bio-only)",
+                "Configure match_options appropriately (word boundaries prevent false matches)",
+                "Use behavioral rules for patterns that simple text matching can't catch",
+                "Use media rules to enforce accessibility and content policies",
                 "Create specific rules rather than overly broad ones",
                 "Use descriptive names that explain what the rule catches",
                 "Start conservative and adjust based on results",
@@ -341,6 +472,7 @@ def get_rule_creation_help():
             ],
         },
     }
+
 
 
 @router.put("/rules/{rule_id}", tags=["rules"])
