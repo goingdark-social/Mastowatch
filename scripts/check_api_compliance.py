@@ -178,7 +178,7 @@ class TypeInferencer:
             return (False, f"Type mismatch: expected {annotation.__name__}, got {inferred_type.__name__}")
 
         # Handle Optional[X] (which is Union[X, None])
-        if origin == type(None) or (hasattr(origin, "__name__") and origin.__name__ == "UnionType"):
+        if origin is type(None) or (hasattr(origin, "__name__") and origin.__name__ == "UnionType"):
             # For Union types, check if inferred type matches any of the union members
             args = get_args(annotation)
             for arg in args:
