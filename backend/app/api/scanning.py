@@ -44,9 +44,7 @@ def get_next_accounts_to_scan(
 
 
 @router.post("/scan/account", response_model=dict[str, Any])
-def scan_account_efficiently(
-    account_data: dict[str, Any], session_id: str, user: User = Depends(require_api_key)
-):
+def scan_account_efficiently(account_data: dict[str, Any], session_id: str, user: User = Depends(require_api_key)):
     """Scan a single account efficiently."""
     scanner = ScanningSystem()
     result = scanner.scan_account_efficiently(account_data, session_id)

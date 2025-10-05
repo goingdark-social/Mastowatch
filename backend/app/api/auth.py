@@ -415,7 +415,7 @@ def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
             raise HTTPException(status_code=401, detail="Invalid signature format") from e
 
         # Validate signature - for sync endpoints, read body directly
-        body = request._body if hasattr(request, '_body') and request._body else b""
+        body = request._body if hasattr(request, "_body") and request._body else b""
         if not body:
             body = b"".join(request.stream())
         expected_signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hash_func).hexdigest()
@@ -431,6 +431,7 @@ def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
 
         # Enqueue jobs using RQ
         from app.jobs.worker import get_queue
+
         queue = get_queue()
 
         if event_type == "report.created":

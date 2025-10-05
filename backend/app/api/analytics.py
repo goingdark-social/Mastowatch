@@ -1,4 +1,5 @@
 """Analytics API endpoints for dashboard metrics and insights."""
+
 import logging
 from datetime import UTC, datetime, timedelta
 

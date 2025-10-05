@@ -46,14 +46,15 @@ class TestMastodonService(unittest.TestCase):
     @patch("app.services.mastodon_service.Mastodon.log_in", new_callable=MagicMock)
     def test_exchange_oauth_code(self, mock_log_in):
         """Test OAuth code exchange using the official log_in method.
-        
+
         Note: This method is currently async but will be made sync in future PR.
         For now, we test by calling the underlying sync method directly.
         """
         mock_log_in.return_value = "test_access_token"
-        
+
         # Test the underlying sync call directly (as it will be in the refactored version)
         from mastodon import Mastodon
+
         client = Mastodon(
             client_id=self.service.settings.OAUTH_CLIENT_ID,
             client_secret=self.service.settings.OAUTH_CLIENT_SECRET,
@@ -64,7 +65,7 @@ class TestMastodonService(unittest.TestCase):
             redirect_uri="https://example.com/callback",
             scopes=self.service.settings.OAUTH_SCOPE.split(),
         )
-        
+
         self.assertEqual(result, "test_access_token")
         mock_log_in.assert_called_once()
 

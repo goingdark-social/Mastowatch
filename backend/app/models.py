@@ -1,3 +1,5 @@
+"""Database models for accounts, analyses, reports, and moderation rules."""
+
 import os
 
 from app.db import Base

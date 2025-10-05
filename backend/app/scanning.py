@@ -1,4 +1,5 @@
 """Account and content scanning logic for moderation rule evaluation."""
+
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
@@ -221,9 +222,7 @@ class ScanningSystem:
                 )
             else:
                 # Call service methods directly (they're synchronous)
-                statuses = mastodon_service.get_account_statuses(
-                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
-                )
+                statuses = mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
                 media_statuses = mastodon_service.get_account_statuses(
                     account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
                 )

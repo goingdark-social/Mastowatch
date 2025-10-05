@@ -1,18 +1,13 @@
 """MastoWatch main application entry point and API endpoints."""
+
 import hashlib
 import hmac
 import logging
 import time
 from datetime import datetime
 
+import app.jobs.tasks as _jobs
 import redis
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
-from fastapi.staticfiles import StaticFiles
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from sqlalchemy import text
-from starlette.middleware.sessions import SessionMiddleware
 
 # Import API routers
 from app.api.analytics import router as analytics_router
@@ -24,11 +19,17 @@ from app.api.scanning import router as scanning_router
 from app.config import get_settings
 from app.db import SessionLocal
 from app.jobs.api import router as jobs_router
-import app.jobs.tasks as _jobs
 from app.jobs.tasks import process_new_report, process_new_status
 from app.logging_conf import setup_logging
 from app.oauth import get_current_user, require_admin_hybrid
 from app.startup_validation import run_all_startup_validations
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlalchemy import text
+from starlette.middleware.sessions import SessionMiddleware
 
 
 # For backward compatibility with tests
@@ -296,7 +297,8 @@ def webhook_mastodon_events(request: Request):
         # Parse payload
         try:
             import json
-            payload = json.loads(body.decode('utf-8'))
+
+            payload = json.loads(body.decode("utf-8"))
         except Exception as e:
             logger.error(
                 "Failed to parse webhook JSON payload",
@@ -328,6 +330,7 @@ def webhook_mastodon_events(request: Request):
 
         # Enqueue jobs using RQ
         from app.jobs.worker import get_queue
+
         queue = get_queue()
 
         if event_type == "report.created":

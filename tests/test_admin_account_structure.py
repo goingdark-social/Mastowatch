@@ -108,7 +108,7 @@ class TestAdminAccountDataStructure:
         # Mock SessionLocal to return test session
         mock_session_local.return_value.__enter__.return_value = test_db_session
         mock_session_local.return_value.__exit__.return_value = None
-        
+
         _persist_account(sample_admin_account)
 
         # Verify account was persisted with correct data
@@ -173,7 +173,13 @@ class TestAdminAccountDataStructure:
     @patch("app.jobs.tasks.mastodon_service")
     @patch("app.jobs.tasks.ScanningSystem")
     def test_poll_accounts_passes_full_admin_object(
-        self, mock_scanner_class, mock_mastodon_service, mock_session_local, mock_get_queue, test_db_session, sample_admin_accounts_list
+        self,
+        mock_scanner_class,
+        mock_mastodon_service,
+        mock_session_local,
+        mock_get_queue,
+        test_db_session,
+        sample_admin_accounts_list,
     ):
         """Test that _poll_accounts passes full admin object to scanner.
 
@@ -183,11 +189,11 @@ class TestAdminAccountDataStructure:
         # Mock RQ queue
         mock_queue = MagicMock()
         mock_get_queue.return_value = mock_queue
-        
+
         # Mock SessionLocal to return test session
         mock_session_local.return_value.__enter__.return_value = test_db_session
         mock_session_local.return_value.__exit__.return_value = None
-        
+
         # Setup mocks
         mock_scanner = MagicMock()
         mock_scanner_class.return_value = mock_scanner
@@ -266,7 +272,7 @@ class TestScanSessionProgress:
         # Mock SessionLocal to return test session
         mock_session_local.return_value.__enter__.return_value = test_db_session
         mock_session_local.return_value.__exit__.return_value = None
-        
+
         scanner = ScanningSystem()
         session_id = scanner.start_scan_session("remote")
 
@@ -281,7 +287,7 @@ class TestScanSessionProgress:
         # Mock SessionLocal to return test session
         mock_session_local.return_value.__enter__.return_value = test_db_session
         mock_session_local.return_value.__exit__.return_value = None
-        
+
         scanner = ScanningSystem()
         session_id = scanner.start_scan_session("remote")
 
@@ -299,20 +305,26 @@ class TestScanSessionProgress:
     @patch("app.scanning.SessionLocal")
     @patch("app.jobs.tasks.ScanningSystem")
     def test_accounts_processed_increments(
-        self, mock_scanner_class, mock_scanning_session_local, mock_tasks_session_local, mock_get_queue, test_db_session, sample_admin_accounts_list
+        self,
+        mock_scanner_class,
+        mock_scanning_session_local,
+        mock_tasks_session_local,
+        mock_get_queue,
+        test_db_session,
+        sample_admin_accounts_list,
     ):
         """Test that accounts_processed increments during scanning."""
-        
+
         # Mock RQ queue
         mock_queue = MagicMock()
         mock_get_queue.return_value = mock_queue
-        
+
         # Mock SessionLocal to return test session
         mock_tasks_session_local.return_value.__enter__.return_value = test_db_session
         mock_tasks_session_local.return_value.__exit__.return_value = None
         mock_scanning_session_local.return_value.__enter__.return_value = test_db_session
         mock_scanning_session_local.return_value.__exit__.return_value = None
-        
+
         # Setup mocks
         mock_scanner = MagicMock()
         mock_scanner_class.return_value = mock_scanner
