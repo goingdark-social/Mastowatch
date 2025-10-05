@@ -21,7 +21,6 @@ class Settings(BaseSettings):
 
     # Auth tokens / credentials
     MASTODON_CLIENT_SECRET: str = Field(..., min_length=1)
-    MASTODON_CLIENT_SECRET: str = Field(..., min_length=1)
 
     # Core runtime defaults (aligned with tests)
     DRY_RUN: bool = True
@@ -53,7 +52,6 @@ class Settings(BaseSettings):
 
     # OAuth configuration for admin login
     MASTODON_CLIENT_KEY: str | None = None
-    MASTODON_CLIENT_SECRET: str | None = None
     OAUTH_REDIRECT_URI: str | None = None
     OAUTH_SCOPE: str = "read write follow admin:read admin:read:accounts admin:write:accounts"
     OAUTH_POPUP_REDIRECT_URI: str | None = None
