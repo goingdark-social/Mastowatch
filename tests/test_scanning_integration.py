@@ -1,10 +1,10 @@
 """Integration tests for the complete scanning flow.
 
-Tests the end-to-end flow from Celery Beat → Account Polling → Scanning → Reporting
+Tests the end-to-end flow from RQ Scheduler → Account Polling → Scanning → Reporting
 """
 
 from datetime import UTC, datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from app.models import Account, Rule, ScanSession
@@ -88,17 +88,21 @@ def spam_detection_rules(test_db_session):
 class TestCompleteScanningFlow:
     """Test complete flow from polling to reporting."""
 
-    @patch("app.tasks.jobs.analyze_and_maybe_report.delay")
-    @patch("app.tasks.jobs.mastodon_service")
+    @patch("app.jobs.worker.get_queue")
+    @patch("app.jobs.tasks.mastodon_service")
     def test_poll_scan_detect_flow(
         self,
         mock_mastodon_service,
-        mock_analyze_task,
+        mock_get_queue,
         test_db_session,
         admin_account_with_violations,
         spam_detection_rules,
     ):
         """Test: Poll accounts → Scan → Detect violations → Queue reporting."""
+        
+        # Mock RQ queue
+        mock_queue = MagicMock()
+        mock_get_queue.return_value = mock_queue
 
         # Mock Mastodon API to return malicious account
         mock_mastodon_service.get_admin_accounts_sync.return_value = (
@@ -121,7 +125,7 @@ class TestCompleteScanningFlow:
         )
         test_db_session.commit()
 
-        # Trigger polling (simulates Celery Beat)
+        # Trigger polling (simulates RQ scheduler)
         poll_admin_accounts()
 
         # Verify account was persisted
@@ -129,10 +133,13 @@ class TestCompleteScanningFlow:
         assert account is not None
 
         # Verify reporting task was queued if violations found
-        if mock_analyze_task.called:
-            call_args = mock_analyze_task.call_args[0][0]
-            assert "account" in call_args
-            assert "scan_result" in call_args
+        if mock_queue.enqueue.called:
+            call_args = mock_queue.enqueue.call_args[0]
+            # First arg is the function, second is the payload dict
+            assert len(call_args) >= 2
+            payload = call_args[1]
+            assert "account" in payload or "admin_obj" in payload
+            assert "scan_result" in payload
 
     @patch("app.services.enforcement_service.EnforcementService.create_report")
     def test_analyze_and_report_flow(
@@ -267,7 +274,7 @@ class TestMastodonAPICompliance:
 class TestCursorPersistence:
     """Test pagination cursor persistence across polling cycles."""
 
-    @patch("app.tasks.jobs.mastodon_service")
+    @patch("app.jobs.tasks.mastodon_service")
     def test_cursor_saved_between_polls(self, mock_mastodon_service, test_db_session):
         """Test that cursor is saved and used in next poll."""
 
@@ -314,7 +321,7 @@ class TestCursorPersistence:
 class TestErrorHandling:
     """Test error handling in scanning flow."""
 
-    @patch("app.tasks.jobs.mastodon_service")
+    @patch("app.jobs.tasks.mastodon_service")
     def test_api_error_handling(self, mock_mastodon_service, test_db_session):
         """Test graceful handling of Mastodon API errors."""
         from mastodon import MastodonAPIError

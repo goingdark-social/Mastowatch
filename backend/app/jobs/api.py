@@ -5,7 +5,7 @@ Provides REST endpoints to control and monitor RQ jobs.
 
 import logging
 from typing import Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from rq import Queue
 from rq.job import Job
 from rq.registry import StartedJobRegistry, FinishedJobRegistry, FailedJobRegistry
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-@router.get("/queues", dependencies=[require_admin_hybrid])
+@router.get("/queues", dependencies=[Depends(require_admin_hybrid)])
 def list_queues():
     """List all RQ queues and their status."""
     redis_conn = get_redis_connection()
@@ -37,7 +37,7 @@ def list_queues():
     return {"queues": queues_info}
 
 
-@router.get("/jobs", dependencies=[require_admin_hybrid])
+@router.get("/jobs", dependencies=[Depends(require_admin_hybrid)])
 def list_jobs(queue: str = "default", status: str = "queued"):
     """List jobs in a queue by status.
     
@@ -83,7 +83,7 @@ def list_jobs(queue: str = "default", status: str = "queued"):
     return {"queue": queue, "status": status, "jobs": jobs, "count": len(jobs)}
 
 
-@router.get("/jobs/{job_id}", dependencies=[require_admin_hybrid])
+@router.get("/jobs/{job_id}", dependencies=[Depends(require_admin_hybrid)])
 def get_job(job_id: str):
     """Get details of a specific job."""
     redis_conn = get_redis_connection()
@@ -107,7 +107,7 @@ def get_job(job_id: str):
         raise HTTPException(status_code=404, detail=f"Job not found: {e}")
 
 
-@router.post("/jobs/{job_id}/cancel", dependencies=[require_admin_hybrid])
+@router.post("/jobs/{job_id}/cancel", dependencies=[Depends(require_admin_hybrid)])
 def cancel_job(job_id: str):
     """Cancel a queued or started job."""
     redis_conn = get_redis_connection()
@@ -120,7 +120,7 @@ def cancel_job(job_id: str):
         raise HTTPException(status_code=404, detail=f"Failed to cancel job: {e}")
 
 
-@router.post("/jobs/{job_id}/requeue", dependencies=[require_admin_hybrid])
+@router.post("/jobs/{job_id}/requeue", dependencies=[Depends(require_admin_hybrid)])
 def requeue_job(job_id: str):
     """Requeue a failed job."""
     redis_conn = get_redis_connection()
@@ -133,7 +133,7 @@ def requeue_job(job_id: str):
         raise HTTPException(status_code=404, detail=f"Failed to requeue job: {e}")
 
 
-@router.get("/scheduled", dependencies=[require_admin_hybrid])
+@router.get("/scheduled", dependencies=[Depends(require_admin_hybrid)])
 def list_scheduled_jobs():
     """List all scheduled jobs."""
     scheduler = get_scheduler()
@@ -151,7 +151,7 @@ def list_scheduled_jobs():
     return {"scheduled_jobs": jobs, "count": len(jobs)}
 
 
-@router.post("/scheduled/reschedule", dependencies=[require_admin_hybrid])
+@router.post("/scheduled/reschedule", dependencies=[Depends(require_admin_hybrid)])
 def reschedule_jobs():
     """Reschedule all recurring jobs (useful after config changes)."""
     try:
@@ -163,7 +163,7 @@ def reschedule_jobs():
         raise HTTPException(status_code=500, detail=f"Failed to reschedule jobs: {e}")
 
 
-@router.post("/trigger/{task_name}", dependencies=[require_admin_hybrid])
+@router.post("/trigger/{task_name}", dependencies=[Depends(require_admin_hybrid)])
 def trigger_job(task_name: str):
     """Manually trigger a job.
     

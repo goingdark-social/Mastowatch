@@ -163,16 +163,26 @@ class TestAdminAccountDataStructure:
         assert "acct" in nested_account
         assert "display_name" in nested_account
 
-    @patch("app.tasks.jobs.mastodon_service")
-    @patch("app.tasks.jobs.ScanningSystem")
+    @patch("app.jobs.worker.get_queue")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.jobs.tasks.mastodon_service")
+    @patch("app.jobs.tasks.ScanningSystem")
     def test_poll_accounts_passes_full_admin_object(
-        self, mock_scanner_class, mock_mastodon_service, test_db_session, sample_admin_accounts_list
+        self, mock_scanner_class, mock_mastodon_service, mock_session_local, mock_get_queue, test_db_session, sample_admin_accounts_list
     ):
         """Test that _poll_accounts passes full admin object to scanner.
 
         This is the critical bug: jobs.py was doing account_data.get("account", {})
         which strips admin metadata.
         """
+        # Mock RQ queue
+        mock_queue = MagicMock()
+        mock_get_queue.return_value = mock_queue
+        
+        # Mock SessionLocal to return test session
+        mock_session_local.return_value.__enter__.return_value = test_db_session
+        mock_session_local.return_value.__exit__.return_value = None
+        
         # Setup mocks
         mock_scanner = MagicMock()
         mock_scanner_class.return_value = mock_scanner
@@ -213,7 +223,7 @@ class TestAdminAccountDataStructure:
 class TestAdminAccountPagination:
     """Test pagination cursor handling for admin accounts."""
 
-    @patch("app.tasks.jobs.mastodon_service")
+    @patch("app.jobs.tasks.mastodon_service")
     def test_pagination_cursor_preserved(self, mock_mastodon_service, test_db_session, sample_admin_accounts_list):
         """Test that pagination cursor is correctly extracted and stored."""
         # Setup mock to return cursor
@@ -267,8 +277,8 @@ class TestScanSessionProgress:
         # Initially should be zeros/nulls
         assert session.accounts_processed == 0
 
-    @patch("app.tasks.jobs.ScanningSystem")
-    @patch("app.tasks.jobs.mastodon_service")
+    @patch("app.jobs.tasks.ScanningSystem")
+    @patch("app.jobs.tasks.mastodon_service")
     def test_accounts_processed_increments(
         self, mock_mastodon_service, mock_scanner_class, test_db_session, sample_admin_accounts_list
     ):
