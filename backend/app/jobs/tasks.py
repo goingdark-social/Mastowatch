@@ -199,11 +199,13 @@ def poll_admin_accounts_local():
 
 def record_queue_stats():
     try:
-        q = "celery"
+        # RQ stores jobs in Redis under 'rq:queue:<queue_name>'
+        queue_names = getattr(settings, "RQ_QUEUE_NAMES", ["default"])
         r = redis.from_url(settings.REDIS_URL, decode_responses=False)
-        # Celery default redis backend uses 'celery' list for queue
-        backlog = r.llen(q)
-        queue_backlog.labels(queue=q).set(float(backlog))
+        for q in queue_names:
+            rq_key = f"rq:queue:{q}"
+            backlog = r.llen(rq_key)
+            queue_backlog.labels(queue=q).set(float(backlog))
     except Exception as e:
         logging.warning("record_queue_stats: %s", e)
 
