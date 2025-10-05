@@ -7,9 +7,9 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from app.jobs.tasks import poll_admin_accounts
 from app.models import Account, Rule, ScanSession
 from app.scanning import ScanningSystem
+from app.jobs.tasks import poll_admin_accounts
 from sqlalchemy import text
 
 
