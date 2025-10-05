@@ -72,20 +72,34 @@ report = await mastodon_service.create_report(
 
 ### Authentication
 
-- `exchange_oauth_code(code, redirect_uri, scopes=None)` - Exchange OAuth code for access token
+- `exchange_oauth_code(code, redirect_uri)` - Exchange OAuth code for access token using official `log_in()` method
 - `verify_credentials(access_token)` - Verify and get account info
 
 ### Account Operations
 
-- `get_account(account_id, use_admin=False)` - Get account information
+- `get_account(account_id)` - Get account information
 - `get_account_statuses(account_id, limit=20, ...)` - Get account statuses
-- `get_admin_accounts(origin=None, status=None, ...)` - List admin accounts
+- `get_admin_accounts(origin=None, status=None, ...)` - List admin accounts (uses v2 API)
 
 ### Moderation
 
 - `create_report(account_id, status_ids=None, ...)` - Create moderation report
 - `admin_suspend_account(account_id)` - Suspend an account (admin)
 - `admin_create_domain_block(domain, severity="suspend", ...)` - Block a domain (admin)
+
+### Instance Info
+
+- `get_instance_info()` - Get instance information (auto-selects latest API version)
+- `get_instance_rules()` - Get instance rules
+
+### Sync Wrappers for Celery Workers
+
+These methods run synchronously for use in Celery tasks:
+
+- `admin_account_action_sync(account_id, action_type, text=None, warning_preset_id=None)` - Moderate account (warn, silence, suspend)
+- `admin_unsilence_account_sync(account_id)` - Remove silence from account
+- `admin_unsuspend_account_sync(account_id)` - Remove suspension from account
+- `create_report_sync(account_id, status_ids=None, ...)` - Create report synchronously
 
 ### Client Access
 
@@ -97,17 +111,28 @@ report = await mastodon_service.create_report(
 
 ### ✅ Complete Migration to mastodon.py
 
-All Mastodon API operations have been migrated to use the official mastodon.py library:
+All Mastodon API operations have been migrated to use the official mastodon.py library with correct method names:
 
-- [x] OAuth token exchange
+- [x] OAuth token exchange (using `log_in()` method)
 - [x] Credential verification
 - [x] User authentication
 - [x] Account fetching
 - [x] Report creation
-- [x] Admin operations
+- [x] Admin operations (using `admin_account_moderate()` for moderation actions)
 - [x] All moderation actions
+- [x] Instance info (using non-versioned methods that auto-select latest API)
 
 The old `MastoClient` (OpenAPI-generated wrapper) and `app/clients/mastodon/` directory have been removed. All code now uses `MastodonService` exclusively.
+
+### Recent Updates (2025-01)
+
+The following legacy API usages have been corrected:
+
+1. **OAuth Code Exchange**: Now uses public `log_in()` method instead of private `_Mastodon__api_request`
+2. **Admin Moderation**: Changed from non-existent `admin_account_action_v2` to correct `admin_account_moderate`
+3. **Domain Blocking**: Changed from non-existent `admin_create_domain_block_v2` to correct `admin_create_domain_block`
+4. **Instance Methods**: Use non-versioned `instance()` and `instance_rules()` instead of explicit `_v2` variants, allowing automatic API version selection
+5. **Sync Wrappers**: Added synchronous wrapper methods for Celery workers: `admin_account_action_sync`, `admin_unsilence_account_sync`, `admin_unsuspend_account_sync`, `create_report_sync`
 
 ## Configuration
 
