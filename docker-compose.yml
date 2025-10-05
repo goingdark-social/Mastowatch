@@ -78,7 +78,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+    command: ["python", "-m", "app.jobs.worker"]
     environment:
       <<: *backend-env
     depends_on:
@@ -96,17 +96,13 @@ services:
       retries: 3
       start_period: 40s
 
-  beat:
+  scheduler:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=INFO"]
+    command: ["python", "-m", "app.jobs.scheduler"]
     environment:
       <<: *backend-env
-      # Ensure celery_sqlalchemy_scheduler uses Postgres instead of defaulting to a local SQLite file
-      SQLALCHEMY_DATABASE_URI: "${DATABASE_URL}"
-      # Also set the beat-specific URL that the scheduler might look for
-      CELERY_BEAT_SQLALCHEMY_URL: "${DATABASE_URL}"
     depends_on:
       db:
         condition: service_healthy
@@ -120,6 +116,25 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  rq-dashboard:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["rq-dashboard", "--redis-url", "${REDIS_URL}"]
+    ports:
+      - "9181:9181"
+    environment:
+      <<: *backend-env
+      RQ_DASHBOARD_REDIS_URL: "${REDIS_URL}"
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9181/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   migrate:
     build:
