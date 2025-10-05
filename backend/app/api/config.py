@@ -26,7 +26,7 @@ class AutoModSettings(BaseModel):
 
 
 @router.get("/config", response_model=dict[str, Any])
-async def get_app_config(
+def get_app_config(
     user: User = api_key_dep,
     service: ConfigService = service_dep,
 ):
