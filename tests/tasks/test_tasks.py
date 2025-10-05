@@ -24,10 +24,10 @@ from app.jobs.tasks import (
 class TestCeleryTasks(unittest.TestCase):
     """Celery task tests."""
 
-    @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs.get_settings")
-    @patch("app.tasks.jobs._get_client")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.jobs.tasks.rule_service")
+    @patch("app.jobs.tasks.get_settings")
+    @patch("app.jobs.tasks._get_client")
     def test_analyze_and_maybe_report_dry_run(self, mock_bot_client, mock_settings, mock_rule_service, mock_db):
         """Test analyze_and_maybe_report in dry run mode"""
         # Setup mocks
@@ -86,9 +86,9 @@ class TestCeleryTasks(unittest.TestCase):
         # In dry run mode, should not actually submit reports
         mock_client.create_report.assert_not_called()
 
-    @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs.settings")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.jobs.tasks.rule_service")
+    @patch("app.jobs.tasks.settings")
     def test_analyze_and_maybe_report_panic_stop(self, mock_settings, mock_rule_service, mock_db):
         """Test that panic stop prevents execution"""
         # Setup mocks
@@ -102,11 +102,11 @@ class TestCeleryTasks(unittest.TestCase):
         mock_rule_service.evaluate_account.assert_not_called()
         mock_db.assert_not_called()
 
-    @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs.settings")
-    @patch("app.tasks.jobs._get_client")
-    @patch("app.tasks.jobs.analyze_and_maybe_report")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.jobs.tasks.rule_service")
+    @patch("app.jobs.tasks.settings")
+    @patch("app.jobs.tasks._get_client")
+    @patch("app.jobs.tasks.analyze_and_maybe_report")
     def test_process_new_report(self, mock_analyze, mock_admin_client, mock_settings, mock_rule_service, mock_db):
         """Test processing of new report webhook"""
         mock_db_session = MagicMock()
@@ -145,8 +145,8 @@ class TestCeleryTasks(unittest.TestCase):
         # Should have called rule service to evaluate the account
         mock_rule_service.evaluate_account.assert_called_once()
 
-    @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs._get_client")  # process_new_status uses _get_client, not _get_client
+    @patch("app.jobs.tasks.rule_service")
+    @patch("app.jobs.tasks._get_client")  # process_new_status uses _get_client, not _get_client
     def test_process_new_status(self, mock_get_client, mock_rule_service):
         """Test processing of new status webhook"""
         mock_client = MagicMock()
@@ -193,11 +193,11 @@ class TestCeleryTasks(unittest.TestCase):
         self.assertIsNone(result)
 
     @patch("app.scanning.SessionLocal")
-    @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs.settings")
-    @patch("app.tasks.jobs._get_client")
-    @patch("app.tasks.jobs._get_client")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.jobs.tasks.rule_service")
+    @patch("app.jobs.tasks.settings")
+    @patch("app.jobs.tasks._get_client")
+    @patch("app.jobs.tasks._get_client")
     @unittest.skip(
         "Mock expectations don't align with implementation - test expects create_report to be called but implementation has early returns"
     )
@@ -280,9 +280,9 @@ class TestCeleryTasks(unittest.TestCase):
         # The key assertion is that the report creation was attempted
         mock_client.create_report.assert_called_once()
 
-    @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.rule_service")
-    @patch("app.tasks.jobs.get_settings")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.jobs.tasks.rule_service")
+    @patch("app.jobs.tasks.get_settings")
     def test_analyze_and_maybe_report_no_report_low_score(self, mock_settings, mock_rule_service, mock_db):
         """Test that no report is created when score is below threshold"""
         # Setup mocks
@@ -325,23 +325,23 @@ class TestCeleryTasks(unittest.TestCase):
         self.assertIsNone(result)
         # No report should be created, but analysis should be recorded
 
-    @patch("app.tasks.jobs._poll_accounts")
+    @patch("app.jobs.tasks._poll_accounts")
     def test_poll_admin_accounts_wrapper(self, mock_poll):
         """Ensure poll_admin_accounts calls helper."""
         poll_admin_accounts()
         mock_poll.assert_called_once_with("remote", CURSOR_NAME)
 
-    @patch("app.tasks.jobs._poll_accounts")
+    @patch("app.jobs.tasks._poll_accounts")
     def test_poll_admin_accounts_local_wrapper(self, mock_poll):
         """Ensure local poll uses correct cursor."""
         poll_admin_accounts_local()
         mock_poll.assert_called_once_with("local", CURSOR_NAME_LOCAL)
 
-    @patch("app.tasks.jobs.analyze_and_maybe_report")
-    @patch("app.tasks.jobs._persist_account")
-    @patch("app.tasks.jobs.cursor_lag_pages")
-    @patch("app.tasks.jobs.SessionLocal")
-    @patch("app.tasks.jobs.ScanningSystem")
+    @patch("app.jobs.tasks.analyze_and_maybe_report")
+    @patch("app.jobs.tasks._persist_account")
+    @patch("app.jobs.tasks.cursor_lag_pages")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.jobs.tasks.ScanningSystem")
     def test_poll_accounts_metrics(self, mock_scanner, mock_session, mock_metric, mock_persist, mock_analyze):
         """Record metrics during polling."""
         jobs.settings.MAX_PAGES_PER_POLL = 1
@@ -362,7 +362,7 @@ class TestCeleryTasks(unittest.TestCase):
         # This will process accounts, call metrics, then exit due to no next cursor
         metric = MagicMock()
         mock_metric.labels.return_value = metric
-        with patch("app.tasks.jobs._should_pause", return_value=False):
+        with patch("app.jobs.tasks._should_pause", return_value=False):
             for origin, cursor in [
                 ("remote", CURSOR_NAME),
                 ("local", CURSOR_NAME_LOCAL),

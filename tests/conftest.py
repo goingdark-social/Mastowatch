@@ -28,7 +28,7 @@ os.environ["TESTING"] = "true"
 os.environ["DRY_RUN"] = "true"
 os.environ["SKIP_STARTUP_VALIDATION"] = "true"
 os.environ["INSTANCE_BASE"] = "https://test.example.com"
-os.environ["MASTODON_ACCESS_TOKEN"] = "test_access_token"  # Single token with admin+write permissions
+os.environ["MASTODON_CLIENT_SECRET"] = "test_access_token"  # Single token with admin+write permissions
 os.environ["API_KEY"] = "test_api_key"
 os.environ["WEBHOOK_SECRET"] = "test_webhook_secret"
 os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Use test Redis DB
@@ -74,14 +74,17 @@ def test_engine(test_settings):
 @pytest.fixture(scope="function")
 def test_db_session(test_engine):
     """Create a test database session that rolls back after each test."""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    connection = test_engine.connect()
+    transaction = connection.begin()
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
     session = TestingSessionLocal()
 
     try:
         yield session
     finally:
-        session.rollback()
         session.close()
+        transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture(scope="function")
