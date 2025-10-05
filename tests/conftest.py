@@ -74,14 +74,17 @@ def test_engine(test_settings):
 @pytest.fixture(scope="function")
 def test_db_session(test_engine):
     """Create a test database session that rolls back after each test."""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    connection = test_engine.connect()
+    transaction = connection.begin()
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
     session = TestingSessionLocal()
 
     try:
         yield session
     finally:
-        session.rollback()
         session.close()
+        transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture(scope="function")
