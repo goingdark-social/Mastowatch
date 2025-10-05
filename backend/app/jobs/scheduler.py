@@ -25,7 +25,7 @@ def schedule_recurring_jobs(scheduler: Scheduler = None):
     """Schedule all recurring jobs.
     
     This function sets up the cron-like scheduled jobs that were previously
-    managed by Celery Beat.
+    managed by RQ Scheduler.
     """
     if scheduler is None:
         scheduler = get_scheduler()

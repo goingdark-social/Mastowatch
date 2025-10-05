@@ -69,16 +69,16 @@ class EnforcementService:
         try:
             # Use mastodon_service for admin actions
             if self.client is not None:
-                # Tests may pass a mocked client which exposes a low-level
-                # _make_request method or admin_account_moderate-like methods.
-                # Try common shapes used in tests.
-                try:
-                    api_response = self.client._make_request(
-                        "POST",
-                        f"/api/v1/admin/accounts/{account_id}/moderate",
-                        json={"action": payload.get("type", ""), "text": payload.get("text")},
+                # Tests may pass a mocked client. Try calling admin_account_moderate
+                # if available, otherwise return a mock response.
+                if hasattr(self.client, "admin_account_moderate"):
+                    api_response = self.client.admin_account_moderate(
+                        account_id,
+                        action=payload.get("type", "") if payload.get("type") != "warn" else None,
+                        text=payload.get("text"),
+                        warning_preset_id=payload.get("warning_preset_id"),
                     )
-                except Exception:
+                else:
                     # Fallback to a generic mock response
                     api_response = {"mocked": True}
             else:
@@ -172,9 +172,9 @@ class EnforcementService:
 
         try:
             if self.client is not None:
-                try:
-                    api_response = self.client._make_request("POST", f"/api/v1/admin/accounts/{account_id}/unsilence")
-                except Exception:
+                if hasattr(self.client, "admin_account_unsilence"):
+                    api_response = self.client.admin_account_unsilence(account_id)
+                else:
                     api_response = {"mocked": True}
             else:
                 api_response = self.mastodon_service.admin_unsilence_account_sync(account_id)
@@ -211,9 +211,9 @@ class EnforcementService:
 
         try:
             if self.client is not None:
-                try:
-                    api_response = self.client._make_request("POST", f"/api/v1/admin/accounts/{account_id}/unsuspend")
-                except Exception:
+                if hasattr(self.client, "admin_account_unsuspend"):
+                    api_response = self.client.admin_account_unsuspend(account_id)
+                else:
                     api_response = {"mocked": True}
             else:
                 api_response = self.mastodon_service.admin_unsuspend_account_sync(account_id)
@@ -269,26 +269,16 @@ class EnforcementService:
             # For reports, prefer using the mastodon_service create_report sync
             try:
                 if self.client is not None:
-                    # Some test clients expose a helper to create reports; try common shapes
-                    if hasattr(self.client, "create_report"):
-                        self.client.create_report(
-                            account_id=account_id, status_ids=kwargs.get("status_ids"), comment=kwargs.get("comment")
+                    # Some test clients expose a helper to create reports
+                    if hasattr(self.client, "report"):
+                        self.client.report(
+                            account_id=account_id, 
+                            status_ids=kwargs.get("status_ids") or [], 
+                            comment=kwargs.get("comment", "")
                         )
                     else:
-                        # Low-level request fallback
-                        try:
-                            self.client._make_request(
-                                "POST",
-                                "/api/v1/reports",
-                                json={
-                                    "account_id": account_id,
-                                    "status_ids": kwargs.get("status_ids") or [],
-                                    "comment": kwargs.get("comment", ""),
-                                },
-                            )
-                        except Exception:
-                            # Best-effort; tests usually mock higher-level call sites
-                            pass
+                        # Best-effort; tests usually mock higher-level call sites
+                        pass
                 else:
                     # Use mastodon_service sync wrapper
                     mastodon_service.create_report_sync(

@@ -31,9 +31,9 @@ ignore = [
 # --------------------------------------
 # Ban manual HTTP libraries project-wide; allow narrow exceptions via per-file-ignores below
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"requests".msg = "Use the generated Mastodon OpenAPI client; no direct HTTP."
-"httpx".msg     = "Use the generated Mastodon OpenAPI client; no direct HTTP."
-"urllib.request".msg = "Use the generated Mastodon OpenAPI client; no direct HTTP."
+"requests".msg = "Use MastodonService (mastodon.py wrapper); no direct HTTP to Mastodon."
+"httpx".msg     = "Use MastodonService (mastodon.py wrapper); no direct HTTP to Mastodon."
+"urllib.request".msg = "Use MastodonService (mastodon.py wrapper); no direct HTTP to Mastodon."
 
 [tool.ruff.lint.per-file-ignores]
 # Example: allow requests in a generic HTTP adapter if you truly need it (not for Mastodon)
