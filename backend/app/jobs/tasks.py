@@ -41,7 +41,7 @@ def _get_client():
     """Get the bot Mastodon client from mastodon_service.
 
     Uses MASTODON_ACCESS_TOKEN for general authenticated operations.
-    Tests patch this symbol in `app.tasks.jobs`, so keep a thin wrapper.
+    Tests patch this symbol in `app.jobs.tasks`, so keep a thin wrapper.
     """
     return mastodon_service.get_bot_client()
 
