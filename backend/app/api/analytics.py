@@ -268,7 +268,7 @@ def get_scanning_analytics(_: User = Depends(require_admin_hybrid)):
 
         # Get RQ queue length (RQ uses different queue naming than Celery)
         # Note: RQ jobs are tracked differently - see /jobs/* endpoints for details
-        r.llen("celery")
+        r.llen("default")
 
         with SessionLocal() as db:
             # Get active scan sessions
