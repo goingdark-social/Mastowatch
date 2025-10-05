@@ -274,12 +274,31 @@ class TestMastodonAPICompliance:
 class TestCursorPersistence:
     """Test pagination cursor persistence across polling cycles."""
 
-    @patch("app.jobs.tasks.mastodon_service")
-    def test_cursor_saved_between_polls(self, mock_mastodon_service, test_db_session):
+    @patch("app.jobs.worker.get_queue")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.scanning.SessionLocal")
+    @patch("app.jobs.tasks.ScanningSystem")
+    def test_cursor_saved_between_polls(self, mock_scanner_class, mock_tasks_session_local, mock_scanning_session_local, mock_get_queue, test_db_session):
         """Test that cursor is saved and used in next poll."""
+        
+        # Mock RQ queue
+        mock_queue = MagicMock()
+        mock_get_queue.return_value = mock_queue
+        
+        # Mock SessionLocal to return test session
+        mock_tasks_session_local.return_value.__enter__.return_value = test_db_session
+        mock_tasks_session_local.return_value.__exit__.return_value = None
+        mock_scanning_session_local.return_value.__enter__.return_value = test_db_session
+        mock_scanning_session_local.return_value.__exit__.return_value = None
 
+        # Setup scanner mock
+        mock_scanner = MagicMock()
+        mock_scanner_class.return_value = mock_scanner
+        mock_scanner.start_scan_session.return_value = "test-session-id"
+        mock_scanner.scan_account_efficiently.return_value = {"score": 0.5}
+        
         # First poll returns cursor
-        mock_mastodon_service.get_admin_accounts_sync.return_value = (
+        mock_scanner.get_next_accounts_to_scan.return_value = (
             [{"id": "1", "username": "user1", "account": {"id": "1", "username": "user1", "acct": "user1"}}],
             "cursor_123",
         )
@@ -303,7 +322,7 @@ class TestCursorPersistence:
         assert cursor == "cursor_123"
 
         # Second poll should use saved cursor
-        mock_mastodon_service.get_admin_accounts_sync.return_value = (
+        mock_scanner.get_next_accounts_to_scan.return_value = (
             [{"id": "2", "username": "user2", "account": {"id": "2", "username": "user2", "acct": "user2"}}],
             None,  # Last page
         )

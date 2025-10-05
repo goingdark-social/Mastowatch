@@ -277,16 +277,31 @@ class TestScanSessionProgress:
         # Initially should be zeros/nulls
         assert session.accounts_processed == 0
 
+    @patch("app.jobs.worker.get_queue")
+    @patch("app.jobs.tasks.SessionLocal")
+    @patch("app.scanning.SessionLocal")
     @patch("app.jobs.tasks.ScanningSystem")
-    @patch("app.jobs.tasks.mastodon_service")
     def test_accounts_processed_increments(
-        self, mock_mastodon_service, mock_scanner_class, test_db_session, sample_admin_accounts_list
+        self, mock_scanner_class, mock_scanning_session_local, mock_tasks_session_local, mock_get_queue, test_db_session, sample_admin_accounts_list
     ):
         """Test that accounts_processed increments during scanning."""
+        
+        # Mock RQ queue
+        mock_queue = MagicMock()
+        mock_get_queue.return_value = mock_queue
+        
+        # Mock SessionLocal to return test session
+        mock_tasks_session_local.return_value.__enter__.return_value = test_db_session
+        mock_tasks_session_local.return_value.__exit__.return_value = None
+        mock_scanning_session_local.return_value.__enter__.return_value = test_db_session
+        mock_scanning_session_local.return_value.__exit__.return_value = None
+        
         # Setup mocks
         mock_scanner = MagicMock()
         mock_scanner_class.return_value = mock_scanner
-        mock_scanner.start_scan_session.return_value = "test-session"
+        # Return an integer ID, not a string
+        session_id = 123
+        mock_scanner.start_scan_session.return_value = session_id
         mock_scanner.get_next_accounts_to_scan.return_value = (sample_admin_accounts_list, None)
         mock_scanner.scan_account_efficiently.return_value = {"score": 0.5}
 
@@ -299,7 +314,7 @@ class TestScanSessionProgress:
         # Create session manually to track
         from app.models import ScanSession
 
-        session = ScanSession(id="test-session", session_type="remote", status="active", accounts_processed=0)
+        session = ScanSession(id=session_id, session_type="remote", status="active", accounts_processed=0)
         test_db_session.add(session)
         test_db_session.commit()
 
@@ -308,6 +323,9 @@ class TestScanSessionProgress:
 
         # Session should have been updated
         # Note: In actual implementation, this should increment
+        session = test_db_session.query(ScanSession).filter_by(id=session_id).first()
+        # This will fail until the bug is fixed!
+        # assert session.accounts_processed > 0
         session = test_db_session.query(ScanSession).filter_by(id="test-session").first()
         # This will fail until the bug is fixed!
         # assert session.accounts_processed > 0
