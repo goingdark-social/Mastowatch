@@ -222,12 +222,8 @@ def webhook_mastodon_events(request: Request):
     request_id = f"webhook_{int(start_time * 1000)}"
 
     try:
-        # FastAPI/Starlette handles body reading in threadpool for sync endpoints
-        body = request._body if hasattr(request, '_body') and request._body else b""
-        if not body:
-            # For sync endpoints, we need to read the stream directly
-            import io
-            body = b"".join(request.stream())
+        # Use FastAPI's built-in request body handling
+        body = request.body()
         content_length = len(body)
         event_type = request.headers.get("X-Mastodon-Event", "unknown")
 
