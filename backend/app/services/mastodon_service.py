@@ -166,7 +166,7 @@ class MastodonService:
             logger.error(f"Failed to block domain {domain}: {e}")
             raise
 
-    async def get_admin_accounts(self, origin=None, status=None, limit=50) -> list[dict[str, Any]]:
+    async def get_admin_accounts(self, origin=None, status=None, limit=50) -> tuple[list[dict[str, Any]], str | None]:
         """Fetch admin accounts list.
         
         Uses admin_accounts_v2 as recommended by mastodon.py docs.
