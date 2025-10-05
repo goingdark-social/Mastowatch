@@ -6,10 +6,10 @@ Replaces Celery Beat with a simpler, more observable scheduling system.
 
 import logging
 from datetime import datetime
-from rq import Queue
-from rq_scheduler import Scheduler
+
 from app.config import get_settings
 from app.jobs.worker import get_redis_connection
+from rq_scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

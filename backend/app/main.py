@@ -13,9 +13,9 @@ from app.api.config import router as config_router
 from app.api.logs import router as logs_router
 from app.api.rules import router as rules_router
 from app.api.scanning import router as scanning_router
-from app.jobs.api import router as jobs_router
 from app.config import get_settings
 from app.db import SessionLocal
+from app.jobs.api import router as jobs_router
 from app.logging_conf import setup_logging
 from app.oauth import get_current_user, require_admin_hybrid
 
@@ -34,8 +34,8 @@ def get_current_user_hybrid(request=None):
 # Make require_admin_hybrid available for test patching
 require_admin_hybrid = require_admin_hybrid
 import app.jobs.tasks as _jobs
-from app.startup_validation import run_all_startup_validations
 from app.jobs.tasks import process_new_report, process_new_status
+from app.startup_validation import run_all_startup_validations
 
 # Expose tasks at module level for test patching
 scan_federated_content = _jobs.scan_federated_content

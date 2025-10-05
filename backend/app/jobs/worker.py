@@ -4,9 +4,10 @@ This module configures RQ workers to process background jobs.
 """
 
 import logging
-from redis import Redis
-from rq import Worker, Queue
+
 from app.config import get_settings
+from redis import Redis
+from rq import Queue, Worker
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

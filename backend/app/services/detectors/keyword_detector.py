@@ -1,6 +1,7 @@
 """Keyword detector for content analysis."""
 
 import re
+
 from app.models import Rule
 from app.schemas import Evidence, Violation
 from app.services.detectors.base import BaseDetector

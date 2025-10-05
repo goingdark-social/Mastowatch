@@ -4,14 +4,14 @@ Provides REST endpoints to control and monitor RQ jobs.
 """
 
 import logging
-from typing import Any
+
+from app.jobs.scheduler import get_scheduler, schedule_recurring_jobs
+from app.jobs.worker import get_queue, get_redis_connection
+from app.oauth import require_admin_hybrid
 from fastapi import APIRouter, Depends, HTTPException
 from rq import Queue
 from rq.job import Job
-from rq.registry import StartedJobRegistry, FinishedJobRegistry, FailedJobRegistry
-from app.jobs.worker import get_redis_connection, get_queue
-from app.jobs.scheduler import get_scheduler, schedule_recurring_jobs
-from app.oauth import require_admin_hybrid
+from rq.registry import FailedJobRegistry, FinishedJobRegistry, StartedJobRegistry
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/jobs", tags=["jobs"])

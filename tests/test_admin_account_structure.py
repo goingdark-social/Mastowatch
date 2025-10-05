@@ -24,9 +24,9 @@ NOT wrapped as {"account": {...}}
 from unittest.mock import MagicMock, patch
 
 import pytest
+from app.jobs.tasks import _persist_account, _poll_accounts
 from app.models import Account, ScanSession
 from app.scanning import ScanningSystem
-from app.jobs.tasks import _persist_account, _poll_accounts
 from sqlalchemy import text
 
 
