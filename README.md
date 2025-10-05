@@ -105,7 +105,7 @@ MastoWatch uses the official [mastodon.py](https://github.com/halcy/mastodon.py)
 
 - **Official library**: Community-maintained with full Mastodon API support
 - **Built-in features**: Rate limiting, pagination, error handling
-- **Async support**: FastAPI-compatible async wrappers
+- **Synchronous architecture**: Direct synchronous calls, FastAPI handles concurrency via threadpool
 - **Centralized access**: All API calls go through `MastodonService` wrapper
 
 See [docs/mastodon-py-integration.md](docs/mastodon-py-integration.md) for complete integration details.
@@ -154,13 +154,26 @@ All API endpoints return structured error responses with:
 - **Proper HTTP status codes** (400/401/404/422/500/503)
 - **Structured logging** with JSON format for monitoring
 
+## Background Jobs
+
+MastoWatch uses RQ (Redis Queue) for background job processing:
+
+- **Simple**: Jobs are plain Python functions - no decorators needed
+- **Observable**: Built-in web dashboard and REST API for monitoring
+- **Synchronous**: Matches the synchronous nature of mastodon.py
+- **Recurring jobs**: RQ Scheduler handles cron-like scheduling
+- **Dashboard**: Access at `http://localhost:9181` in development
+
+See [docs/rq-migration.md](docs/rq-migration.md) for complete job system documentation.
+
 ## Notes
 
-* Celery Beat uses a database-backed schedule via `celery-sqlalchemy-scheduler`, and intervals are configurable through environment variables.
+* RQ Scheduler manages recurring jobs (poll_admin_accounts, queue_stats, etc.) with configurable intervals via environment variables.
 * All endpoints use structured JSON logging with request IDs for troubleshooting.
 * Alembic migrations run via the `migrate` service. Note that `alembic.ini` leaves `sqlalchemy.url` empty; the `DATABASE_URL` environment variable is used instead.
 * Add Prometheus to scrape `/metrics` as desired.
 * Foreign keys ensure data integrity; performance indexes optimize common queries.
+* RQ Dashboard provides real-time monitoring of job queues, status, and history.
 
 ## Legal Notice
 

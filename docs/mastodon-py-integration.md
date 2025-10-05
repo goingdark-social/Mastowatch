@@ -89,9 +89,9 @@ report = mastodon_service.create_report(
 - `get_instance_info()` - Get instance information (auto-selects latest API version)
 - `get_instance_rules()` - Get instance rules
 
-### Sync Wrappers for Celery Workers
+### Sync Wrappers for Background Workers
 
-These methods run synchronously for use in Celery tasks:
+These methods run synchronously for use in RQ background jobs:
 
 - `admin_account_action_sync(account_id, action_type, text=None, warning_preset_id=None)` - Moderate account (warn, silence, suspend)
 - `admin_unsilence_account_sync(account_id)` - Remove silence from account
@@ -129,7 +129,8 @@ The following improvements have been made to the mastodon.py integration:
 2. **Admin Moderation**: Changed from non-existent `admin_account_action_v2` to correct `admin_account_moderate`
 3. **Domain Blocking**: Changed from non-existent `admin_create_domain_block_v2` to correct `admin_create_domain_block`
 4. **Instance Methods**: Use non-versioned `instance()` and `instance_rules()` instead of explicit `_v2` variants, allowing automatic API version selection
-5. **Synchronous Architecture**: Removed unnecessary async/await wrappers and `asyncio.to_thread()` calls - all methods now directly call mastodon.py synchronously, eliminating overhead while FastAPI automatically handles concurrency via threadpool
+5. **Fully Synchronous Architecture**: Removed all async/await wrappers and `asyncio` usage - all methods now directly call mastodon.py synchronously, eliminating overhead while FastAPI automatically handles concurrency via threadpool
+6. **RQ Job System**: Replaced Celery with RQ (Redis Queue) for simpler, more observable background job processing with built-in dashboard and API management
 
 ## Configuration
 
@@ -201,7 +202,7 @@ This means you don't need manual throttling when using MastodonService.
 
 ## FastAPI Integration
 
-MastodonService methods are synchronous and can be called directly from FastAPI endpoints. FastAPI automatically runs synchronous route handlers in a threadpool, providing proper concurrency without the overhead of `asyncio.to_thread()`:
+MastodonService methods are synchronous and can be called directly from FastAPI endpoints. FastAPI automatically runs synchronous route handlers in a threadpool, providing proper concurrency:
 
 ```python
 @router.get("/account/{account_id}")
@@ -210,15 +211,18 @@ def get_account(account_id: str):
     return mastodon_service.get_account(account_id)
 ```
 
-For long-running operations, queue them to Celery workers instead:
+For long-running operations, queue them to RQ workers instead:
 
 ```python
 @router.post("/scan/account")
 def scan_account(account_id: str):
     """Queue account scan - returns immediately."""
-    from app.tasks.jobs import analyze_and_maybe_report
-    analyze_and_maybe_report.delay({"account_id": account_id})
-    return {"status": "queued"}
+    from app.jobs.tasks import analyze_and_maybe_report
+    from app.jobs.worker import get_queue
+    
+    queue = get_queue()
+    job = queue.enqueue(analyze_and_maybe_report, {"account_id": account_id})
+    return {"status": "queued", "job_id": job.id}
 ```
 
 ## References
