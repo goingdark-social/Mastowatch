@@ -4,9 +4,6 @@
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-extend-exclude = [
-  "backend/app/clients/mastodon",  # Auto-generated client code
-]
 
 [tool.ruff.lint]
 # Core, high-signal rule families
