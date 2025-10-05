@@ -60,6 +60,7 @@ make logs          # All services
 make logs-api      # API only
 make logs-worker   # Celery worker only
 make status        # Show service status
+make api-compliance-verbose: ## Check Mastodon API compliance with verbose output
 ```
 
 ## Architecture
