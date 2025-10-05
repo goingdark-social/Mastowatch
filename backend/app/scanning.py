@@ -192,8 +192,15 @@ class ScanningSystem:
         """Synchronous wrapper that scans an account using the Mastodon client.
 
         Calls sync client methods directly.
+
+        IMPORTANT: account_data is an ADMIN ACCOUNT object from admin_accounts_v2(),
+        which has structure: {"id": "admin_id", "account": {"id": "real_account_id", ...}}
+        We need to use account_data["account"]["id"] for API calls, not account_data["id"]!
         """
-        account_id = account_data.get("id")
+        # Extract the nested account object from the admin account wrapper
+        nested_account = account_data.get("account", {})
+        account_id = nested_account.get("id")
+
         if not account_id or not self.should_scan_account(account_id, account_data):
             return None
 
@@ -201,6 +208,7 @@ class ScanningSystem:
             client = mastodon_service.get_admin_client()
             # Fetch statuses once (no need for separate media_only call)
             # Always use the standard account_statuses method from mastodon.py
+            # CRITICAL: Use the real account ID, not the admin account ID!
             statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
 
             # Continue with existing rule evaluation and DB writes...
