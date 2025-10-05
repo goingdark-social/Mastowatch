@@ -376,7 +376,7 @@ def evaluate_dryrun(request_data: dict[str, Any]):
 
 
 @router.post("/webhooks/mastodon_events", tags=["webhooks"])
-async def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
+def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
     """Handle incoming webhooks from Mastodon.
 
     Mastodon API v2 webhook structure:
@@ -414,8 +414,11 @@ async def handle_mastodon_webhook(request: Request, payload: dict[str, Any]):
         except ValueError as e:
             raise HTTPException(status_code=401, detail="Invalid signature format") from e
 
-        # Validate signature
-        body = await request.body()
+        # Validate signature - for sync endpoints, read body directly
+        body = request._body if hasattr(request, '_body') and request._body else b""
+        if not body:
+            import io
+            body = b"".join(request.stream())
         expected_signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hash_func).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):

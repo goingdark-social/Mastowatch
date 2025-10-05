@@ -214,13 +214,18 @@ def metrics():
 
 
 @app.post("/webhooks/mastodon_events", tags=["webhooks"])
-async def webhook_mastodon_events(request: Request):
+def webhook_mastodon_events(request: Request):
     """Handle incoming Mastodon event webhooks with signature validation and event routing"""
     start_time = time.time()
     request_id = f"webhook_{int(start_time * 1000)}"
 
     try:
-        body = await request.body()
+        # FastAPI/Starlette handles body reading in threadpool for sync endpoints
+        body = request._body if hasattr(request, '_body') and request._body else b""
+        if not body:
+            # For sync endpoints, we need to read the stream directly
+            import io
+            body = b"".join(request.stream())
         content_length = len(body)
         event_type = request.headers.get("X-Mastodon-Event", "unknown")
 
@@ -291,7 +296,8 @@ async def webhook_mastodon_events(request: Request):
 
         # Parse payload
         try:
-            payload = await request.json()
+            import json
+            payload = json.loads(body.decode('utf-8'))
         except Exception as e:
             logger.error(
                 "Failed to parse webhook JSON payload",

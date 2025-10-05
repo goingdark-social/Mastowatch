@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
@@ -162,9 +161,7 @@ class ScanningSystem:
     ) -> tuple[list[dict], str | None]:
         """Fetch next batch of accounts via v2 admin API.
 
-        This method prefers calling the underlying Mastodon client synchronously
-        (which tests mock). If the service exposes only async helpers, fall
-        back to running them in an event loop.
+        This method calls the Mastodon service synchronously.
         """
         try:
             client = mastodon_service.get_admin_client()
@@ -174,9 +171,9 @@ class ScanningSystem:
                     origin=session_type, status="active", limit=limit, max_id=cursor
                 )
                 return accounts, next_cursor
-            # Fallback to async service method
-            accounts, next_cursor = asyncio.run(
-                mastodon_service.get_admin_accounts(origin=session_type, status="active", limit=limit)
+            # Call service method directly (it's synchronous)
+            accounts, next_cursor = mastodon_service.get_admin_accounts(
+                origin=session_type, status="active", limit=limit
             )
             return accounts, next_cursor
         except MastodonNetworkError as e:
@@ -192,8 +189,9 @@ class ScanningSystem:
                         origin=session_type, status="active", limit=limit, max_id=cursor
                     )
                     return accounts, next_cursor
-                accounts, next_cursor = asyncio.run(
-                    mastodon_service.get_admin_accounts(origin=session_type, status="active", limit=limit)
+                # Call service method directly (it's synchronous)
+                accounts, next_cursor = mastodon_service.get_admin_accounts(
+                    origin=session_type, status="active", limit=limit
                 )
                 return accounts, next_cursor
             except Exception as e2:
@@ -206,8 +204,7 @@ class ScanningSystem:
     def scan_account_efficiently(self, account_data: dict, session_id: int) -> dict | None:
         """Synchronous wrapper that scans an account using the Mastodon client.
 
-        Prefer calling sync client methods (used in tests). If only async
-        service helpers are available, run them in an event loop.
+        Calls sync client methods directly.
         """
         account_id = account_data.get("id")
         if not account_id or not self.should_scan_account(account_id, account_data):
@@ -222,11 +219,12 @@ class ScanningSystem:
                     account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, only_media=True
                 )
             else:
-                statuses = asyncio.run(
-                    mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+                # Call service methods directly (they're synchronous)
+                statuses = mastodon_service.get_account_statuses(
+                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
                 )
-                media_statuses = asyncio.run(
-                    mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+                media_statuses = mastodon_service.get_account_statuses(
+                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
                 )
 
             seen = {s["id"] for s in statuses if "id" in s}
