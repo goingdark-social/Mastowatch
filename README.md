@@ -1,5 +1,7 @@
 # MastoWatch (Watch-and-Report Sidecar)
 
+**⚠️ Work in Progress**: This project is under active development. Features and documentation may change.
+
 Analyze accounts/statuses and **file reports via API** so human moderators act in Mastodon's admin UI. **No auto-enforcement.**
 
 ## Production-Ready Features
@@ -97,45 +99,16 @@ This application uses **direct access tokens** rather than OAuth2 client credent
 4. Copy the **"Client key"** → use as `OAUTH_CLIENT_ID` in `.env`
 5. Copy the **"Client secret"** → use as `OAUTH_CLIENT_SECRET` in `.env`
 
-## API Client
+## Mastodon API Integration
 
-MastoWatch uses a **type-safe, auto-updating Mastodon API client** based on the community-maintained OpenAPI specification:
-
-- **Automatic updates**: Weekly sync with [abraham/mastodon-openapi](https://github.com/abraham/mastodon-openapi)
-- **Type safety**: Generated Python client with full IDE support and validation
-- **Backward compatibility**: Fallback to raw HTTP for admin endpoints
-- **Documentation**: Self-documenting through types
-
-### Managing the API Client
-
-```bash
-# Check current status
-make api-client-status
-
-# Update from latest Mastodon API spec
-make update-mastodon-client
-
-# Just update the schema
-make update-api-spec
-
-# Just regenerate client
-make regenerate-client
-```
-
-See [docs/mastodon-api-client.md](docs/mastodon-api-client.md) for detailed documentation.
-
-### OAuth & Authentication
-
-MastoWatch uses the official [mastodon.py](https://github.com/halcy/mastodon.py) library for OAuth authentication and credential verification:
+MastoWatch uses the official [mastodon.py](https://github.com/halcy/mastodon.py) library for all Mastodon API operations:
 
 - **Official library**: Community-maintained with full Mastodon API support
 - **Built-in features**: Rate limiting, pagination, error handling
 - **Async support**: FastAPI-compatible async wrappers
-- **Hybrid approach**: mastodon.py for auth, OpenAPI client for other operations
+- **Centralized access**: All API calls go through `MastodonService` wrapper
 
-See [docs/mastodon-py-integration.md](docs/mastodon-py-integration.md) for integration details.
-
-Endpoints:
+See [docs/mastodon-py-integration.md](docs/mastodon-py-integration.md) for complete integration details.
 
 ### API Endpoints
 
