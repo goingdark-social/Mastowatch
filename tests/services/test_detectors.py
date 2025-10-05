@@ -27,6 +27,7 @@ class TestRegexDetector(unittest.TestCase):
         rule.name = "crypto_username_rule"
         rule.detector_type = "regex"
         rule.weight = 1.5
+        rule.target_fields = None  # Default to all fields
 
         account_data = {
             "username": "crypto_trader",
@@ -43,6 +44,29 @@ class TestRegexDetector(unittest.TestCase):
         self.assertEqual(violations[0].score, 1.5)
         self.assertIn("matched_pattern", violations[0].evidence)
 
+    def test_evaluate_with_target_fields(self):
+        """Test regex matching with specific target fields."""
+        rule = Mock()
+        rule.pattern = r"spam"
+        rule.trigger_threshold = 1.0
+        rule.name = "spam_rule"
+        rule.detector_type = "regex"
+        rule.weight = 1.0
+        rule.target_fields = ["username"]  # Only check username
+
+        account_data = {
+            "username": "spam_account",
+            "display_name": "Normal Name",
+            "note": "This bio contains spam word",
+        }
+        statuses = []
+
+        violations = self.detector.evaluate(rule, account_data, statuses)
+
+        # Should only match username, not bio
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].evidence["metrics"]["field"], "username")
+
     def test_evaluate_bio_match(self):
         """Test regex matching in bio/note field."""
         rule = Mock()
@@ -51,6 +75,7 @@ class TestRegexDetector(unittest.TestCase):
         rule.name = "gambling_bio_rule"
         rule.detector_type = "regex"
         rule.weight = 2.0
+        rule.target_fields = None
 
         account_data = {
             "username": "normal_user",
@@ -73,6 +98,7 @@ class TestRegexDetector(unittest.TestCase):
         rule.name = "spam_content_rule"
         rule.detector_type = "regex"
         rule.weight = 1.0
+        rule.target_fields = None
 
         account_data = {"username": "user", "note": "Normal bio"}
         statuses = [
@@ -94,6 +120,7 @@ class TestRegexDetector(unittest.TestCase):
         rule.name = "no_match_rule"
         rule.detector_type = "regex"
         rule.weight = 1.0
+        rule.target_fields = None
 
         account_data = {"username": "user", "note": "Normal content"}
         statuses = [{"content": "Regular status", "id": "1"}]
@@ -110,6 +137,7 @@ class TestRegexDetector(unittest.TestCase):
         rule.name = "case_test_rule"
         rule.detector_type = "regex"
         rule.weight = 1.0
+        rule.target_fields = None
 
         account_data = {"username": "user", "note": "This is URGENT business"}
         statuses = [{"content": "urgent message here", "id": "1"}]
@@ -133,6 +161,8 @@ class TestKeywordDetector(unittest.TestCase):
         rule.name = "spam_keywords_rule"
         rule.detector_type = "keyword"
         rule.weight = 2.0
+        rule.target_fields = None  # Default to all
+        rule.match_options = None  # Default options
 
         account_data = {"username": "user", "note": "Visit our casino for adult entertainment"}
         statuses = [{"content": "Get cheap viagra pills online", "id": "1"}]
@@ -143,6 +173,93 @@ class TestKeywordDetector(unittest.TestCase):
             self.assertEqual(violation.score, 2.0)
             self.assertIn("matched_keywords", violation.evidence)
 
+    def test_evaluate_with_word_boundaries(self):
+        """Test keyword detection with word boundaries enabled."""
+        rule = Mock()
+        rule.pattern = "spam"
+        rule.trigger_threshold = 1.0
+        rule.name = "spam_keyword_rule"
+        rule.detector_type = "keyword"
+        rule.weight = 1.0
+        rule.target_fields = None
+        rule.match_options = {"case_sensitive": False, "word_boundaries": True}
+
+        # "spam" as whole word should match
+        account_data = {"username": "user", "note": "This is spam content"}
+        statuses = []
+        violations = self.detector.evaluate(rule, account_data, statuses)
+        self.assertEqual(len(violations), 1)
+
+        # "spam" in "spammer" should NOT match with word boundaries
+        account_data = {"username": "user", "note": "This is spammer content"}
+        statuses = []
+        violations = self.detector.evaluate(rule, account_data, statuses)
+        self.assertEqual(len(violations), 0)
+
+    def test_evaluate_without_word_boundaries(self):
+        """Test keyword detection with word boundaries disabled."""
+        rule = Mock()
+        rule.pattern = "spam"
+        rule.trigger_threshold = 1.0
+        rule.name = "spam_keyword_rule"
+        rule.detector_type = "keyword"
+        rule.weight = 1.0
+        rule.target_fields = None
+        rule.match_options = {"case_sensitive": False, "word_boundaries": False}
+
+        # Should match "spam" in "spammer"
+        account_data = {"username": "user", "note": "This is spammer content"}
+        statuses = []
+        violations = self.detector.evaluate(rule, account_data, statuses)
+        self.assertEqual(len(violations), 1)
+
+    def test_evaluate_with_target_fields_username_only(self):
+        """Test keyword detection targeting only username."""
+        rule = Mock()
+        rule.pattern = "spam"
+        rule.trigger_threshold = 1.0
+        rule.name = "spam_keyword_rule"
+        rule.detector_type = "keyword"
+        rule.weight = 1.0
+        rule.target_fields = ["username"]
+        rule.match_options = {"case_sensitive": False, "word_boundaries": False}
+
+        # "spam" in username should match
+        account_data = {"username": "spam_account", "note": "Normal bio"}
+        statuses = []
+        violations = self.detector.evaluate(rule, account_data, statuses)
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].evidence["metrics"]["field"], "username")
+
+        # "spam" only in bio should NOT match (username not targeted)
+        account_data = {"username": "normal_user", "note": "spam content"}
+        statuses = []
+        violations = self.detector.evaluate(rule, account_data, statuses)
+        self.assertEqual(len(violations), 0)
+
+    def test_evaluate_case_sensitive(self):
+        """Test case-sensitive keyword matching."""
+        rule = Mock()
+        rule.pattern = "SPAM"
+        rule.trigger_threshold = 1.0
+        rule.name = "spam_keyword_rule"
+        rule.detector_type = "keyword"
+        rule.weight = 1.0
+        rule.target_fields = None
+        rule.match_options = {"case_sensitive": True, "word_boundaries": False}
+
+        # Exact case should match
+        account_data = {"username": "user", "note": "This is SPAM"}
+        statuses = []
+        violations = self.detector.evaluate(rule, account_data, statuses)
+        self.assertEqual(len(violations), 1)
+
+        # Different case should NOT match
+        account_data = {"username": "user", "note": "This is spam"}
+        statuses = []
+        violations = self.detector.evaluate(rule, account_data, statuses)
+        self.assertEqual(len(violations), 0)
+
     def test_evaluate_single_keyword(self):
         """Test keyword detection with single keyword."""
         rule = Mock()
@@ -151,6 +268,8 @@ class TestKeywordDetector(unittest.TestCase):
         rule.name = "scam_keyword_rule"
         rule.detector_type = "keyword"
         rule.weight = 3.0
+        rule.target_fields = None
+        rule.match_options = None
 
         account_data = {"username": "user", "note": "This is a scam warning"}
         statuses = []
@@ -162,13 +281,15 @@ class TestKeywordDetector(unittest.TestCase):
         self.assertIn("scam", violations[0].evidence["matched_keywords"])
 
     def test_evaluate_partial_word_match(self):
-        """Test that keywords match as substrings."""
+        """Test that keywords match as substrings when word_boundaries is False."""
         rule = Mock()
         rule.pattern = "free"
         rule.trigger_threshold = 1.0
         rule.name = "free_keyword_rule"
         rule.detector_type = "keyword"
         rule.weight = 1.0
+        rule.target_fields = None
+        rule.match_options = {"case_sensitive": False, "word_boundaries": False}
 
         account_data = {"username": "user", "note": "Enjoy freedom of speech"}
         statuses = []
@@ -184,6 +305,8 @@ class TestKeywordDetector(unittest.TestCase):
         rule.name = "no_keywords_rule"
         rule.detector_type = "keyword"
         rule.weight = 1.0
+        rule.target_fields = None
+        rule.match_options = None
 
         account_data = {"username": "user", "note": "Normal content here"}
         statuses = [{"content": "Regular status update", "id": "1"}]
