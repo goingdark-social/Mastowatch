@@ -34,7 +34,7 @@ The `MastodonService` class in `backend/app/services/mastodon_service.py` provid
 ### Key Features
 
 - **Client Caching**: Reuses clients with the same access token to avoid unnecessary instantiation
-- **Async Support**: Wraps synchronous mastodon.py methods with `asyncio.to_thread()` for FastAPI compatibility
+- **Synchronous Architecture**: Direct synchronous calls to mastodon.py (no async overhead)
 - **Rate Limiting**: Uses mastodon.py's built-in rate limiting (`ratelimit_method="wait"`)
 - **Error Handling**: Catches and logs `MastodonAPIError` and `MastodonNetworkError`
 - **Singleton Pattern**: Global `mastodon_service` instance for easy access
@@ -45,22 +45,19 @@ The `MastodonService` class in `backend/app/services/mastodon_service.py` provid
 from app.services.mastodon_service import mastodon_service
 
 # OAuth token exchange
-token_info = await mastodon_service.exchange_oauth_code(
+token_info = mastodon_service.exchange_oauth_code(
     code="authorization_code",
     redirect_uri="https://example.com/callback"
 )
 
 # Verify credentials
-account = await mastodon_service.verify_credentials(access_token)
+account = mastodon_service.verify_credentials(access_token)
 
 # Get account information
-account = await mastodon_service.get_account(
-    account_id="12345",
-    use_admin=True
-)
+account = mastodon_service.get_account(account_id="12345")
 
 # Create a report
-report = await mastodon_service.create_report(
+report = mastodon_service.create_report(
     account_id="12345",
     status_ids=["67890"],
     comment="Automated moderation report",
@@ -126,13 +123,13 @@ The old `MastoClient` (OpenAPI-generated wrapper) and `app/clients/mastodon/` di
 
 ### Recent Updates (2025-01)
 
-The following legacy API usages have been corrected:
+The following improvements have been made to the mastodon.py integration:
 
 1. **OAuth Code Exchange**: Now uses public `log_in()` method instead of private `_Mastodon__api_request`
 2. **Admin Moderation**: Changed from non-existent `admin_account_action_v2` to correct `admin_account_moderate`
 3. **Domain Blocking**: Changed from non-existent `admin_create_domain_block_v2` to correct `admin_create_domain_block`
 4. **Instance Methods**: Use non-versioned `instance()` and `instance_rules()` instead of explicit `_v2` variants, allowing automatic API version selection
-5. **Sync Wrappers**: Added synchronous wrapper methods for Celery workers: `admin_account_action_sync`, `admin_unsilence_account_sync`, `admin_unsuspend_account_sync`, `create_report_sync`
+5. **Synchronous Architecture**: Removed unnecessary async/await wrappers and `asyncio.to_thread()` calls - all methods now directly call mastodon.py synchronously, eliminating overhead while FastAPI automatically handles concurrency via threadpool
 
 ## Configuration
 
@@ -157,7 +154,7 @@ The service catches and re-raises mastodon.py exceptions:
 from mastodon import MastodonAPIError, MastodonNetworkError
 
 try:
-    account = await mastodon_service.verify_credentials(token)
+    account = mastodon_service.verify_credentials(token)
 except MastodonAPIError as e:
     # API returned an error (4xx, 5xx)
     logger.error(f"API error: {e}")
@@ -202,13 +199,26 @@ mastodon.py handles rate limiting automatically:
 
 This means you don't need manual throttling when using MastodonService.
 
-### Async Wrappers
+## FastAPI Integration
 
-All methods use `asyncio.to_thread()` to run synchronous mastodon.py calls in a thread pool, preventing FastAPI event loop blocking:
+MastodonService methods are synchronous and can be called directly from FastAPI endpoints. FastAPI automatically runs synchronous route handlers in a threadpool, providing proper concurrency without the overhead of `asyncio.to_thread()`:
 
 ```python
-# This won't block the FastAPI event loop
-account = await mastodon_service.verify_credentials(token)
+@router.get("/account/{account_id}")
+def get_account(account_id: str):
+    """Get account information - FastAPI handles threading automatically."""
+    return mastodon_service.get_account(account_id)
+```
+
+For long-running operations, queue them to Celery workers instead:
+
+```python
+@router.post("/scan/account")
+def scan_account(account_id: str):
+    """Queue account scan - returns immediately."""
+    from app.tasks.jobs import analyze_and_maybe_report
+    analyze_and_maybe_report.delay({"account_id": account_id})
+    return {"status": "queued"}
 ```
 
 ## References
