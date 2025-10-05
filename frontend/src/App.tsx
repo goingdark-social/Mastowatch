@@ -3,7 +3,7 @@ import {
   AppShell, Group, Text, Container, Card, Stack, Badge, Button, Switch,
   ActionIcon, Tooltip, Divider, Skeleton, Grid, Table, Modal, Alert,
   Tabs, Select, Progress, Code, ScrollArea, TextInput, Title, Menu,
-  NumberInput, Anchor
+  NumberInput, Anchor, MultiSelect, Checkbox
 } from '@mantine/core';
 import { IconRefresh, IconEye, IconChartBar, IconUsers, IconFlag, IconSettings, IconRuler, IconInfoCircle, IconLogout, IconLogin, IconUser, IconPlus, IconTrash, IconEdit, IconToggleLeft, IconToggleRight, IconRadar, IconShield, IconTrendingUp } from '@tabler/icons-react';
 import {
@@ -799,9 +799,14 @@ function RulesTab({ rules, onReload }: {
   const [selectedRuleForInfo, setSelectedRuleForInfo] = useState<Rule | null>(null);
   const [newRule, setNewRule] = useState({
     name: '',
-    rule_type: 'regex' as Rule['rule_type'],
+    rule_type: 'keyword' as Rule['rule_type'],  // Changed default from 'regex' to 'keyword'
     pattern: '',
-    weight: 0.5
+    weight: 0.5,
+    target_fields: ['username', 'display_name', 'bio', 'content'],
+    match_options: {
+      case_sensitive: false,
+      word_boundaries: true,
+    },
   });
 
   useEffect(() => {
@@ -824,7 +829,7 @@ function RulesTab({ rules, onReload }: {
       // Map frontend rule_type to backend detector_type
       let detector_type = newRule.rule_type; // Use rule_type directly as it now matches detector_type
 
-      await createRule({
+      const rulePayload: any = {
         name: newRule.name,
         detector_type: detector_type,
         pattern: newRule.pattern,
@@ -833,8 +838,28 @@ function RulesTab({ rules, onReload }: {
         trigger_threshold: 1.0, // Default threshold
         enabled: true,
         rule_type: detector_type // Add rule_type for frontend compatibility
+      };
+
+      // Add type-specific fields
+      if (detector_type === 'keyword' || detector_type === 'regex') {
+        rulePayload.target_fields = newRule.target_fields;
+      }
+      if (detector_type === 'keyword') {
+        rulePayload.match_options = newRule.match_options;
+      }
+
+      await createRule(rulePayload);
+      setNewRule({ 
+        name: '', 
+        rule_type: 'keyword', 
+        pattern: '', 
+        weight: 0.5,
+        target_fields: ['username', 'display_name', 'bio', 'content'],
+        match_options: {
+          case_sensitive: false,
+          word_boundaries: true,
+        },
       });
-      setNewRule({ name: '', rule_type: 'regex', pattern: '', weight: 0.5 });
       setShowCreateModal(false);
       await loadRulesList();
       onReload();
@@ -936,14 +961,14 @@ function RulesTab({ rules, onReload }: {
         <Divider my="md" />
 
         <Grid>
-          {['regex', 'keyword', 'behavioral', 'media'].map((ruleType) => (
+          {['keyword', 'behavioral', 'media', 'regex'].map((ruleType) => (
             <Grid.Col span={4} key={ruleType}>
               <Card withBorder padding="sm">
                 <Title order={5} mb="sm">
-                  {ruleType === 'regex' ? 'Regex Rules' :
-                    ruleType === 'keyword' ? 'Keyword Rules' :
-                      ruleType === 'behavioral' ? 'Behavioral Rules' :
-                        'Media Rules'}
+                  {ruleType === 'keyword' ? 'Keyword Rules' :
+                    ruleType === 'behavioral' ? 'Behavioral Rules' :
+                      ruleType === 'media' ? 'Media Rules' :
+                        'Regex Rules'}
                 </Title>
                 <Stack gap="xs">
                   {(groupedRules[ruleType] || []).map((rule) => (
@@ -1023,6 +1048,7 @@ function RulesTab({ rules, onReload }: {
         opened={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title="Create New Rule"
+        size="lg"
       >
         <Stack gap="md">
           <TextInput
@@ -1030,24 +1056,99 @@ function RulesTab({ rules, onReload }: {
             value={newRule.name}
             onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
             placeholder="Enter rule name"
+            required
           />
           <Select
-            label="Rule Type"
+            label="Detector Type"
             value={newRule.rule_type}
             onChange={(value) => setNewRule({ ...newRule, rule_type: value as Rule['rule_type'] })}
             data={[
-              { value: 'regex', label: 'Regex Rules' },
-              { value: 'keyword', label: 'Keyword Rules' },
-              { value: 'behavioral', label: 'Behavioral Rules' },
-              { value: 'media', label: 'Media Rules' }
+              { value: 'keyword', label: 'Keyword (Simple text matching - recommended)' },
+              { value: 'behavioral', label: 'Behavioral (Account activity patterns)' },
+              { value: 'media', label: 'Media (Attachment policies)' },
+              { value: 'regex', label: 'Regex (Advanced pattern matching)' }
             ]}
+            description={
+              newRule.rule_type === 'keyword' ? 'Fast, simple text matching for known terms and phrases' :
+              newRule.rule_type === 'behavioral' ? 'Detect suspicious account activity patterns and bot-like behavior' :
+              newRule.rule_type === 'media' ? 'Media attachment policies for accessibility and content filtering' :
+              'Advanced pattern matching - use sparingly due to performance concerns'
+            }
+            required
           />
+          
+          {/* Pattern field - context-sensitive label */}
           <TextInput
-            label="Pattern (Regex)"
+            label={
+              newRule.rule_type === 'keyword' ? 'Keywords (comma-separated)' :
+              newRule.rule_type === 'behavioral' ? 'Behavior Pattern' :
+              newRule.rule_type === 'media' ? 'Media Pattern' :
+              'Regex Pattern'
+            }
             value={newRule.pattern}
             onChange={(e) => setNewRule({ ...newRule, pattern: e.target.value })}
-            placeholder="Enter regex pattern"
+            placeholder={
+              newRule.rule_type === 'keyword' ? 'e.g., spam,scam,casino' :
+              newRule.rule_type === 'behavioral' ? 'e.g., rapid_posting, link_spam' :
+              newRule.rule_type === 'media' ? 'e.g., image/gif or missing_alt_text' :
+              'e.g., ^user\\d{4,}$'
+            }
+            description={
+              newRule.rule_type === 'keyword' ? 'Enter comma-separated keywords to match' :
+              newRule.rule_type === 'behavioral' ? 'Choose: rapid_posting, link_spam, automation_disclosure' :
+              newRule.rule_type === 'media' ? 'MIME type, hash, or special pattern like missing_alt_text' :
+              'Regular expression pattern - test at regex101.com first'
+            }
+            required
           />
+
+          {/* Field targeting for keyword and regex */}
+          {(newRule.rule_type === 'keyword' || newRule.rule_type === 'regex') && (
+            <MultiSelect
+              label="Target Fields"
+              value={newRule.target_fields}
+              onChange={(value) => setNewRule({ ...newRule, target_fields: value })}
+              data={[
+                { value: 'username', label: 'Username' },
+                { value: 'display_name', label: 'Display Name' },
+                { value: 'bio', label: 'Bio/Profile' },
+                { value: 'content', label: 'Post Content' }
+              ]}
+              description="Select which fields to check - targeting specific fields reduces false positives"
+            />
+          )}
+
+          {/* Match options for keyword */}
+          {newRule.rule_type === 'keyword' && (
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>Match Options</Text>
+              <Checkbox
+                label="Case Sensitive"
+                checked={newRule.match_options.case_sensitive}
+                onChange={(e) => setNewRule({
+                  ...newRule,
+                  match_options: {
+                    ...newRule.match_options,
+                    case_sensitive: e.currentTarget.checked
+                  }
+                })}
+                description="Match exact case (usually not needed)"
+              />
+              <Checkbox
+                label="Word Boundaries"
+                checked={newRule.match_options.word_boundaries}
+                onChange={(e) => setNewRule({
+                  ...newRule,
+                  match_options: {
+                    ...newRule.match_options,
+                    word_boundaries: e.currentTarget.checked
+                  }
+                })}
+                description="Only match whole words (recommended to prevent false matches)"
+              />
+            </Stack>
+          )}
+
           <NumberInput
             label="Weight"
             value={newRule.weight}
@@ -1055,7 +1156,9 @@ function RulesTab({ rules, onReload }: {
             min={0}
             max={2}
             step={0.1}
+            description="0.1-0.3: mild, 0.4-0.6: moderate, 0.7-0.9: strong, 1.0+: very strong"
           />
+          
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setShowCreateModal(false)}>
               Cancel
@@ -1086,10 +1189,15 @@ function RulesTab({ rules, onReload }: {
               placeholder="Enter rule name"
             />
             <TextInput
-              label="Pattern (Regex)"
+              label={
+                editingRule.rule_type === 'keyword' ? 'Keywords (comma-separated)' :
+                editingRule.rule_type === 'behavioral' ? 'Behavior Pattern' :
+                editingRule.rule_type === 'media' ? 'Media Pattern' :
+                'Regex Pattern'
+              }
               value={editingRule.pattern}
               onChange={(e) => setEditingRule({ ...editingRule, pattern: e.target.value })}
-              placeholder="Enter regex pattern"
+              placeholder="Enter pattern"
             />
             <NumberInput
               label="Weight"
@@ -1145,9 +1253,46 @@ function RulesTab({ rules, onReload }: {
             <Divider />
 
             <div>
-              <Text fw={500} mb="xs">Pattern</Text>
+              <Text fw={500} mb="xs">
+                {selectedRuleForInfo.rule_type === 'keyword' ? 'Keywords' :
+                 selectedRuleForInfo.rule_type === 'behavioral' ? 'Behavior Pattern' :
+                 selectedRuleForInfo.rule_type === 'media' ? 'Media Pattern' :
+                 'Regex Pattern'}
+              </Text>
               <Code block>{selectedRuleForInfo.pattern}</Code>
             </div>
+
+            {/* Show target fields for keyword/regex */}
+            {(selectedRuleForInfo.rule_type === 'keyword' || selectedRuleForInfo.rule_type === 'regex') && 
+             selectedRuleForInfo.target_fields && selectedRuleForInfo.target_fields.length > 0 && (
+              <div>
+                <Text fw={500} mb="xs">Target Fields</Text>
+                <Group gap="xs">
+                  {selectedRuleForInfo.target_fields.map(field => (
+                    <Badge key={field} variant="light">{field}</Badge>
+                  ))}
+                </Group>
+              </div>
+            )}
+
+            {/* Show match options for keyword */}
+            {selectedRuleForInfo.rule_type === 'keyword' && selectedRuleForInfo.match_options && (
+              <div>
+                <Text fw={500} mb="xs">Match Options</Text>
+                <Stack gap="xs">
+                  <Text size="sm">
+                    Case Sensitive: <Badge size="sm" variant="light">
+                      {selectedRuleForInfo.match_options.case_sensitive ? 'Yes' : 'No'}
+                    </Badge>
+                  </Text>
+                  <Text size="sm">
+                    Word Boundaries: <Badge size="sm" variant="light">
+                      {selectedRuleForInfo.match_options.word_boundaries ? 'Yes' : 'No'}
+                    </Badge>
+                  </Text>
+                </Stack>
+              </div>
+            )}
 
             <div>
               <Text fw={500} mb="xs">Weight</Text>
@@ -1159,38 +1304,88 @@ function RulesTab({ rules, onReload }: {
               </Text>
             </div>
 
-            {selectedRuleForInfo.rule_type === 'regex' && (
-              <div>
-                <Text fw={500} mb="xs">Username Pattern Examples</Text>
-                <Stack gap="xs">
-                  <Text size="sm" c="dimmed">This pattern matches usernames. Examples:</Text>
-                  <div><Code>^spam.*</Code> <Text size="xs" c="dimmed" ml="sm">- Matches usernames starting with "spam"</Text></div>
-                  <div><Code>.*bot$</Code> <Text size="xs" c="dimmed" ml="sm">- Matches usernames ending with "bot"</Text></div>
-                  <div><Code>{'\\\\d{8,}'}</Code> <Text size="xs" c="dimmed" ml="sm">- Matches usernames with 8+ consecutive digits</Text></div>
-                </Stack>
-              </div>
-            )}
-
+            {/* Type-specific examples */}
             {selectedRuleForInfo.rule_type === 'keyword' && (
               <div>
-                <Text fw={500} mb="xs">Display Name Pattern Examples</Text>
+                <Text fw={500} mb="xs">About Keyword Rules</Text>
                 <Stack gap="xs">
-                  <Text size="sm" c="dimmed">This pattern matches display names. Examples:</Text>
-                  <div><Code>.*[🔥💰🚀].*</Code> <Text size="xs" c="dimmed" ml="sm">- Matches names with specific emojis</Text></div>
-                  <div><Code>{'[A-Z]{3,}'}</Code> <Text size="xs" c="dimmed" ml="sm">- Matches all-caps names (3+ chars)</Text></div>
-                  <div><Code>.*(crypto|nft|trading).*</Code> <Text size="xs" c="dimmed" ml="sm">- Matches names containing specific terms</Text></div>
+                  <Text size="sm" c="dimmed">
+                    Keyword rules provide fast, simple text matching for known spam terms and blocked phrases.
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • Use comma-separated keywords: <Code>spam,scam,casino</Code>
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • Target specific fields to reduce false positives
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • Enable word boundaries to avoid partial matches
+                  </Text>
                 </Stack>
               </div>
             )}
 
             {selectedRuleForInfo.rule_type === 'behavioral' && (
               <div>
-                <Text fw={500} mb="xs">Content Pattern Examples</Text>
+                <Text fw={500} mb="xs">About Behavioral Rules</Text>
                 <Stack gap="xs">
-                  <Text size="sm" c="dimmed">This pattern matches post content. Examples:</Text>
-                  <div><Code>.*buy.*crypto.*</Code> <Text size="xs" c="dimmed" ml="sm">- Matches posts about buying crypto</Text></div>
-                  <div><Code>{'https?://[^\\\\s]*\\\\.tk'}</Code> <Text size="xs" c="dimmed" ml="sm">- Matches posts with .tk domain links</Text></div>
-                  <div><Code>.*(earn|money|profit).*home.*</Code> <Text size="xs" c="dimmed" ml="sm">- Matches work-from-home scams</Text></div>
+                  <Text size="sm" c="dimmed">
+                    Behavioral rules detect suspicious account activity patterns and bot-like behavior.
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • <Code>rapid_posting</Code> - Detects accounts posting too frequently
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • <Code>link_spam</Code> - Detects excessive links in posts
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • <Code>automation_disclosure</Code> - Checks for bot disclosure
+                  </Text>
+                </Stack>
+              </div>
+            )}
+
+            {selectedRuleForInfo.rule_type === 'media' && (
+              <div>
+                <Text fw={500} mb="xs">About Media Rules</Text>
+                <Stack gap="xs">
+                  <Text size="sm" c="dimmed">
+                    Media rules enforce attachment policies for accessibility and content filtering.
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • <Code>missing_alt_text</Code> - Requires alt text on images
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • MIME types like <Code>image/gif</Code> - Filter specific media types
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • SHA256 hashes - Detect known spam images
+                  </Text>
+                </Stack>
+              </div>
+            )}
+
+            {selectedRuleForInfo.rule_type === 'regex' && (
+              <div>
+                <Text fw={500} mb="xs">About Regex Rules</Text>
+                <Stack gap="xs">
+                  <Text size="sm" c="dimmed">
+                    Regex rules provide advanced pattern matching but can be slow and error-prone.
+                  </Text>
+                  <Alert color="yellow" mt="xs">
+                    <Text size="sm">
+                      ⚠️ Consider using keyword rules instead when possible. They're faster, safer, and easier to maintain.
+                    </Text>
+                  </Alert>
+                  <Text size="sm" c="dimmed">
+                    • Always test patterns at regex101.com first
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • Avoid complex patterns that can cause timeouts
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    • Target specific fields to improve performance
+                  </Text>
                 </Stack>
               </div>
             )}

@@ -135,12 +135,16 @@ class RuleService:
         enabled: bool = True,
         description: str | None = None,
         created_by: str = "system",
+        target_fields: list[str] | None = None,
+        match_options: dict[str, Any] | None = None,
+        behavioral_params: dict[str, Any] | None = None,
+        media_params: dict[str, Any] | None = None,
     ) -> Rule:
         """Create a new rule in the database.
 
         Args:
             name: Human-readable name for the rule
-            detector_type: Type of detector (regex, keyword, behavioral)
+            detector_type: Type of detector (regex, keyword, behavioral, media)
             pattern: Pattern for the rule
             boolean_operator: Operator for compound patterns
             secondary_pattern: Second pattern for compound evaluation
@@ -153,6 +157,10 @@ class RuleService:
             enabled: Whether the rule is active
             description: Optional description of the rule
             created_by: User/system that created the rule
+            target_fields: Fields to check for keyword/regex (username, display_name, bio, content)
+            match_options: Keyword matching options (case_sensitive, word_boundaries, etc.)
+            behavioral_params: Behavioral detector parameters (time_window, thresholds, etc.)
+            media_params: Media detector parameters (require_alt_text, allowed_mime_types, etc.)
 
         Returns:
             The created Rule object
@@ -174,6 +182,10 @@ class RuleService:
                 enabled=enabled,
                 description=description,
                 created_by=created_by,
+                target_fields=target_fields,
+                match_options=match_options,
+                behavioral_params=behavioral_params,
+                media_params=media_params,
             )
 
             session.add(rule)

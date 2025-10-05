@@ -102,6 +102,28 @@ export type Rule = {
   description?: string;
   created_at?: string;
   updated_at?: string;
+  // Enhanced configuration fields
+  target_fields?: string[];
+  match_options?: {
+    case_sensitive?: boolean;
+    word_boundaries?: boolean;
+    phrase_match?: boolean;
+  };
+  behavioral_params?: {
+    time_window_hours?: number;
+    post_threshold?: number;
+    link_threshold?: number;
+    min_links_per_post?: number;
+    post_sample_size?: number;
+    account_age_days?: number;
+    min_posts?: number;
+  };
+  media_params?: {
+    require_alt_text?: boolean;
+    allowed_mime_types?: string[];
+    blocked_hashes?: string[];
+    detection_type?: string;
+  };
 };
 
 export type RulesList = {

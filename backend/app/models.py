@@ -107,6 +107,11 @@ class Rule(Base):
     action_warning_text = Column(Text, nullable=True)
     warning_preset_id = Column(Text, nullable=True)
     trigger_threshold = Column(Numeric, nullable=False, default=1.0)
+    # Enhanced detector configuration fields
+    target_fields = Column(JSON, nullable=True)  # ['username', 'display_name', 'bio', 'content'] for scoping
+    match_options = Column(JSON, nullable=True)  # {'case_sensitive': bool, 'word_boundaries': bool, etc}
+    behavioral_params = Column(JSON, nullable=True)  # {'time_window_hours': int, 'threshold': int, etc}
+    media_params = Column(JSON, nullable=True)  # {'require_alt_text': bool, 'allowed_mime_types': [], etc}
     # metadata fields
     trigger_count = Column(Integer, nullable=False, default=0)  # Number of times rule has been triggered
     last_triggered_at = Column(TIMESTAMP(timezone=True))  # When rule was last triggered
