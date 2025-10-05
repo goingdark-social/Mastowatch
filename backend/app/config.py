@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # Auth tokens / credentials
     MASTODON_CLIENT_SECRET: str = Field(..., min_length=1)
+    MASTODON_ACCESS_TOKEN: str = Field(..., min_length=1)  # User access token with admin scopes
 
     # Core runtime defaults (aligned with tests)
     DRY_RUN: bool = True
@@ -67,11 +68,6 @@ class Settings(BaseSettings):
     CONTENT_CACHE_TTL: int = 24  # Hours to cache content scans
 
     # Compatibility aliases
-    @property
-    def MASTODON_ACCESS_TOKEN(self) -> str:
-        """Maintain backwards compatibility for older imports."""
-        return self.MASTODON_CLIENT_SECRET
-
     @property
     def OAUTH_CLIENT_ID(self) -> str | None:
         """Expose Mastodon client ID via the legacy alias."""

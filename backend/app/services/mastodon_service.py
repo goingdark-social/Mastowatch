@@ -50,7 +50,7 @@ class MastodonService:
     # ---------------------------------------------------
     def exchange_oauth_code(self, code: str, redirect_uri: str) -> dict[str, Any]:
         """Exchange authorization code for token via /oauth/token.
-        
+
         Uses the official log_in method from mastodon.py instead of private API.
         """
         client = Mastodon(
@@ -129,7 +129,7 @@ class MastodonService:
 
     def admin_suspend_account(self, account_id: str) -> dict[str, Any]:
         """Suspend an account using the admin moderation API.
-        
+
         Uses admin_account_moderate which is the correct method name in mastodon.py.
         """
         client = self.get_admin_client()
@@ -146,7 +146,7 @@ class MastodonService:
         self, domain: str, severity: str = "suspend", private_comment: str = ""
     ) -> dict[str, Any]:
         """Create a domain block using the admin API.
-        
+
         Uses admin_create_domain_block which is the correct method name in mastodon.py.
         """
         client = self.get_admin_client()
@@ -162,7 +162,7 @@ class MastodonService:
 
     def get_admin_accounts(self, origin=None, status=None, limit=50) -> tuple[list[dict[str, Any]], str | None]:
         """Fetch admin accounts list.
-        
+
         Uses admin_accounts_v2 as recommended by mastodon.py docs.
         The non-versioned admin_accounts() is deprecated and may call v1 API.
         """
@@ -173,12 +173,14 @@ class MastodonService:
         if status:
             params["status"] = status
         try:
+            logger.info(f"Calling admin_accounts_v2 with params: {params}")
             result = client.admin_accounts_v2(**params)
             pagination_info = client.get_pagination_info(result, pagination_direction="next")
             next_cursor = pagination_info.get("max_id") if pagination_info else None
+            logger.info(f"Successfully fetched {len(result)} accounts, next_cursor={next_cursor}")
             return result, next_cursor
         except (MastodonAPIError, MastodonNetworkError) as e:
-            logger.error(f"Failed to fetch admin accounts: {e}")
+            logger.error(f"Failed to fetch admin accounts with params {params}: {e}")
             raise
 
     # ---------------------------------------------------
@@ -186,7 +188,7 @@ class MastodonService:
     # ---------------------------------------------------
     def get_instance_info(self) -> dict[str, Any]:
         """Fetch instance information.
-        
+
         Uses the non-versioned instance() method which automatically returns
         the latest version of instance info available on the server.
         """
@@ -199,7 +201,7 @@ class MastodonService:
 
     def get_instance_rules(self) -> list[dict[str, Any]]:
         """Fetch instance rules.
-        
+
         Uses the non-versioned instance_rules() method.
         """
         client = self.get_bot_client()
@@ -216,7 +218,7 @@ class MastodonService:
         self, account_id: str, action_type: str, text: str | None = None, warning_preset_id: str | None = None
     ) -> dict[str, Any]:
         """Synchronous wrapper for admin account moderation.
-        
+
         Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()
@@ -233,7 +235,7 @@ class MastodonService:
 
     def admin_unsilence_account_sync(self, account_id: str) -> dict[str, Any]:
         """Synchronous wrapper for unsilencing accounts.
-        
+
         Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()
@@ -245,7 +247,7 @@ class MastodonService:
 
     def admin_unsuspend_account_sync(self, account_id: str) -> dict[str, Any]:
         """Synchronous wrapper for unsuspending accounts.
-        
+
         Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()
@@ -265,7 +267,7 @@ class MastodonService:
         rule_ids: list[int] | None = None,
     ) -> dict[str, Any]:
         """Synchronous wrapper for creating reports.
-        
+
         Used by enforcement_service which runs in RQ workers (sync context).
         """
         client = self.get_admin_client()

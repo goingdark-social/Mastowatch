@@ -212,23 +212,13 @@ class ScanningSystem:
 
         try:
             client = mastodon_service.get_admin_client()
-            # Prefer direct client methods in tests/mocks
+            # Fetch statuses once (no need for separate media_only call)
+            # We can filter media statuses on our side
             if hasattr(client, "account_statuses"):
                 statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
-                media_statuses = client.account_statuses(
-                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, only_media=True
-                )
             else:
                 # Call service methods directly (they're synchronous)
-                statuses = mastodon_service.get_account_statuses(
-                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
-                )
-                media_statuses = mastodon_service.get_account_statuses(
-                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
-                )
-
-            seen = {s["id"] for s in statuses if "id" in s}
-            statuses.extend([s for s in media_statuses if ("id" not in s) or (s["id"] not in seen)])
+                statuses = mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
 
             # Continue with existing rule evaluation and DB writes...
             scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)
