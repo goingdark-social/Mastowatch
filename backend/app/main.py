@@ -13,6 +13,7 @@ from app.api.config import router as config_router
 from app.api.logs import router as logs_router
 from app.api.rules import router as rules_router
 from app.api.scanning import router as scanning_router
+from app.jobs.api import router as jobs_router
 from app.config import get_settings
 from app.db import SessionLocal
 from app.logging_conf import setup_logging
@@ -32,9 +33,9 @@ def get_current_user_hybrid(request=None):
 
 # Make require_admin_hybrid available for test patching
 require_admin_hybrid = require_admin_hybrid
-import app.tasks.jobs as _jobs
+import app.jobs.tasks as _jobs
 from app.startup_validation import run_all_startup_validations
-from app.tasks.jobs import process_new_report, process_new_status
+from app.jobs.tasks import process_new_report, process_new_status
 
 # Expose tasks at module level for test patching
 scan_federated_content = _jobs.scan_federated_content
@@ -68,6 +69,7 @@ app.include_router(config_router)
 app.include_router(scanning_router)
 app.include_router(auth_router)
 app.include_router(logs_router)
+app.include_router(jobs_router)
 
 if settings.CORS_ORIGINS:
     app.add_middleware(
@@ -316,7 +318,7 @@ def webhook_mastodon_events(request: Request):
                 },
             )
 
-        # Route events to appropriate Celery tasks
+        # Route events to appropriate RQ jobs
         task_id = None
         # Deduplication using Redis SETNX
         r = redis.from_url(settings.REDIS_URL)
@@ -327,16 +329,20 @@ def webhook_mastodon_events(request: Request):
             logger.info(f"Duplicate webhook event received: {event_type}", extra={"request_id": request_id})
             return {"ok": True, "message": f"Duplicate event: {event_type}", "request_id": request_id}
 
+        # Enqueue jobs using RQ
+        from app.jobs.worker import get_queue
+        queue = get_queue()
+
         if event_type == "report.created":
             report_id = payload.get("report", {}).get("id")
             logger.info(f"Enqueuing report.created event for report ID: {report_id}", extra={"request_id": request_id})
-            task = process_new_report.delay(payload)
-            task_id = task.id
+            job = queue.enqueue(process_new_report, payload)
+            task_id = job.id
         elif event_type == "status.created":
             status_id = payload.get("status", {}).get("id")
             logger.info(f"Enqueuing status.created event for status ID: {status_id}", extra={"request_id": request_id})
-            task = process_new_status.delay(payload)
-            task_id = task.id
+            job = queue.enqueue(process_new_status, payload)
+            task_id = job.id
         else:
             logger.info(f"Received unhandled Mastodon event type: {event_type}", extra={"request_id": request_id})
             return {"ok": True, "message": f"Unhandled event type: {event_type}", "request_id": request_id}
