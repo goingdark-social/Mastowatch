@@ -92,13 +92,13 @@ class OAuthConfig:
                 detail="Invalid or expired session",
             ) from e
 
-    async def fetch_user_info(self, access_token: str) -> User | None:
+    def fetch_user_info(self, access_token: str) -> User | None:
         """Return user info from the Mastodon API."""
 
         try:
             from app.services.mastodon_service import mastodon_service
 
-            data = await mastodon_service.verify_credentials(access_token)
+            data = mastodon_service.verify_credentials(access_token)
             is_admin = False
             role_data = data.get("role")
             if role_data:

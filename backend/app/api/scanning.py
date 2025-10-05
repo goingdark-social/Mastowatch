@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.post("/scan/start")
-async def start_scan_session(session_type: str, user: User = Depends(require_admin_hybrid)):
+def start_scan_session(session_type: str, user: User = Depends(require_admin_hybrid)):
     """Start a new scan session."""
     if session_type not in ["remote", "local", "federated"]:
         raise HTTPException(status_code=400, detail="Invalid session type")
@@ -26,7 +26,7 @@ async def start_scan_session(session_type: str, user: User = Depends(require_adm
 
 
 @router.post("/scan/{session_id}/complete")
-async def complete_scan_session(session_id: str, user: User = Depends(require_api_key)):
+def complete_scan_session(session_id: str, user: User = Depends(require_api_key)):
     """Complete a scan session."""
     scanner = ScanningSystem()
     scanner.complete_scan_session(session_id)
@@ -34,7 +34,7 @@ async def complete_scan_session(session_id: str, user: User = Depends(require_ap
 
 
 @router.get("/scan/accounts", response_model=AccountsPage)
-async def get_next_accounts_to_scan(
+def get_next_accounts_to_scan(
     session_type: str, limit: int = 50, cursor: str | None = None, user: User = Depends(require_api_key)
 ):
     """Get the next batch of accounts to scan."""
@@ -44,7 +44,7 @@ async def get_next_accounts_to_scan(
 
 
 @router.post("/scan/account", response_model=dict[str, Any])
-async def scan_account_efficiently(
+def scan_account_efficiently(
     account_data: dict[str, Any], session_id: str, user: User = Depends(require_api_key)
 ):
     """Scan a single account efficiently."""
@@ -54,7 +54,7 @@ async def scan_account_efficiently(
 
 
 @router.get("/scan/federated", response_model=list[dict[str, Any]])
-async def scan_federated_content(target_domains: list[str] | None = None, user: User = Depends(require_api_key)):
+def scan_federated_content(target_domains: list[str] | None = None, user: User = Depends(require_api_key)):
     """Scan federated content."""
     scanner = ScanningSystem()
     results = scanner.scan_federated_content(target_domains)
@@ -62,7 +62,7 @@ async def scan_federated_content(target_domains: list[str] | None = None, user: 
 
 
 @router.get("/domains/alerts")
-async def get_domain_alerts(limit: int = 100, user: User = Depends(require_api_key)):
+def get_domain_alerts(limit: int = 100, user: User = Depends(require_api_key)):
     """Get domain alerts."""
     scanner = ScanningSystem()
     alerts = scanner.get_domain_alerts(limit)

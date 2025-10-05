@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Any
 
@@ -49,7 +48,7 @@ class MastodonService:
     # ---------------------------------------------------
     # OAuth
     # ---------------------------------------------------
-    async def exchange_oauth_code(self, code: str, redirect_uri: str) -> dict[str, Any]:
+    def exchange_oauth_code(self, code: str, redirect_uri: str) -> dict[str, Any]:
         """Exchange authorization code for token via /oauth/token.
         
         Uses the official log_in method from mastodon.py instead of private API.
@@ -62,8 +61,7 @@ class MastodonService:
         try:
             # Use the official log_in method with OAuth code flow
             # This returns the access token string, so we need to wrap it in a dict
-            access_token = await asyncio.to_thread(
-                client.log_in,
+            access_token = client.log_in(
                 code=code,
                 redirect_uri=redirect_uri,
                 scopes=self.settings.OAUTH_SCOPE.split(),
@@ -76,27 +74,26 @@ class MastodonService:
     # ---------------------------------------------------
     # Account info
     # ---------------------------------------------------
-    async def verify_credentials(self, token: str) -> dict[str, Any]:
+    def verify_credentials(self, token: str) -> dict[str, Any]:
         client = self.get_client(token)
         try:
-            return await asyncio.to_thread(client.account_verify_credentials)
+            return client.account_verify_credentials()
         except (MastodonAPIError, MastodonNetworkError) as e:
             logger.error(f"Credential verification failed: {e}")
             raise
 
-    async def get_account(self, account_id: str) -> dict[str, Any]:
+    def get_account(self, account_id: str) -> dict[str, Any]:
         client = self.get_admin_client()
         try:
-            return await asyncio.to_thread(client.account, account_id)
+            return client.account(account_id)
         except (MastodonAPIError, MastodonNetworkError) as e:
             logger.error(f"Failed to fetch account {account_id}: {e}")
             raise
 
-    async def get_account_statuses(self, account_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    def get_account_statuses(self, account_id: str, limit: int = 20) -> list[dict[str, Any]]:
         client = self.get_admin_client()
         try:
-            return await asyncio.to_thread(
-                client.account_statuses,
+            return client.account_statuses(
                 account_id,
                 limit=limit,
             )
@@ -107,7 +104,7 @@ class MastodonService:
     # ---------------------------------------------------
     # Reports / moderation
     # ---------------------------------------------------
-    async def create_report(
+    def create_report(
         self,
         account_id: str,
         status_ids: list[str] | None = None,
@@ -118,8 +115,7 @@ class MastodonService:
     ) -> dict[str, Any]:
         client = self.get_admin_client()
         try:
-            return await asyncio.to_thread(
-                client.report,
+            return client.report(
                 account_id=account_id,
                 status_ids=status_ids or [],
                 comment=comment,
@@ -131,15 +127,14 @@ class MastodonService:
             logger.error(f"Report creation failed for account {account_id}: {e}")
             raise
 
-    async def admin_suspend_account(self, account_id: str) -> dict[str, Any]:
+    def admin_suspend_account(self, account_id: str) -> dict[str, Any]:
         """Suspend an account using the admin moderation API.
         
         Uses admin_account_moderate which is the correct method name in mastodon.py.
         """
         client = self.get_admin_client()
         try:
-            return await asyncio.to_thread(
-                client.admin_account_moderate,
+            return client.admin_account_moderate(
                 account_id,
                 action="suspend",
             )
@@ -147,7 +142,7 @@ class MastodonService:
             logger.error(f"Failed to suspend account {account_id}: {e}")
             raise
 
-    async def admin_create_domain_block(
+    def admin_create_domain_block(
         self, domain: str, severity: str = "suspend", private_comment: str = ""
     ) -> dict[str, Any]:
         """Create a domain block using the admin API.
@@ -156,8 +151,7 @@ class MastodonService:
         """
         client = self.get_admin_client()
         try:
-            return await asyncio.to_thread(
-                client.admin_create_domain_block,
+            return client.admin_create_domain_block(
                 domain=domain,
                 severity=severity,
                 private_comment=private_comment,
@@ -166,7 +160,7 @@ class MastodonService:
             logger.error(f"Failed to block domain {domain}: {e}")
             raise
 
-    async def get_admin_accounts(self, origin=None, status=None, limit=50) -> tuple[list[dict[str, Any]], str | None]:
+    def get_admin_accounts(self, origin=None, status=None, limit=50) -> tuple[list[dict[str, Any]], str | None]:
         """Fetch admin accounts list.
         
         Uses admin_accounts_v2 as recommended by mastodon.py docs.
@@ -179,8 +173,8 @@ class MastodonService:
         if status:
             params["status"] = status
         try:
-            result = await asyncio.to_thread(client.admin_accounts_v2, **params)
-            pagination_info = await asyncio.to_thread(client.get_pagination_info, result, pagination_direction="next")
+            result = client.admin_accounts_v2(**params)
+            pagination_info = client.get_pagination_info(result, pagination_direction="next")
             next_cursor = pagination_info.get("max_id") if pagination_info else None
             return result, next_cursor
         except (MastodonAPIError, MastodonNetworkError) as e:
@@ -190,7 +184,7 @@ class MastodonService:
     # ---------------------------------------------------
     # Instance info
     # ---------------------------------------------------
-    async def get_instance_info(self) -> dict[str, Any]:
+    def get_instance_info(self) -> dict[str, Any]:
         """Fetch instance information.
         
         Uses the non-versioned instance() method which automatically returns
@@ -198,19 +192,19 @@ class MastodonService:
         """
         client = self.get_bot_client()
         try:
-            return await asyncio.to_thread(client.instance)
+            return client.instance()
         except (MastodonAPIError, MastodonNetworkError) as e:
             logger.error(f"Failed to fetch instance info: {e}")
             raise
 
-    async def get_instance_rules(self) -> list[dict[str, Any]]:
+    def get_instance_rules(self) -> list[dict[str, Any]]:
         """Fetch instance rules.
         
         Uses the non-versioned instance_rules() method.
         """
         client = self.get_bot_client()
         try:
-            return await asyncio.to_thread(client.instance_rules)
+            return client.instance_rules()
         except (MastodonAPIError, MastodonNetworkError) as e:
             logger.error(f"Failed to fetch instance rules: {e}")
             raise

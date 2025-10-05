@@ -92,7 +92,7 @@ def admin_login(request: Request, popup: bool = False):
 
 
 @router.get("/admin/callback", tags=["auth"])
-async def admin_callback(request: Request, response: Response, code: str = None, state: str = None, error: str = None):
+def admin_callback(request: Request, response: Response, code: str = None, state: str = None, error: str = None):
     """Handle OAuth callback from Mastodon."""
     settings = get_settings()
     oauth_config = get_oauth_config()
@@ -115,13 +115,13 @@ async def admin_callback(request: Request, response: Response, code: str = None,
         from app.services.mastodon_service import mastodon_service
 
         redirect_uri = settings.OAUTH_REDIRECT_URI or f"{request.base_url}admin/callback"
-        token_info = await mastodon_service.exchange_oauth_code(code, redirect_uri)
+        token_info = mastodon_service.exchange_oauth_code(code, redirect_uri)
         access_token = token_info.get("access_token")
 
         if not access_token:
             raise HTTPException(status_code=500, detail="No access token received")
 
-        user = await oauth_config.fetch_user_info(access_token)
+        user = oauth_config.fetch_user_info(access_token)
         if not user:
             raise HTTPException(status_code=500, detail="Failed to fetch user information")
 
@@ -147,7 +147,7 @@ async def admin_callback(request: Request, response: Response, code: str = None,
 
 
 @router.get("/admin/popup-callback", response_class=HTMLResponse, tags=["auth"])
-async def popup_callback(
+def popup_callback(
     request: Request, response: Response, code: str | None = None, state: str | None = None, error: str | None = None
 ):
     """Handle popup OAuth callback."""
@@ -224,13 +224,13 @@ async def popup_callback(
         from app.services.mastodon_service import mastodon_service
 
         redirect_uri = settings.OAUTH_POPUP_REDIRECT_URI or f"{request.base_url}admin/popup-callback"
-        token_info = await mastodon_service.exchange_oauth_code(code, redirect_uri)
+        token_info = mastodon_service.exchange_oauth_code(code, redirect_uri)
         access_token = token_info.get("access_token")
 
         if not access_token:
             raise Exception("No access token received")
 
-        user = await oauth_config.fetch_user_info(access_token)
+        user = oauth_config.fetch_user_info(access_token)
         if not user:
             raise Exception("Failed to fetch user information")
 
@@ -297,7 +297,7 @@ async def popup_callback(
 
 
 @router.post("/admin/establish-session", tags=["auth"])
-async def establish_session(request: Request, response: Response, data: EstablishSessionRequest):
+def establish_session(request: Request, response: Response, data: EstablishSessionRequest):
     """Establish a session using an access token received from OAuth popup."""
     oauth_config = get_oauth_config()
     settings = get_settings()
@@ -306,7 +306,7 @@ async def establish_session(request: Request, response: Response, data: Establis
         raise HTTPException(status_code=500, detail="OAuth not configured")
 
     try:
-        user = await oauth_config.fetch_user_info(data.access_token)
+        user = oauth_config.fetch_user_info(data.access_token)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid access token")
 
