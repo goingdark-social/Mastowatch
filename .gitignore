@@ -23,3 +23,5 @@ venv/**
 !.env.development
 .serena/
 !.vscode/
+# Legacy Celery tasks directory - replaced by app/jobs
+backend/app/tasks/

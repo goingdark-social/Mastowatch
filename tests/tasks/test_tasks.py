@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, call, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import app.tasks.jobs as jobs
+import app.jobs.tasks as jobs
 from app.schemas import Violation
-from app.tasks.jobs import (
+from app.jobs.tasks import (
     CURSOR_NAME,
     CURSOR_NAME_LOCAL,
     _poll_accounts,
