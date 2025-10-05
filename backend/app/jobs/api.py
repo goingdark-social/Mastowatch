@@ -104,7 +104,7 @@ def get_job(job_id: str):
             "meta": job.meta,
         }
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Job not found: {e}")
+        raise HTTPException(status_code=404, detail=f"Job not found: {e}") from e
 
 
 @router.post("/jobs/{job_id}/cancel", dependencies=[Depends(require_admin_hybrid)])
@@ -117,7 +117,7 @@ def cancel_job(job_id: str):
         job.cancel()
         return {"message": f"Job {job_id} cancelled", "id": job_id}
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Failed to cancel job: {e}")
+        raise HTTPException(status_code=404, detail=f"Failed to cancel job: {e}") from e
 
 
 @router.post("/jobs/{job_id}/requeue", dependencies=[Depends(require_admin_hybrid)])
@@ -130,7 +130,7 @@ def requeue_job(job_id: str):
         job.requeue()
         return {"message": f"Job {job_id} requeued", "id": job_id}
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Failed to requeue job: {e}")
+        raise HTTPException(status_code=404, detail=f"Failed to requeue job: {e}") from e
 
 
 @router.get("/scheduled", dependencies=[Depends(require_admin_hybrid)])
@@ -160,7 +160,7 @@ def reschedule_jobs():
         return {"message": "Jobs rescheduled successfully"}
     except Exception as e:
         logger.error(f"Failed to reschedule jobs: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to reschedule jobs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to reschedule jobs: {e}") from e
 
 
 @router.post("/trigger/{task_name}", dependencies=[Depends(require_admin_hybrid)])

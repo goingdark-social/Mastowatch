@@ -1,3 +1,4 @@
+"""Background job tasks for automated account scanning and moderation."""
 from __future__ import annotations
 
 import logging

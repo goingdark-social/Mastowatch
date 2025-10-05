@@ -13,6 +13,11 @@ jobs:
           POSTGRES_USER: mastowatch
           POSTGRES_PASSWORD: mastowatch
           POSTGRES_DB: mastowatch
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:8
         ports:
@@ -23,7 +28,13 @@ jobs:
         with:
           python-version: '3.x'
       - run: pip install pytest==7.4.4
-      - run: docker compose -f docker-compose.mock.yml up -d
+      - name: Bring up mock stack
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.mock.yml up -d || {
+            docker ps -a || true
+            docker logs mastowatch-db-1 --tail=200 || true
+            exit 1
+          }
       - name: Download wait-for-it
         run: curl -o wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod +x wait-for-it.sh
       - name: Wait for Postgres
@@ -35,4 +46,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - run: docker compose -f docker-compose.mock.yml run --rm migrate alembic upgrade head
+      - run: docker compose -f docker-compose.yml -f docker-compose.mock.yml run --rm migrate alembic upgrade head

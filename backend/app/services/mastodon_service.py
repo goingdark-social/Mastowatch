@@ -1,3 +1,4 @@
+"""Mastodon API service wrapper using mastodon.py library."""
 import logging
 from typing import Any
 

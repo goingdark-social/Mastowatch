@@ -1,3 +1,4 @@
+"""Account and content scanning logic for moderation rule evaluation."""
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta

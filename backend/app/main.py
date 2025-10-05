@@ -1,3 +1,4 @@
+"""MastoWatch main application entry point and API endpoints."""
 import hashlib
 import hmac
 import logging
@@ -5,6 +6,13 @@ import time
 from datetime import datetime
 
 import redis
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlalchemy import text
+from starlette.middleware.sessions import SessionMiddleware
 
 # Import API routers
 from app.api.analytics import router as analytics_router
@@ -16,8 +24,11 @@ from app.api.scanning import router as scanning_router
 from app.config import get_settings
 from app.db import SessionLocal
 from app.jobs.api import router as jobs_router
+import app.jobs.tasks as _jobs
+from app.jobs.tasks import process_new_report, process_new_status
 from app.logging_conf import setup_logging
 from app.oauth import get_current_user, require_admin_hybrid
+from app.startup_validation import run_all_startup_validations
 
 
 # For backward compatibility with tests
@@ -33,22 +44,12 @@ def get_current_user_hybrid(request=None):
 
 # Make require_admin_hybrid available for test patching
 require_admin_hybrid = require_admin_hybrid
-import app.jobs.tasks as _jobs
-from app.jobs.tasks import process_new_report, process_new_status
-from app.startup_validation import run_all_startup_validations
 
 # Expose tasks at module level for test patching
 scan_federated_content = _jobs.scan_federated_content
 check_domain_violations = _jobs.check_domain_violations
 poll_admin_accounts = _jobs.poll_admin_accounts
 poll_admin_accounts_local = _jobs.poll_admin_accounts_local
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
-from fastapi.staticfiles import StaticFiles
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from sqlalchemy import text
-from starlette.middleware.sessions import SessionMiddleware
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ def healthz():
         raise HTTPException(
             status_code=500,
             detail={"error": "health_check_failed", "message": "Health check endpoint encountered an error"},
-        )
+        ) from e
 
 
 @app.get("/livez", tags=["ops"])
@@ -207,7 +208,7 @@ def readyz():
         raise HTTPException(
             status_code=503,
             detail={"error": "readiness_check_failed", "message": "Service not ready"},
-        )
+        ) from e
 
 
 @app.get("/metrics", response_class=PlainTextResponse, tags=["ops"])
@@ -312,7 +313,7 @@ def webhook_mastodon_events(request: Request):
                     "message": "Failed to parse JSON payload",
                     "request_id": request_id,
                 },
-            )
+            ) from e
 
         # Route events to appropriate RQ jobs
         task_id = None
@@ -380,7 +381,7 @@ def webhook_mastodon_events(request: Request):
         raise HTTPException(
             status_code=500,
             detail={"error": "internal_server_error", "message": "Webhook processing failed", "request_id": request_id},
-        )
+        ) from e
 
 
 if __name__ == "__main__":
