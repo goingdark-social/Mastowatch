@@ -15,7 +15,6 @@ class TestConfig(unittest.TestCase):
         self.test_env = {
             "INSTANCE_BASE": "https://test.mastodon.social",
             "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET",
-            "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET",
             "DATABASE_URL": "postgresql://test:test@localhost:5432/test",
             "REDIS_URL": "redis://localhost:6379/1",
             "UI_ORIGIN": "http://localhost:3000",

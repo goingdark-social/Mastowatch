@@ -1,3 +1,5 @@
+"""Utility functions for hashing and data processing."""
+
 import hashlib
 import json
 

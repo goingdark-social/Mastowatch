@@ -1,3 +1,5 @@
+"""Prometheus metrics definitions for application monitoring."""
+
 from prometheus_client import Counter, Gauge, Histogram
 
 accounts_scanned = Counter("sidecar_accounts_scanned_total", "Admin accounts analyzed")

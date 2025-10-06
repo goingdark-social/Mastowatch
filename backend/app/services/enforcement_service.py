@@ -272,9 +272,9 @@ class EnforcementService:
                     # Some test clients expose a helper to create reports
                     if hasattr(self.client, "report"):
                         self.client.report(
-                            account_id=account_id, 
-                            status_ids=kwargs.get("status_ids") or [], 
-                            comment=kwargs.get("comment", "")
+                            account_id=account_id,
+                            status_ids=kwargs.get("status_ids") or [],
+                            comment=kwargs.get("comment", ""),
                         )
                     else:
                         # Best-effort; tests usually mock higher-level call sites

@@ -1,3 +1,5 @@
+"""Authentication and authorization utilities."""
+
 from app.config import get_settings
 from fastapi import Header, HTTPException, status
 

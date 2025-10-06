@@ -1,3 +1,5 @@
+"""Background job tasks for automated account scanning and moderation."""
+
 from __future__ import annotations
 
 import logging
@@ -77,14 +79,16 @@ def _persist_account(a: dict):
         if existing:
             db.execute(
                 text(
-                    "UPDATE accounts SET acct=:acct, domain=:domain, last_checked_at=CURRENT_TIMESTAMP WHERE mastodon_account_id=:aid"
+                    "UPDATE accounts SET acct=:acct, domain=:domain, last_checked_at=CURRENT_TIMESTAMP "
+                    "WHERE mastodon_account_id=:aid"
                 ),
                 {"acct": acct, "domain": domain, "aid": account_id},
             )
         else:
             db.execute(
                 text(
-                    "INSERT INTO accounts (mastodon_account_id, acct, domain, last_checked_at) VALUES (:aid, :acct, :domain, CURRENT_TIMESTAMP)"
+                    "INSERT INTO accounts (mastodon_account_id, acct, domain, last_checked_at) "
+                    "VALUES (:aid, :acct, :domain, CURRENT_TIMESTAMP)"
                 ),
                 {"aid": account_id, "acct": acct, "domain": domain},
             )
@@ -417,7 +421,8 @@ def analyze_and_maybe_report(payload: dict):
                 # Insert and get the ID - SQLite compatible approach
                 db.execute(
                     text(
-                        "INSERT INTO reports (mastodon_account_id, status_id, mastodon_report_id, dedupe_key, comment, created_at) VALUES (:aid, :sid, :rid, :dk, :comment, CURRENT_TIMESTAMP)"
+                        "INSERT INTO reports (mastodon_account_id, status_id, mastodon_report_id, "
+                        "dedupe_key, comment, created_at) VALUES (:aid, :sid, :rid, :dk, :comment, CURRENT_TIMESTAMP)"
                     ),
                     {
                         "aid": acct_id,
@@ -562,7 +567,8 @@ def process_new_report(report_payload: dict):
                         "mastodon_report_id"
                     ):  # Assuming this field indicates if it's already reported
                         logging.info(
-                            f"Attempting to perform automated report for account {account_data['id']} due to rule {violation.rule_name}"
+                            f"Attempting to perform automated report for account {account_data['id']} "
+                            f"due to rule {violation.rule_name}"
                         )
                         enforcement_service.perform_account_action(
                             account_id=account_data["id"],
@@ -579,7 +585,8 @@ def process_new_report(report_payload: dict):
                     "domain_block",
                 ]:
                     logging.info(
-                        f"Attempting to perform automated action {violation.action_type} for account {account_data['id']} due to rule {violation.rule_name}"
+                        f"Attempting to perform automated action {violation.action_type} for account "
+                        f"{account_data['id']} due to rule {violation.rule_name}"
                     )
                     enforcement_service.perform_account_action(
                         account_id=account_data["id"],
@@ -659,7 +666,8 @@ def process_new_status(status_payload: dict):
                     "domain_block",
                 ]:
                     logging.info(
-                        f"Attempting to perform automated action {violation.action_type} for account {account_data['id']} due to rule {violation.rule_name}"
+                        f"Attempting to perform automated action {violation.action_type} for account "
+                        f"{account_data['id']} due to rule {violation.rule_name}"
                     )
                     enforcement_service.perform_account_action(
                         account_id=account_data["id"],
@@ -672,7 +680,8 @@ def process_new_status(status_payload: dict):
                 elif violation.action_type == "report":
                     # For status-triggered reports, create a new report
                     logging.info(
-                        f"Attempting to create automated report for account {account_data['id']} due to rule {violation.rule_name}"
+                        f"Attempting to create automated report for account {account_data['id']} "
+                        f"due to rule {violation.rule_name}"
                     )
                     enforcement_service.perform_account_action(
                         account_id=account_data["id"],

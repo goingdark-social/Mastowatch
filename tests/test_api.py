@@ -16,7 +16,6 @@ os.environ.update(
         "SKIP_STARTUP_VALIDATION": "1",
         "INSTANCE_BASE": "https://test.mastodon.social",
         "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123",
-        "MASTODON_CLIENT_SECRET": "test_MASTODON_CLIENT_SECRET_123",
         "DATABASE_URL": "sqlite:///test_api.db",
         "REDIS_URL": "redis://localhost:6380/1",
         "API_KEY": "test_api_key_123",
