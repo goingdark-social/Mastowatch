@@ -1,0 +1,36 @@
+name: Mastodon API Compliance Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  api-compliance:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+    
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.13"
+    
+    - name: Install Mastodon.py
+      run: |
+        python -m pip install --upgrade pip
+        pip install Mastodon.py
+    
+    - name: Run API Compliance Checker
+      run: python3 scripts/check_api_compliance.py
+    
+    - name: Report Results
+      if: failure()
+      run: |
+        echo "::error::Mastodon API compliance check failed. See logs above for details."
+        echo "Run 'python3 scripts/check_api_compliance.py' locally to see specific issues."

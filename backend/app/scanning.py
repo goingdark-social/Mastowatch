@@ -166,14 +166,7 @@ class ScanningSystem:
         This method calls the Mastodon service synchronously.
         """
         try:
-            client = mastodon_service.get_admin_client()
-            # Tests/mock clients provide `get_admin_accounts` on the client
-            if hasattr(client, "get_admin_accounts"):
-                accounts, next_cursor = client.get_admin_accounts(
-                    origin=session_type, status="active", limit=limit, max_id=cursor
-                )
-                return accounts, next_cursor
-            # Call service method directly (it's synchronous)
+            # Call service method directly - it's synchronous and always available
             accounts, next_cursor = mastodon_service.get_admin_accounts(
                 origin=session_type, status="active", limit=limit
             )
@@ -185,13 +178,7 @@ class ScanningSystem:
                 import time
 
                 time.sleep(1)
-                client = mastodon_service.get_admin_client()
-                if hasattr(client, "get_admin_accounts"):
-                    accounts, next_cursor = client.get_admin_accounts(
-                        origin=session_type, status="active", limit=limit, max_id=cursor
-                    )
-                    return accounts, next_cursor
-                # Call service method directly (it's synchronous)
+                # Retry using service method
                 accounts, next_cursor = mastodon_service.get_admin_accounts(
                     origin=session_type, status="active", limit=limit
                 )
@@ -207,28 +194,40 @@ class ScanningSystem:
         """Synchronous wrapper that scans an account using the Mastodon client.
 
         Calls sync client methods directly.
+
+        IMPORTANT: account_data is an ADMIN ACCOUNT object from admin_accounts_v2(),
+        which has structure: {"id": "admin_id", "account": {"id": "real_account_id", ...}}
+        We need to use account_data["account"]["id"] for API calls, not account_data["id"]!
         """
-        account_id = account_data.get("id")
+        # Extract the nested account object from the admin account wrapper
+        nested_account = account_data.get("account", {})
+        account_id = nested_account.get("id")
+
         if not account_id or not self.should_scan_account(account_id, account_data):
             return None
 
         try:
-            client = mastodon_service.get_admin_client()
-            # Prefer direct client methods in tests/mocks
-            if hasattr(client, "account_statuses"):
-                statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
-                media_statuses = client.account_statuses(
-                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH, only_media=True
-                )
-            else:
-                # Call service methods directly (they're synchronous)
-                statuses = mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
-                media_statuses = mastodon_service.get_account_statuses(
-                    account_id, limit=self.settings.MAX_STATUSES_TO_FETCH
-                )
+    client = mastodon_service.get_admin_client()
 
-            seen = {s["id"] for s in statuses if "id" in s}
-            statuses.extend([s for s in media_statuses if ("id" not in s) or (s["id"] not in seen)])
+    # Always use the real account ID, not the admin account ID
+    # Prefer direct client methods in tests/mocks
+    if hasattr(client, "account_statuses"):
+        # Fetch statuses once — standard API call
+        statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+    else:
+        # Call service methods directly (used in mocks/tests)
+        statuses = mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+
+    # Continue with existing rule evaluation and DB writes...
+    scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)
+    return scan_result
+
+except MastodonNetworkError as e:
+    logger.error(f"Network error scanning {account_id}: {e}")
+    return None
+except Exception as e:
+    logger.error(f"Unhandled error scanning account {account_id}: {e}")
+    return None
 
             # Continue with existing rule evaluation and DB writes...
             scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)

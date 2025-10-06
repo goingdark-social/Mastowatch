@@ -14,6 +14,7 @@ Analyze accounts/statuses and **file reports via API** so human moderators act i
 - ✅ **Frontend**: settings interface with error states and real-time configuration
 - ✅ **Testing**: Comprehensive edge case test coverage (22 test scenarios)
 - ✅ **CI/CD**: Automated testing, static analysis, and code formatting
+- ✅ **API Compliance**: Automated validation against mastodon.py library (see [docs/api-compliance-checker.md](docs/api-compliance-checker.md))
 - ✅ **Audit Logs**: Enforcement actions recorded with rule context and API responses
 - ✅ **User Notifications**: Warnings and suspensions include messages sent through Mastodon
 - ✅ **Media-aware Scanning**: Analyzes attachments for alt text, MIME types, and URL hashes

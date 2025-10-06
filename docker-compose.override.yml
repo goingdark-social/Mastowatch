@@ -112,8 +112,6 @@ services:
       # Development Redis
       REDIS_URL: redis://redis:6379/0
       RQ_DASHBOARD_REDIS_URL: redis://redis:6379/0
-    ports:
-      - "127.0.0.1:9181:9181"
 
   migrate:
     environment:

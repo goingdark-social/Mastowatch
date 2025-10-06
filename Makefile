@@ -41,6 +41,12 @@ test: ## Run tests
 check: ## Run all quality checks
 	$(MAKE) lint format-check typecheck test
 
+api-compliance: ## Check Mastodon API compliance
+	python3 scripts/check_api_compliance.py
+
+api-compliance-verbose: ## Check Mastodon API compliance with verbose output
+	python3 scripts/check_api_compliance.py --verbose
+
 shell-db: ## Open database shell
 	docker compose exec db psql -U mastowatch -d mastowatch
 

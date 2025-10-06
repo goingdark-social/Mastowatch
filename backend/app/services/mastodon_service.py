@@ -170,17 +170,20 @@ class MastodonService:
         """
         client = self.get_admin_client()
         params = {"limit": limit}
-        if origin:
+        # Only add parameters if they're not None
+        if origin is not None:
             params["origin"] = origin
-        if status:
+        if status is not None:
             params["status"] = status
         try:
+            logger.info(f"Calling admin_accounts_v2 with params: {params}")
             result = client.admin_accounts_v2(**params)
             pagination_info = client.get_pagination_info(result, pagination_direction="next")
             next_cursor = pagination_info.get("max_id") if pagination_info else None
+            logger.info(f"Successfully fetched {len(result)} accounts, next_cursor={next_cursor}")
             return result, next_cursor
         except (MastodonAPIError, MastodonNetworkError) as e:
-            logger.error(f"Failed to fetch admin accounts: {e}")
+            logger.error(f"Failed to fetch admin accounts with params {params}: {e}")
             raise
 
     # ---------------------------------------------------
