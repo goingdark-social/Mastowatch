@@ -73,7 +73,7 @@ class EnforcementService:
                 # if available, otherwise return a mock response.
                 if hasattr(self.client, "admin_account_moderate"):
                     api_response = self.client.admin_account_moderate(
-                        account_id,
+                        id=account_id,
                         action=payload.get("type", "") if payload.get("type") != "warn" else None,
                         text=payload.get("text"),
                         warning_preset_id=payload.get("warning_preset_id"),
