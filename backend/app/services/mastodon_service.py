@@ -137,7 +137,7 @@ class MastodonService:
         client = self.get_admin_client()
         try:
             return client.admin_account_moderate(
-                account_id,
+                id=account_id,
                 action="suspend",
             )
         except (MastodonAPIError, MastodonNetworkError) as e:
@@ -227,7 +227,7 @@ class MastodonService:
         client = self.get_admin_client()
         try:
             return client.admin_account_moderate(
-                account_id,
+                id=account_id,
                 action=action_type if action_type != "warn" else None,  # None action = warning only
                 text=text,
                 warning_preset_id=warning_preset_id,

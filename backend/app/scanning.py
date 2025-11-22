@@ -207,27 +207,27 @@ class ScanningSystem:
             return None
 
         try:
-    client = mastodon_service.get_admin_client()
+            client = mastodon_service.get_admin_client()
 
-    # Always use the real account ID, not the admin account ID
-    # Prefer direct client methods in tests/mocks
-    if hasattr(client, "account_statuses"):
-        # Fetch statuses once — standard API call
-        statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
-    else:
-        # Call service methods directly (used in mocks/tests)
-        statuses = mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+            # Always use the real account ID, not the admin account ID
+            # Prefer direct client methods in tests/mocks
+            if hasattr(client, "account_statuses"):
+                # Fetch statuses once — standard API call
+                statuses = client.account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
+            else:
+                # Call service methods directly (used in mocks/tests)
+                statuses = mastodon_service.get_account_statuses(account_id, limit=self.settings.MAX_STATUSES_TO_FETCH)
 
-    # Continue with existing rule evaluation and DB writes...
-    scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)
-    return scan_result
+            # Continue with existing rule evaluation and DB writes...
+            scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)
+            return scan_result
 
-except MastodonNetworkError as e:
-    logger.error(f"Network error scanning {account_id}: {e}")
-    return None
-except Exception as e:
-    logger.error(f"Unhandled error scanning account {account_id}: {e}")
-    return None
+        except MastodonNetworkError as e:
+            logger.error(f"Network error scanning {account_id}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unhandled error scanning account {account_id}: {e}")
+            return None
 
             # Continue with existing rule evaluation and DB writes...
             scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)
