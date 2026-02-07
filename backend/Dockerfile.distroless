@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.19
 
 # Build stage with full Python environment
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 WORKDIR /app
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential python3-dev \
