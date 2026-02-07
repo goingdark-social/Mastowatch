@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, NamedTuple
 
@@ -174,10 +175,6 @@ class ScanningSystem:
         except MastodonNetworkError as e:
             logger.warning(f"Network timeout fetching {session_type} accounts, retrying: {e}")
             try:
-                # brief sleep to mimic retry behaviour
-                import time
-
-                time.sleep(1)
                 # Retry using service method
                 accounts, next_cursor = mastodon_service.get_admin_accounts(
                     origin=session_type, status="active", limit=limit
@@ -229,25 +226,12 @@ class ScanningSystem:
             logger.error(f"Unhandled error scanning account {account_id}: {e}")
             return None
 
-            # Continue with existing rule evaluation and DB writes...
-            scan_result = self._evaluate_and_store_scan(account_id, account_data, statuses, session_id)
-            return scan_result
-
-        except MastodonNetworkError as e:
-            logger.error(f"Network error scanning {account_id}: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Unhandled error scanning account {account_id}: {e}")
-            return None
-
     def _parse_next_cursor(self, link_header: str) -> str | None:
         """Parse next cursor from Link header for pagination."""
         if not link_header:
             return None
 
         # Look for rel="next" link
-        import re
-
         next_match = re.search(r'<[^>]*max_id=([^>&]+)[^>]*>;\s*rel="next"', link_header)
         if next_match:
             return next_match.group(1)
@@ -260,7 +244,7 @@ class ScanningSystem:
             return acct.split("@")[-1]
         return "local"
 
-    def _track_domain_violation(self, domain: str) -> None:
+    def track_domain_violation(self, domain: str) -> None:
         """Track domain violation for defederation monitoring."""
         with SessionLocal() as db:
             # Upsert domain alert
@@ -397,12 +381,3 @@ class ScanningSystem:
                 accounts_processed=session.accounts_processed,
                 total_accounts=session.total_accounts,
             )
-
-    def _get_current_rules_snapshot(self) -> dict:
-        """Get current rules snapshot for session tracking."""
-        rules, config, rules_version = rule_service.get_active_rules()
-        return {
-            "rules_version": rules_version,
-            "rule_count": len(rules),
-            "report_threshold": config.get("report_threshold", 1.0),
-        }
