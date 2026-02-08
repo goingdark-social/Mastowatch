@@ -7,9 +7,9 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from app.jobs.tasks import poll_admin_accounts
 from app.models import Account, Rule, ScanSession
 from app.scanning import ScanningSystem
-from app.jobs.tasks import poll_admin_accounts
 from sqlalchemy import text
 
 
@@ -256,7 +256,7 @@ class TestMastodonAPICompliance:
         pagination_info = {"max_id": "109573612584350057", "since_id": "109573612584350001", "min_id": None}
 
         assert "max_id" in pagination_info
-        assert isinstance(pagination_info["max_id"], (str, type(None)))
+        assert isinstance(pagination_info["max_id"], str | type(None))
 
     def test_status_structure(self):
         """Test status object structure matches Mastodon API."""

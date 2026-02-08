@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 
 class Evidence(BaseModel):
+    """Evidence collected during rule evaluation."""
+
     matched_terms: list[str]
     matched_status_ids: list[str]
     metrics: dict
@@ -29,6 +31,8 @@ class Evidence(BaseModel):
 
 
 class Violation(BaseModel):
+    """A rule violation detected during scanning."""
+
     rule_name: str
     rule_type: str = "unknown"  # Default value for backward compatibility
     score: float
@@ -37,5 +41,7 @@ class Violation(BaseModel):
 
 
 class AccountsPage(BaseModel):
+    """Paginated accounts response from admin API."""
+
     accounts: list[dict[str, Any]]
     next_cursor: str | None = None

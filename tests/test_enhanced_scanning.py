@@ -31,7 +31,7 @@ os.environ.update(
 # Add the app directory to the path so we can import the app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.schemas import Violation
+from app.schemas import Violation  # noqa: E402
 
 
 class TestScanningSystem(unittest.TestCase):

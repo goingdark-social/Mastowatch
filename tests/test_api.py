@@ -27,9 +27,9 @@ os.environ.update(
 # Add the app directory to the path so we can import the app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.models import AuditLog
-from app.oauth import User
-from fastapi.testclient import TestClient
+from app.models import AuditLog  # noqa: E402
+from app.oauth import User  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 def create_mock_admin_user():

@@ -19,6 +19,7 @@ class BehavioralDetector(BaseDetector):
     LINK_SPAM_WINDOW = 20
 
     def evaluate(self, rule: Rule, account_data: dict[str, Any], statuses: list[dict[str, Any]]) -> list[Violation]:
+        """Evaluate behavioral patterns against account activity."""
         violations: list[Violation] = []
         mastodon_account_id = account_data.get("mastodon_account_id")
         if not mastodon_account_id:

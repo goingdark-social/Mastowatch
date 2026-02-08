@@ -214,6 +214,7 @@ def readyz():
 
 @app.get("/metrics", response_class=PlainTextResponse, tags=["ops"])
 def metrics():
+    """Return Prometheus metrics in PlainText format."""
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 

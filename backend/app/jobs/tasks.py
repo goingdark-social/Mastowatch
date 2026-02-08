@@ -203,6 +203,7 @@ def poll_admin_accounts_local():
 
 
 def record_queue_stats():
+    """Gather queue statistics from Redis and update Prometheus metrics."""
     try:
         # RQ stores jobs in Redis under 'rq:queue:<queue_name>'
         queue_names = getattr(settings, "RQ_QUEUE_NAMES", ["default"])
@@ -260,6 +261,7 @@ def check_domain_violations():
 
 
 def analyze_and_maybe_report(payload: dict):
+    """Process webhook payload and file report if violations detected."""
     try:
         if _should_pause():
             logging.warning("PANIC_STOP enabled; skipping analyze/report")

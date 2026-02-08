@@ -26,6 +26,8 @@ class ScanProgress(NamedTuple):
 
 
 class ScanningSystem:
+    """Scanning system for evaluating accounts and statuses against moderation rules."""
+
     def __init__(self):
         """Initialize the scanning system."""
         self.settings = get_settings()
@@ -223,7 +225,7 @@ class ScanningSystem:
             logger.error(f"Network error scanning {account_id}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Unhandled error scanning account {account_id}: {e}")
+            logger.error(f"Error scanning account {account_id}: {e}")
             return None
 
     def _parse_next_cursor(self, link_header: str) -> str | None:

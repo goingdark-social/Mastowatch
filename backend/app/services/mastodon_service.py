@@ -21,6 +21,7 @@ class MastodonService:
     # Client helpers
     # ---------------------------------------------------
     def get_client(self, token: str | None = None) -> Mastodon:
+        """Get or create cached Mastodon API client."""
         key = token or "unauthenticated"
         if key not in self._client_cache:
             self._client_cache[key] = Mastodon(
@@ -77,6 +78,7 @@ class MastodonService:
     # Account info
     # ---------------------------------------------------
     def verify_credentials(self, token: str) -> dict[str, Any]:
+        """Verify OAuth token and return account info."""
         client = self.get_client(token)
         try:
             return client.account_verify_credentials()
@@ -85,6 +87,7 @@ class MastodonService:
             raise
 
     def get_account(self, account_id: str) -> dict[str, Any]:
+        """Fetch account details from admin API."""
         client = self.get_admin_client()
         try:
             return client.account(account_id)
@@ -93,6 +96,7 @@ class MastodonService:
             raise
 
     def get_account_statuses(self, account_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Fetch recent statuses for an account."""
         client = self.get_admin_client()
         try:
             return client.account_statuses(
@@ -115,6 +119,7 @@ class MastodonService:
         category: str = "other",
         rule_ids: list[int] | None = None,
     ) -> dict[str, Any]:
+        """File a moderation report with Mastodon."""
         client = self.get_admin_client()
         try:
             return client.report(

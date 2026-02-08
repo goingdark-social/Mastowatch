@@ -7,6 +7,7 @@ from pythonjsonlogger import jsonlogger
 
 
 def setup_logging():
+    """Configure JSON structured logging with stdout handler."""
     handler = logging.StreamHandler(sys.stdout)
     formatter = jsonlogger.JsonFormatter(
         '{"time": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", '

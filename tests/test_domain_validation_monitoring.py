@@ -33,7 +33,7 @@ os.environ.update(
 # Add the app directory to the path so we can import the app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 class TestDomainValidationMonitoring(unittest.TestCase):
