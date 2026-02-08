@@ -202,12 +202,13 @@ def get_rule_creation_help():
     """Get comprehensive help text and examples for creating rules."""
     return {
         "overview": {
-            "description": "MastoWatch supports multiple detector types. Choose the right tool for each moderation task.",
+            "description": "MastoWatch supports multiple detector types. "
+            "Choose the right tool for each moderation task.",
             "detector_types": {
-                "keyword": "Simple, fast text matching - best for known spam terms, blocked phrases, or specific words",
-                "behavioral": "Account activity patterns - best for detecting bots, spam behavior, or abuse patterns",
-                "media": "Media content policies - best for attachment requirements, MIME type filtering, or image hashing",
-                "regex": "Advanced pattern matching - use when keyword matching isn't flexible enough (requires regex expertise)",
+                "keyword": "Simple text matching for known spam terms, blocked phrases, or specific words.",
+                "behavioral": "Account activity patterns for detecting bots, spam behavior, or abuse patterns.",
+                "media": "Media policies for attachments, MIME type filtering, or image hashing.",
+                "regex": "Advanced pattern matching when keywords aren't flexible enough (requires regex expertise).",
             },
             "choosing_detector": [
                 "Start with keyword rules for simple text matches - they're faster and easier to maintain",
@@ -218,7 +219,8 @@ def get_rule_creation_help():
         },
         "rule_types": {
             "keyword": {
-                "description": "Fast, simple text matching for known terms and phrases. Best for most moderation needs.",
+                "description": "Fast, simple text matching for known terms "
+                "and phrases. Best for most moderation needs.",
                 "priority": 1,
                 "fields": [
                     "pattern (comma-separated keywords)",
@@ -310,7 +312,8 @@ def get_rule_creation_help():
                 ],
             },
             "media": {
-                "description": "Media attachment policies for accessibility, content type filtering, and known image detection.",
+                "description": "Media attachment policies for accessibility, "
+                "content type filtering, and known image detection.",
                 "priority": 3,
                 "fields": [
                     "pattern (MIME type, alt-text pattern, or image hash)",
@@ -354,9 +357,10 @@ def get_rule_creation_help():
                 ],
             },
             "regex": {
-                "description": "Advanced pattern matching using regular expressions. Use sparingly - regex can be slow and error-prone.",
+                "description": "Advanced pattern matching using regular "
+                "expressions. Use sparingly - regex can be slow.",
                 "priority": 4,
-                "warning": "Regex patterns can cause performance issues and false positives. Consider using keyword rules first.",
+                "warning": "Regex can cause performance issues and false positives. Consider keyword rules first.",
                 "fields": [
                     "pattern (regex pattern)",
                     "target_fields (which fields to check: username, display_name, bio, content)",

@@ -5,6 +5,7 @@ import json
 
 
 def make_dedupe_key(account_id: str, status_ids, policy_version: str, ruleset_sha: str, evidence: dict):
+    """Generate deduplication key for scan results."""
     base = {
         "account_id": account_id,
         "status_ids": sorted(status_ids or []),

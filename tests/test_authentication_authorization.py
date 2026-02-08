@@ -31,7 +31,7 @@ os.environ.update(
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 class TestAuthenticationAuthorization(unittest.TestCase):

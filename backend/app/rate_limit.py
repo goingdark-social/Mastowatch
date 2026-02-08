@@ -11,10 +11,12 @@ rcli = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
 def _keys(key):
+    """Generate rate limit key names for limit, remaining, and reset."""
     return f"rl:{key}:limit", f"rl:{key}:remaining", f"rl:{key}:reset"
 
 
 def update_from_headers(key, headers):
+    """Update rate limit state from response headers."""
     lim = headers.get("X-RateLimit-Limit")
     rem = headers.get("X-RateLimit-Remaining")
     rst = headers.get("X-RateLimit-Reset")
