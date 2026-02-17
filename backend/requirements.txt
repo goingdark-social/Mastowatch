@@ -1,5 +1,5 @@
 fastapi==0.128.4
-uvicorn[standard]==0.37.0
+uvicorn[standard]==0.41.0
 rq>=2.6.0,<2.7.0
 rq-scheduler>=0.13.0,<1.0.0
 rq-dashboard>=0.6.1,<1.0.0
