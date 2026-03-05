@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -11,7 +11,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
-FROM node:22-alpine AS runtime-dev
+FROM node:24-alpine AS runtime-dev
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
